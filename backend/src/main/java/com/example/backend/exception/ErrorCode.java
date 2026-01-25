@@ -1,4 +1,4 @@
-package com.example.demo.exception;
+package com.example.backend.exception;
 
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatusCode;
 
 @Getter
 public enum ErrorCode {
+    INVALID_REQUEST(1001, "Invalid request", HttpStatus.BAD_REQUEST),
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;

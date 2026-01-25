@@ -1,6 +1,6 @@
-package com.example.demo.exception;
+package com.example.backend.exception;
 
-import com.example.demo.dto.response.ApiResponse;
+import com.example.backend.dto.response.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
