@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -50,8 +52,9 @@ public class StaffAccount {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private boolean status;
+    private EntityStatus status = EntityStatus.ACTIVE;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "staffAccount")
     private Set<RefreshToken> refreshTokens = new LinkedHashSet<>();
@@ -112,11 +115,11 @@ public class StaffAccount {
         this.updatedAt = updatedAt;
     }
 
-    public boolean isStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
 

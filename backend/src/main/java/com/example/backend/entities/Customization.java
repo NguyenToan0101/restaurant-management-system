@@ -11,6 +11,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,8 +53,9 @@ public class Customization {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private boolean status;
+    private EntityStatus status;
 
     @Column(name = "price", precision = 10, scale = 2, nullable = false)
     private BigDecimal price = BigDecimal.ZERO;
@@ -132,11 +135,11 @@ public class Customization {
         this.orderItemCustomizations = orderItemCustomizations;
     }
 
-    public boolean isStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
 }

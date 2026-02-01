@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -37,8 +39,9 @@ public class Category {
     @Column(name = "name")
     private String name;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private boolean status;
+    private EntityStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at")
@@ -115,11 +118,11 @@ public class Category {
         this.menuItems = menuItems;
     }
 
-    public boolean isStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
 }

@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -53,8 +55,9 @@ public class User {
     @Column(name = "phone")
     private String phone;
     
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private boolean status = true;
+    private EntityStatus status = EntityStatus.ACTIVE;
     
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
     private Set<Restaurant> restaurants = new LinkedHashSet<>();
@@ -103,10 +106,10 @@ public class User {
     public void setPhone(String phone) {
         this.phone = phone;
     }
-    public boolean isStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
-    public void setStatus(boolean status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
     public Instant getCreatedAt() {

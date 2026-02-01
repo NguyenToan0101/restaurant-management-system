@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -42,9 +44,9 @@ public class OrderItem {
     @Column(name = "note")
     private String note;
 
-    // soft delete
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private boolean status;
+    private EntityStatus status = EntityStatus.ACTIVE;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "orderItem")
     private Set<OrderItemCustomization> orderItemCustomizations = new LinkedHashSet<>();
@@ -97,11 +99,11 @@ public class OrderItem {
         this.note = note;
     }
 
-    public boolean isStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
 

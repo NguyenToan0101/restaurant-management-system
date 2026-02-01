@@ -53,7 +53,7 @@ public class MenuItem {
     // soft delete
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private MenuItemStatus status = MenuItemStatus.ACTIVE;
+    private EntityStatus status = EntityStatus.ACTIVE;
 
     @Column(name = "is_bestseller")
     private boolean isBestSeller;
@@ -136,11 +136,11 @@ public class MenuItem {
         this.price = price;
     }
 
-    public MenuItemStatus getStatus() {
+    public EntityStatus getStatus() {
         return status;
     }
 
-    public void setStatus(MenuItemStatus status) {
+    public void setStatus(EntityStatus status) {
         this.status = status;
     }
 
