@@ -4,6 +4,7 @@ import com.example.backend.dto.response.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,6 +23,26 @@ public class GlobalExceptionHandler {
         response.setMessage(ex.getErrorCode().getMessage());
         return ResponseEntity
                 .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJwtAuthenticationException(JwtAuthenticationException ex) {
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(BadCredentialsException ex) {
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ErrorCode.INVALID_CREDENTIALS.getCode());
+        response.setMessage(ErrorCode.INVALID_CREDENTIALS.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
                 .body(response);
     }
 
