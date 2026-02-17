@@ -1,25 +1,29 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UtensilsCrossed, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useLogin } from "@/hooks/queries/useAuthQueries";
+import { useAuthStore } from "@/stores/authStore";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const loginMutation = useLogin();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({ title: "Welcome back!", description: "You have successfully signed in to RestoHub." });
-    }, 1500);
+    loginMutation.mutate({ email, password });
   };
 
   return (
@@ -56,8 +60,8 @@ const Login = () => {
                 </button>
               </div>
             </div>
-            <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+            <Button type="submit" variant="hero" className="w-full" size="lg" disabled={loginMutation.isPending}>
+              {loginMutation.isPending ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 

@@ -16,13 +16,13 @@ public class RefreshToken {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
-    private String id; // UUID string
+    private String id;
 
     @Column(name = "token_hash", nullable = false, length = 128)
     private String tokenHash;
 
-    @ManyToOne(optional = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(name = "issued_at", nullable = false)
@@ -31,18 +31,12 @@ public class RefreshToken {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
-    @Column(name = "revoked", nullable = false)
-    private boolean revoked = false;
-
     @Column(name = "client_ip")
     private String clientIp;
 
     @Column(name = "user_agent")
     private String userAgent;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_refresh_token_id")
-    private RefreshToken parentRefreshToken;
 
     @ManyToOne(optional = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_account_id", nullable = true)
@@ -88,14 +82,6 @@ public class RefreshToken {
         this.expiresAt = expiresAt;
     }
 
-    public boolean isRevoked() {
-        return revoked;
-    }
-
-    public void setRevoked(boolean revoked) {
-        this.revoked = revoked;
-    }
-
     public String getClientIp() {
         return clientIp;
     }
@@ -112,13 +98,6 @@ public class RefreshToken {
         this.userAgent = userAgent;
     }
 
-    public RefreshToken getParentRefreshToken() {
-        return parentRefreshToken;
-    }
-
-    public void setParentRefreshToken(RefreshToken parentRefreshToken) {
-        this.parentRefreshToken = parentRefreshToken;
-    }
 
     public StaffAccount getStaffAccount() {
         return staffAccount;

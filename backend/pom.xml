@@ -142,7 +142,7 @@
 					<changeLogFile>src/main/resources/db/changelog/db.changelog-master.yaml</changeLogFile>
 					<url>${env.DB_URL}</url>
 					<username>${env.DB_USER}</username>
-					<password>${env.DB_PASSWORD}@123</password>
+					<password>${env.DB_PASSWORD}</password>
 					<driver>org.postgresql.Driver</driver>
 				</configuration>
 			</plugin>

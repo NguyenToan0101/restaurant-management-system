@@ -1,3 +1,6 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: restaurant-management
@@ -13,7 +16,7 @@ spring:
 
 jwt:
   access-token:
-    expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600} # 1 hour in seconds
+    expiration: 3600 # 1 hour in seconds
   refresh-token:
-    expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800} # 7 days in seconds
-  secret-key: ${JWT_SECRET_KEY:IIxZ4+TL7ed8Gu2KDJxqbTMARthJHDM5GhN3kKzYITs=}
+    expiration: 604800 # 7 days in seconds
+  secret-key: ${JWT_SECRET_KEY}
