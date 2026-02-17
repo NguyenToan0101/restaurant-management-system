@@ -2,3 +2,9 @@ databaseChangeLog:
   - include:
       file: V001-init-data-changelog.sql
       relativeToChangelogFile: true
+  - include:
+      file: V002-modify-status-entities.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V003-init-users-role-data.sql
+      relativeToChangelogFile: true
