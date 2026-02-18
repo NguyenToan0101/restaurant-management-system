@@ -20,3 +20,6 @@ jwt:
   refresh-token:
     expiration: 604800 # 7 days in seconds
   secret-key: ${JWT_SECRET_KEY}
+
+frontend: 
+  base-url: ${FRONTEND_BASE_URL:http://localhost:5000}
