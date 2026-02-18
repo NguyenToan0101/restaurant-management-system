@@ -17,7 +17,7 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/restaurants');
     }
   }, [isAuthenticated, navigate]);
 
