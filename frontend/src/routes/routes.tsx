@@ -3,9 +3,8 @@ import { useAuthStore } from "@/stores/authStore";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
-import RestaurantSelection from "@/pages/RestaurantSelection";
-import RestaurantDashboard from "@/pages/RestaurantDashboard";
-import CommingSoon from "@/pages/CommingSoon";
+import RestaurantSelection from "@/pages/owner/RestaurantSelection";
+import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
 import Navbar from "@/components/Navbar";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -62,15 +61,8 @@ const AppRoutes = () => {
       } />
 
       <Route path="/dashboard/:id/*" element={
-        <RestaurantDashboard />
-      } />
-
-      <Route path="/coming-soon" element={
         <ProtectedRoute>
-          <>
-            <Navbar />
-            <CommingSoon />
-          </>
+          <RestaurantDashboard />
         </ProtectedRoute>
       } />
 

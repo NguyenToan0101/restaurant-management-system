@@ -7,10 +7,10 @@ import { NavLink } from "@/components/NavLink";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarTrigger, useSidebar,
+  SidebarTrigger, useSidebar, SidebarHeader,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { mockRestaurants } from "@/data/MockData";
+import { mockRestaurants } from "@/data/mockData";
 
 const menuItems = [
   { title: "Overview", url: "", icon: LayoutDashboard },
@@ -38,12 +38,38 @@ export function DashboardSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <div className="flex items-center gap-2 h-16 px-4 border-b border-sidebar-border shrink-0">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 h-16 px-4 border-b border-sidebar-border">
+          {!collapsed ? (
+            <>
+              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
+                  <UtensilsCrossed className="w-3.5 h-3.5 text-primary-foreground" />
+                </div>
+                <span className="text-sm font-bold tracking-tight text-sidebar-foreground">RestoHub</span>
+              </Link>
+              <div className="ml-auto flex items-center gap-1">
+                <Link to="/restaurants" className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors p-1">
+                  <ChevronLeft className="w-4 h-4" />
+                </Link>
+                <SidebarTrigger className="text-sidebar-foreground/60 hover:text-sidebar-foreground" />
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <Link to="/" className="hover:opacity-80 transition-opacity">
+                <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
+                  <UtensilsCrossed className="w-3.5 h-3.5 text-primary-foreground" />
+                </div>
+              </Link>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+
+      <div className="flex items-center gap-2 h-14 px-4 border-b border-sidebar-border shrink-0">
         {!collapsed && (
           <>
-            <Link to="/dashboard" className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
             <div className="w-7 h-7 rounded-md bg-sidebar-accent flex items-center justify-center text-base">
               {restaurant?.logo ?? "🍽"}
             </div>
@@ -53,7 +79,13 @@ export function DashboardSidebar() {
             </div>
           </>
         )}
-        <SidebarTrigger className="ml-auto text-sidebar-foreground/60 hover:text-sidebar-foreground" />
+        {collapsed && (
+          <div className="w-full flex items-center justify-center">
+            <div className="w-7 h-7 rounded-md bg-sidebar-accent flex items-center justify-center text-base">
+              {restaurant?.logo ?? "🍽"}
+            </div>
+          </div>
+        )}
       </div>
 
       <SidebarContent>

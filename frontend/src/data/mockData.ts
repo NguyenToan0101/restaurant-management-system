@@ -12,6 +12,11 @@ export interface MenuItem {
   revenue: number;
 }
 
+export interface DailyCustomers {
+  date: string;
+  customers: number;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -22,7 +27,32 @@ export interface Restaurant {
   totalOrders: number;
   branches: Branch[];
   topSellers: MenuItem[];
+  dailyCustomers: DailyCustomers[];
 }
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: "manager" | "waiter" | "receptionist";
+  branchId: string;
+  isActive: boolean;
+}
+
+export const mockStaff: StaffMember[] = [
+  { id: "s1", name: "Nguyen Van A", email: "a.nguyen@phohanoi.com", phone: "0901234567", role: "manager", branchId: "b1", isActive: true },
+  { id: "s2", name: "Tran Thi B", email: "b.tran@phohanoi.com", phone: "0912345678", role: "waiter", branchId: "b1", isActive: true },
+  { id: "s3", name: "Le Van C", email: "c.le@phohanoi.com", phone: "0923456789", role: "receptionist", branchId: "b1", isActive: true },
+  { id: "s4", name: "Pham Thi D", email: "d.pham@phohanoi.com", phone: "0934567890", role: "waiter", branchId: "b1", isActive: false },
+  { id: "s5", name: "Hoang Van E", email: "e.hoang@phohanoi.com", phone: "0945678901", role: "manager", branchId: "b2", isActive: true },
+  { id: "s6", name: "Vo Thi F", email: "f.vo@phohanoi.com", phone: "0956789012", role: "waiter", branchId: "b2", isActive: true },
+  { id: "s7", name: "Do Van G", email: "g.do@sushisakura.com", phone: "0967890123", role: "manager", branchId: "b4", isActive: true },
+  { id: "s8", name: "Bui Thi H", email: "h.bui@sushisakura.com", phone: "0978901234", role: "receptionist", branchId: "b4", isActive: true },
+  { id: "s9", name: "Dang Van I", email: "i.dang@sushisakura.com", phone: "0989012345", role: "waiter", branchId: "b5", isActive: true },
+  { id: "s10", name: "Ngo Thi K", email: "k.ngo@pizzaroma.com", phone: "0990123456", role: "manager", branchId: "b6", isActive: true },
+  { id: "s11", name: "Ly Van L", email: "l.ly@pizzaroma.com", phone: "0901234568", role: "waiter", branchId: "b6", isActive: true },
+];
 
 export const mockRestaurants: Restaurant[] = [
   {
@@ -45,6 +75,15 @@ export const mockRestaurants: Restaurant[] = [
       { id: "m4", name: "Steamed Rice Rolls", sold: 3500, revenue: 52500 },
       { id: "m5", name: "Fresh Spring Rolls", sold: 3100, revenue: 40300 },
     ],
+    dailyCustomers: [
+      { date: "Mon", customers: 245 },
+      { date: "Tue", customers: 312 },
+      { date: "Wed", customers: 289 },
+      { date: "Thu", customers: 356 },
+      { date: "Fri", customers: 423 },
+      { date: "Sat", customers: 512 },
+      { date: "Sun", customers: 478 },
+    ],
   },
   {
     id: "r2",
@@ -65,6 +104,15 @@ export const mockRestaurants: Restaurant[] = [
       { id: "m9", name: "Gyoza", sold: 3200, revenue: 54400 },
       { id: "m10", name: "Tempura Set", sold: 2900, revenue: 87000 },
     ],
+    dailyCustomers: [
+      { date: "Mon", customers: 156 },
+      { date: "Tue", customers: 178 },
+      { date: "Wed", customers: 198 },
+      { date: "Thu", customers: 223 },
+      { date: "Fri", customers: 289 },
+      { date: "Sat", customers: 345 },
+      { date: "Sun", customers: 312 },
+    ],
   },
   {
     id: "r3",
@@ -83,6 +131,15 @@ export const mockRestaurants: Restaurant[] = [
       { id: "m13", name: "Pasta Carbonara", sold: 2800, revenue: 72800 },
       { id: "m14", name: "Tiramisu", sold: 2100, revenue: 35700 },
       { id: "m15", name: "Bruschetta", sold: 1800, revenue: 23400 },
+    ],
+    dailyCustomers: [
+      { date: "Mon", customers: 98 },
+      { date: "Tue", customers: 112 },
+      { date: "Wed", customers: 134 },
+      { date: "Thu", customers: 145 },
+      { date: "Fri", customers: 189 },
+      { date: "Sat", customers: 234 },
+      { date: "Sun", customers: 201 },
     ],
   },
 ];

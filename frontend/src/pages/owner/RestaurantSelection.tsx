@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { mockRestaurants } from "@/data/MockData";
+import { mockRestaurants } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowRight, Store, TrendingUp, GitBranch } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
