@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { UtensilsCrossed, Menu, X, LogOut, User } from "lucide-react";
+import { UtensilsCrossed, Menu, X, LogOut, User, Store } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
@@ -15,6 +15,7 @@ import {
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const user = useAuthStore((state) => state.user);
   const logoutMutation = useLogout();
@@ -60,6 +61,10 @@ const Navbar = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/restaurants')}>
+                  <Store className="w-4 h-4 mr-2" />
+                  My Restaurants
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
                   <LogOut className="w-4 h-4 mr-2" />
                   {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
@@ -96,7 +101,11 @@ const Navbar = () => {
                 <div className="text-sm text-secondary-foreground/60 px-3 py-2">
                   {user?.email}
                 </div>
-                <Button variant="ghost" className="w-full text-secondary-foreground/60" onClick={handleLogout} disabled={logoutMutation.isPending}>
+                <Button variant="ghost" className="w-full text-secondary-foreground/60 justify-start" onClick={() => { navigate('/restaurants'); setMobileOpen(false); }}>
+                  <Store className="w-4 h-4 mr-2" />
+                  My Restaurants
+                </Button>
+                <Button variant="ghost" className="w-full text-secondary-foreground/60 justify-start" onClick={handleLogout} disabled={logoutMutation.isPending}>
                   <LogOut className="w-4 h-4 mr-2" />
                   {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
                 </Button>
