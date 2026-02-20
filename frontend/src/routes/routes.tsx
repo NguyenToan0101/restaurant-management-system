@@ -9,21 +9,21 @@ import Navbar from "@/components/Navbar";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  
+
   if (isAuthenticated) {
     return <Navigate to="/restaurants" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -37,7 +37,7 @@ const AppRoutes = () => {
           <Index />
         </>
       } />
-      
+
       <Route path="/login" element={
         <PublicRoute>
           <Login />
@@ -47,10 +47,7 @@ const AppRoutes = () => {
       {/* Protected routes */}
       <Route path="/restaurants" element={
         <ProtectedRoute>
-          <>
-            <Navbar />
-            <RestaurantSelection />
-          </>
+          <RestaurantSelection />
         </ProtectedRoute>
       } />
 

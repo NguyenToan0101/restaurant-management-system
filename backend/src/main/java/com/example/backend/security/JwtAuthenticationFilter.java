@@ -87,8 +87,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
         } catch (JwtAuthenticationException e) {
             log.error("JWT authentication failed: {}", e.getMessage());
-            // Don't set authentication in SecurityContext
-            // Spring Security will handle the 401 response
+            
+            // Set response status to 401 for JWT errors
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            
+            String jsonResponse = String.format(
+                "{\"code\": %d, \"message\": \"%s\"}",
+                e.getErrorCode().getCode(),
+                e.getErrorCode().getMessage()
+            );
+            response.getWriter().write(jsonResponse);
+            return;
         }
         
         // Continue filter chain
