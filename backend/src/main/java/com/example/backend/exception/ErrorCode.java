@@ -13,6 +13,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(1102, "Người dùng không tồn tại", HttpStatus.NOT_FOUND),
     USER_INACTIVE(1103, "Tài khoản đã bị vô hiệu hóa", HttpStatus.FORBIDDEN),
     USER_EXISTED(1001, "User already existed", HttpStatus.BAD_REQUEST),
+    UNAUTHORIZED(1104, "Bạn không có quyền truy cập tài nguyên này", HttpStatus.FORBIDDEN),
 
     // JWT errors (1200-1299)
     INVALID_JWT_SIGNATURE(1201, "Chữ ký JWT không hợp lệ", HttpStatus.UNAUTHORIZED),

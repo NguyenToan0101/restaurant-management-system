@@ -10,7 +10,7 @@ import {
   SidebarTrigger, useSidebar, SidebarHeader,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { mockRestaurants } from "@/data/mockData";
+import { useRestaurant } from "@/hooks/queries/useRestaurantQueries";
 
 const menuItems = [
   { title: "Overview", url: "", icon: LayoutDashboard },
@@ -24,7 +24,7 @@ export function DashboardSidebar() {
   const { id } = useParams<{ id: string }>();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const restaurant = mockRestaurants.find((r) => r.id === id);
+  const { data: restaurant } = useRestaurant(id || '');
   const location = useLocation();
 
   const basePath = `/dashboard/${id}`;
@@ -71,18 +71,18 @@ export function DashboardSidebar() {
         {!collapsed && (
           <>
             <div className="w-7 h-7 rounded-md bg-sidebar-accent flex items-center justify-center text-base">
-              {restaurant?.logo ?? "🍽"}
+              🍽️
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate">{restaurant?.name}</p>
-              <p className="text-[11px] text-sidebar-foreground/50">{restaurant?.cuisine}</p>
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">{restaurant?.name || 'Loading...'}</p>
+              <p className="text-[11px] text-sidebar-foreground/50">{restaurant?.email || ''}</p>
             </div>
           </>
         )}
         {collapsed && (
           <div className="w-full flex items-center justify-center">
             <div className="w-7 h-7 rounded-md bg-sidebar-accent flex items-center justify-center text-base">
-              {restaurant?.logo ?? "🍽"}
+              🍽️
             </div>
           </div>
         )}

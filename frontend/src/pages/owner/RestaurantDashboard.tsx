@@ -1,34 +1,49 @@
-import { useParams, Navigate, Routes, Route } from "react-router-dom";
+import { useParams, Navigate, Routes, Route, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { mockRestaurants, Branch } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  DollarSign, ShoppingCart, TrendingUp, GitBranch,
-  Plus, Pencil, Store, Trophy, Users as UsersIcon,
+  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle,
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import CommingSoon from "@/pages/CommingSoon";
 import StaffManagement from "@/pages/owner/StaffManagement";
-
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-
-const formatNumber = (n: number) => new Intl.NumberFormat("en-US").format(n);
+import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
+import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
+import type { BranchDTO, RestaurantDTO } from "@/types/dto";
 
 const RestaurantDashboard = () => {
   const { id } = useParams<{ id: string }>();
-  const restaurant = mockRestaurants.find((r) => r.id === id);
+  const { data: restaurant, isLoading } = useRestaurant(id || '');
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!restaurant) return <Navigate to="/restaurants" replace />;
 
@@ -45,64 +60,139 @@ const RestaurantDashboard = () => {
   );
 };
 
-const OverviewPage = ({ restaurant }: { restaurant: typeof mockRestaurants[0] }) => {
-  const [branches, setBranches] = useState<Branch[]>(restaurant.branches ?? []);
+const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
+  const navigate = useNavigate();
+  const { data: branches = [], isLoading: isLoadingBranches } = useBranchesByRestaurant(restaurant.restaurantId);
+  const createBranch = useCreateBranch();
+  const updateBranch = useUpdateBranch();
+  const updateRestaurant = useUpdateRestaurant();
+  const deleteRestaurant = useDeleteRestaurant();
+
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
-  const [formName, setFormName] = useState("");
-  const [formAddress, setFormAddress] = useState("");
-  
+  const [editingBranch, setEditingBranch] = useState<BranchDTO | null>(null);
+  const [formData, setFormData] = useState({
+    address: '',
+    branchPhone: '',
+    mail: '',
+    openingTime: '08:00',
+    closingTime: '22:00',
+  });
+
   // Restaurant info state
   const [restaurantInfoDialogOpen, setRestaurantInfoDialogOpen] = useState(false);
-  const [restaurantName, setRestaurantName] = useState(restaurant.name);
-  const [restaurantCuisine, setRestaurantCuisine] = useState(restaurant.cuisine);
-  const [restaurantLogo, setRestaurantLogo] = useState(restaurant.logo);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [restaurantFormData, setRestaurantFormData] = useState({
+    name: restaurant.name,
+    email: restaurant.email,
+    restaurantPhone: restaurant.restaurantPhone,
+    publicUrl: restaurant.publicUrl || '',
+    description: restaurant.description || '',
+  });
 
   const openCreate = () => {
     setEditingBranch(null);
-    setFormName("");
-    setFormAddress("");
+    setFormData({
+      address: '',
+      branchPhone: '',
+      mail: '',
+      openingTime: '08:00',
+      closingTime: '22:00',
+    });
     setDialogOpen(true);
   };
 
-  const openEdit = (b: Branch) => {
+  const openEdit = (b: BranchDTO) => {
     setEditingBranch(b);
-    setFormName(b.name);
-    setFormAddress(b.address);
+    setFormData({
+      address: b.address,
+      branchPhone: b.branchPhone,
+      mail: b.mail,
+      openingTime: b.openingTime.substring(0, 5), // HH:mm
+      closingTime: b.closingTime.substring(0, 5), // HH:mm
+    });
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formName.trim() || !formAddress.trim()) return;
+  const handleSave = async () => {
+    if (!formData.address.trim() || !formData.branchPhone.trim() || !formData.mail.trim()) return;
+
     if (editingBranch) {
-      setBranches((prev) =>
-        prev.map((b) => (b.id === editingBranch.id ? { ...b, name: formName, address: formAddress } : b))
-      );
+      await updateBranch.mutateAsync({
+        id: editingBranch.branchId!,
+        data: {
+          address: formData.address,
+          branchPhone: formData.branchPhone,
+          mail: formData.mail,
+          openingTime: formData.openingTime + ':00',
+          closingTime: formData.closingTime + ':00',
+        },
+      });
     } else {
-      setBranches((prev) => [
-        ...prev,
-        { id: `b-${Date.now()}`, name: formName, address: formAddress, isActive: true },
-      ]);
+      await createBranch.mutateAsync({
+        restaurantId: restaurant.restaurantId,
+        address: formData.address,
+        branchPhone: formData.branchPhone,
+        mail: formData.mail,
+        openingTime: formData.openingTime + ':00',
+        closingTime: formData.closingTime + ':00',
+      });
     }
     setDialogOpen(false);
   };
 
-  const toggleActive = (branchId: string) => {
-    setBranches((prev) => prev.map((b) => (b.id === branchId ? { ...b, isActive: !b.isActive } : b)));
+  const toggleActive = async (branch: BranchDTO) => {
+    await updateBranch.mutateAsync({
+      id: branch.branchId!,
+      data: {
+        isActive: !branch.isActive,
+      },
+    });
   };
 
-  const handleRestaurantInfoSave = () => {
-    if (!restaurantName.trim() || !restaurantCuisine.trim()) return;
-    // In real app, this would update the restaurant via API
+  const handleRestaurantInfoSave = async () => {
+    if (!restaurantFormData.name.trim() || !restaurantFormData.email.trim()) return;
+
+    await updateRestaurant.mutateAsync({
+      id: restaurant.restaurantId,
+      data: {
+        name: restaurantFormData.name,
+        email: restaurantFormData.email,
+        restaurantPhone: restaurantFormData.restaurantPhone,
+        publicUrl: restaurantFormData.publicUrl || undefined,
+        description: restaurantFormData.description || undefined,
+      },
+    });
     setRestaurantInfoDialogOpen(false);
   };
 
-  const statCards = [
-    { label: "Total Revenue", value: formatCurrency(restaurant.totalRevenue), icon: DollarSign, iconStyle: "feature-icon-teal", iconColor: "text-teal" },
-    { label: "Monthly Revenue", value: formatCurrency(restaurant.monthlyRevenue), icon: TrendingUp, iconStyle: "feature-icon-blue", iconColor: "text-primary" },
-    { label: "Total Orders", value: formatNumber(restaurant.totalOrders), icon: ShoppingCart, iconStyle: "feature-icon-violet", iconColor: "text-violet" },
-    { label: "Branches", value: `${branches.filter((b) => b.isActive).length}/${branches.length}`, icon: GitBranch, iconStyle: "feature-icon-blue", iconColor: "text-primary" },
-  ];
+  const handleDeleteRestaurant = async () => {
+    await deleteRestaurant.mutateAsync(restaurant.restaurantId);
+    setDeleteDialogOpen(false);
+    navigate('/restaurants');
+  };
+
+  const handleActivateAll = async () => {
+    const inactiveBranches = branches.filter(b => !b.isActive);
+    for (const branch of inactiveBranches) {
+      await updateBranch.mutateAsync({
+        id: branch.branchId!,
+        data: { isActive: true },
+      });
+    }
+  };
+
+  const handleDeactivateAll = async () => {
+    const activeBranches = branches.filter(b => b.isActive);
+    for (const branch of activeBranches) {
+      await updateBranch.mutateAsync({
+        id: branch.branchId!,
+        data: { isActive: false },
+      });
+    }
+  };
+
+  const activeBranches = branches.filter(b => b.isActive);
+  const inactiveBranches = branches.filter(b => !b.isActive);
 
   return (
     <>
@@ -113,202 +203,203 @@ const OverviewPage = ({ restaurant }: { restaurant: typeof mockRestaurants[0] })
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-3xl">
-                  {restaurantLogo}
+                  🍽️
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display mb-1">{restaurantName}</h1>
-                  <p className="text-sm text-muted-foreground mb-2">{restaurantCuisine} Cuisine</p>
+                  <h1 className="text-2xl font-display mb-1">{restaurant.name}</h1>
+                  <p className="text-sm text-muted-foreground mb-2">{restaurant.email}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Store className="w-3.5 h-3.5" />
-                      {branches.filter(b => b.isActive).length} Active Branches
+                      {activeBranches.length} Active Branches
                     </span>
                     <span className="flex items-center gap-1">
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      {formatNumber(restaurant.totalOrders)} Total Orders
+                      <GitBranch className="w-3.5 h-3.5" />
+                      {branches.length} Total Branches
                     </span>
                   </div>
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={() => setRestaurantInfoDialogOpen(true)}>
-                <Pencil className="w-3.5 h-3.5 mr-1.5" />
-                Edit Info
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setRestaurantFormData({
+                      name: restaurant.name,
+                      email: restaurant.email,
+                      restaurantPhone: restaurant.restaurantPhone,
+                      publicUrl: restaurant.publicUrl || '',
+                      description: restaurant.description || '',
+                    });
+                    setRestaurantInfoDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  Edit Info
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Delete
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="mb-8">
-          <h2 className="text-lg font-display mb-1">Key Metrics</h2>
-          <p className="text-sm text-muted-foreground">Performance overview for {restaurantName}</p>
-        </div>
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {statCards.map((s) => (
-            <Card key={s.label} className="glass-card border-border/60">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{s.label}</span>
-                  <div className={`w-9 h-9 rounded-lg ${s.iconStyle} flex items-center justify-center`}>
-                    <s.icon className={`w-4 h-4 ${s.iconColor}`} />
-                  </div>
-                </div>
-                <p className="text-xl font-display">{s.value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-6 mb-6">
-          {/* Daily Customers Chart */}
-          <Card className="lg:col-span-3 glass-card border-border/60">
-            <CardHeader className="pb-3">
+        {/* Branch Management Section */}
+        <Card className="glass-card border-border/60">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
-                <UsersIcon className="w-4 h-4 text-primary" />
-                Daily Customers (This Week)
+                <Store className="w-4 h-4 text-primary" />
+                Branch Management
               </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={restaurant.dailyCustomers}>
-                  <defs>
-                    <linearGradient id="colorCustomers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis
-                    dataKey="date"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px"
-                    }}
-                    labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="customers"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorCustomers)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid lg:grid-cols-5 gap-6">
-          {/* Top Sellers */}
-          <Card className="lg:col-span-2 glass-card border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Trophy className="w-4 h-4 text-amber" />
-                Top Best Sellers
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-6">#</TableHead>
-                    <TableHead>Item</TableHead>
-                    <TableHead className="text-right pr-6">Sold</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {restaurant.topSellers.map((item, i) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="pl-6 font-medium">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${i === 0 ? "bg-amber/15 text-amber" : i === 1 ? "bg-muted text-muted-foreground" : i === 2 ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400" : "text-muted-foreground"
-                          }`}>
-                          {i + 1}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatCurrency(item.revenue)}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right pr-6 font-semibold text-sm">{formatNumber(item.sold)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {/* Branch Management */}
-          <Card className="lg:col-span-3 glass-card border-border/60">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Store className="w-4 h-4 text-primary" />
-                  Branch Management
-                </CardTitle>
-                <Button size="sm" onClick={openCreate}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="w-4 h-4 mr-1" />
+                Add Branch
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoadingBranches ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-6">Branch</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right pr-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {branches.map((b) => (
-                    <TableRow key={b.id}>
-                      <TableCell className="pl-6 font-medium text-sm">{b.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{b.address}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Switch checked={b.isActive} onCheckedChange={() => toggleActive(b.id)} />
-                          <span className={`text-xs font-medium ${b.isActive ? "text-teal" : "text-muted-foreground"}`}>
-                            {b.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(b)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {branches.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        No branches yet. Click "Add" to create your first branch.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <Tabs defaultValue="active" className="w-full">
+                <div className="px-6 pt-2 flex items-center justify-between border-b">
+                  <TabsList>
+                    <TabsTrigger value="active" className="gap-2">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Active ({activeBranches.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="inactive" className="gap-2">
+                      <XCircle className="w-3.5 h-3.5" />
+                      Inactive ({inactiveBranches.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="active" className="m-0">
+                  <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleDeactivateAll}
+                      disabled={activeBranches.length === 0 || updateBranch.isPending}
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                      Deactivate All
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="pl-6">Address</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-right pr-6">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeBranches.map((b) => (
+                        <TableRow key={b.branchId}>
+                          <TableCell className="pl-6 font-medium text-sm max-w-[200px] truncate">{b.address}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{b.branchPhone}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{b.mail}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {b.openingTime.substring(0, 5)} - {b.closingTime.substring(0, 5)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} />
+                              <span className="text-xs font-medium text-teal">Active</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right pr-6">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(b)}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {activeBranches.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            No active branches. Click "Add Branch" to create one.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+
+                <TabsContent value="inactive" className="m-0">
+                  <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleActivateAll}
+                      disabled={inactiveBranches.length === 0 || updateBranch.isPending}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                      Activate All
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="pl-6">Address</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-right pr-6">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inactiveBranches.map((b) => (
+                        <TableRow key={b.branchId}>
+                          <TableCell className="pl-6 font-medium text-sm max-w-[200px] truncate">{b.address}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{b.branchPhone}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{b.mail}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {b.openingTime.substring(0, 5)} - {b.closingTime.substring(0, 5)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} />
+                              <span className="text-xs font-medium text-muted-foreground">Inactive</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right pr-6">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(b)}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {inactiveBranches.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            No inactive branches.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+              </Tabs>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create/Edit Branch Dialog */}
@@ -322,18 +413,74 @@ const OverviewPage = ({ restaurant }: { restaurant: typeof mockRestaurants[0] })
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="branch-name">Branch Name</Label>
-              <Input id="branch-name" placeholder="e.g. Downtown Branch" value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <Label htmlFor="branch-address">Address *</Label>
+              <Input
+                id="branch-address"
+                placeholder="e.g. 123 Main St, District 1"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="branch-address">Address</Label>
-              <Input id="branch-address" placeholder="e.g. 123 Main St, District 1" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+              <Label htmlFor="branch-phone">Phone *</Label>
+              <Input
+                id="branch-phone"
+                placeholder="e.g. +84 123 456 789"
+                value={formData.branchPhone}
+                onChange={(e) => setFormData({ ...formData, branchPhone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch-email">Email *</Label>
+              <Input
+                id="branch-email"
+                type="email"
+                placeholder="e.g. branch@restaurant.com"
+                value={formData.mail}
+                onChange={(e) => setFormData({ ...formData, mail: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="opening-time">Opening Time *</Label>
+                <Input
+                  id="opening-time"
+                  type="time"
+                  value={formData.openingTime}
+                  onChange={(e) => setFormData({ ...formData, openingTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="closing-time">Closing Time *</Label>
+                <Input
+                  id="closing-time"
+                  type="time"
+                  value={formData.closingTime}
+                  onChange={(e) => setFormData({ ...formData, closingTime: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!formName.trim() || !formAddress.trim()}>
-              {editingBranch ? "Update" : "Create"}
+            <Button
+              onClick={handleSave}
+              disabled={
+                !formData.address.trim() ||
+                !formData.branchPhone.trim() ||
+                !formData.mail.trim() ||
+                createBranch.isPending ||
+                updateBranch.isPending
+              }
+            >
+              {(createBranch.isPending || updateBranch.isPending) ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {editingBranch ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                editingBranch ? "Update" : "Create"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -350,43 +497,105 @@ const OverviewPage = ({ restaurant }: { restaurant: typeof mockRestaurants[0] })
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="restaurant-name">Restaurant Name</Label>
-              <Input 
-                id="restaurant-name" 
-                placeholder="e.g. Pho Hanoi" 
-                value={restaurantName} 
-                onChange={(e) => setRestaurantName(e.target.value)} 
+              <Label htmlFor="restaurant-name">Restaurant Name *</Label>
+              <Input
+                id="restaurant-name"
+                placeholder="e.g. Pho Hanoi"
+                value={restaurantFormData.name}
+                onChange={(e) => setRestaurantFormData({ ...restaurantFormData, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="restaurant-cuisine">Cuisine Type</Label>
-              <Input 
-                id="restaurant-cuisine" 
-                placeholder="e.g. Vietnamese" 
-                value={restaurantCuisine} 
-                onChange={(e) => setRestaurantCuisine(e.target.value)} 
+              <Label htmlFor="restaurant-email">Email *</Label>
+              <Input
+                id="restaurant-email"
+                type="email"
+                placeholder="e.g. contact@phohanoi.com"
+                value={restaurantFormData.email}
+                onChange={(e) => setRestaurantFormData({ ...restaurantFormData, email: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="restaurant-logo">Logo Emoji</Label>
-              <Input 
-                id="restaurant-logo" 
-                placeholder="e.g. 🍜" 
-                value={restaurantLogo} 
-                onChange={(e) => setRestaurantLogo(e.target.value)}
-                maxLength={2}
+              <Label htmlFor="restaurant-phone">Phone *</Label>
+              <Input
+                id="restaurant-phone"
+                placeholder="e.g. +84 123 456 789"
+                value={restaurantFormData.restaurantPhone}
+                onChange={(e) => setRestaurantFormData({ ...restaurantFormData, restaurantPhone: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">Choose an emoji to represent your restaurant</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restaurant-url" className="text-muted-foreground">Public URL (Auto-generated)</Label>
+              <Input
+                id="restaurant-url"
+                value={restaurantFormData.publicUrl}
+                disabled
+                className="bg-muted cursor-not-allowed"
+              />
+              <p className="text-xs text-muted-foreground">This URL is automatically generated and cannot be edited</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restaurant-description">Description</Label>
+              <Textarea
+                id="restaurant-description"
+                placeholder="Tell us about your restaurant..."
+                value={restaurantFormData.description}
+                onChange={(e) => setRestaurantFormData({ ...restaurantFormData, description: e.target.value })}
+                rows={3}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRestaurantInfoDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleRestaurantInfoSave} disabled={!restaurantName.trim() || !restaurantCuisine.trim()}>
-              Save Changes
+            <Button
+              onClick={handleRestaurantInfoSave}
+              disabled={
+                !restaurantFormData.name.trim() ||
+                !restaurantFormData.email.trim() ||
+                updateRestaurant.isPending
+              }
+            >
+              {updateRestaurant.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Restaurant Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the restaurant "{restaurant.name}" and all its branches.
+              The restaurant will no longer be visible in your dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRestaurant}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteRestaurant.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Restaurant'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog >
     </>
   );
 };

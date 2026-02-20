@@ -79,7 +79,7 @@ public class RestaurantService {
         restaurant.setEmail(request.getEmail());
         restaurant.setRestaurantPhone(request.getRestaurantPhone());
         restaurant.setDescription(request.getDescription());
-        restaurant.setStatus(false);
+        restaurant.setStatus(true); // Set status to true by default
 
         // 👉 Xử lý URL thông minh cho cả local và production
         String base = webUrl.trim();
@@ -154,6 +154,17 @@ public class RestaurantService {
     }
 
     public List<RestaurantDTO> getByOwner(UUID userId) {
+        // Get current authenticated user
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof com.example.backend.entities.User) {
+            com.example.backend.entities.User currentUser = (com.example.backend.entities.User) authentication.getPrincipal();
+            
+            // Check if current user is requesting their own restaurants
+            if (!currentUser.getUserId().equals(userId)) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        }
+        
         return restaurantRepository.findByUser_UserId(userId).stream()
                 .map(restaurantMapper::toRestaurantDto)
                 .toList();

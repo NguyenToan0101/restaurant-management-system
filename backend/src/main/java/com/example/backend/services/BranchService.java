@@ -13,6 +13,7 @@ import com.example.backend.entities.BranchMenuItem;
 import com.example.backend.entities.MenuItem;
 // import com.example.backend.entities.MenuItemStatus;
 import com.example.backend.entities.Restaurant;
+import com.example.backend.entities.User;
 import com.example.backend.entities.FeatureCode;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
@@ -48,6 +49,24 @@ public class BranchService {
         // this.menuItemRepository = menuItemRepository;
     }
 
+    private User getCurrentUser() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            return (User) authentication.getPrincipal();
+        }
+        throw new AppException(ErrorCode.UNAUTHORIZED);
+    }
+
+    private void checkRestaurantOwnership(UUID restaurantId) {
+        User currentUser = getCurrentUser();
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+        
+        if (!restaurant.getUser().getUserId().equals(currentUser.getUserId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
     public List<BranchDTO> getAll() {
         return branchRepository.findAll().stream().map(branchMapper::toDto).toList();
     }
@@ -67,6 +86,9 @@ public class BranchService {
         
         Restaurant restaurant = restaurantRepository.findById(dto.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check ownership
+        checkRestaurantOwnership(dto.getRestaurantId());
 
         Branch entity = branchMapper.toEntity(dto);
         entity.setRestaurant(restaurant);
@@ -97,6 +119,9 @@ public class BranchService {
         Branch exist = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
 
+        // Check ownership
+        checkRestaurantOwnership(exist.getRestaurant().getRestaurantId());
+
         // Only validate opening/closing time if they are being updated
         // This allows partial updates (e.g., just updating isActive status)
         if (dto.getOpeningTime() != null && dto.getClosingTime() == null) {
@@ -120,11 +145,17 @@ public class BranchService {
     }
 
     public List<BranchDTO> getByRestaurant(UUID restaurantId) {
+        // Check ownership
+        checkRestaurantOwnership(restaurantId);
+        
         return branchRepository.findByRestaurant_RestaurantId(restaurantId)
                 .stream().map(branchMapper::toDto).toList();
     }
 
     public List<BranchDTO> getActiveByRestaurant(UUID restaurantId) {
+        // Check ownership
+        checkRestaurantOwnership(restaurantId);
+        
         return branchRepository.findByRestaurant_RestaurantIdAndIsActiveTrue(restaurantId)
                 .stream().map(branchMapper::toDto).toList();
     }
@@ -149,6 +180,13 @@ public class BranchService {
 
     @Transactional(readOnly = true)
     public List<BranchDTO> getBranchesByOwner(UUID ownerId) {
+        User currentUser = getCurrentUser();
+        
+        // Check if current user is requesting their own branches
+        if (!currentUser.getUserId().equals(ownerId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
         return branchRepository.findByOwnerId(ownerId)
                 .stream()
                 .map(branchMapper::toDto)
