@@ -24,10 +24,22 @@ public enum ErrorCode {
     // Refresh token errors (1300-1399)
     REFRESH_TOKEN_NOT_FOUND(1301, "Refresh token không tồn tại", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED(1302, "Refresh token đã hết hạn", HttpStatus.UNAUTHORIZED),
+
+    //Cloudinary errors
+    MEDIA_EMPTY(1401, "Media empty", HttpStatus.NOT_FOUND),
+    MEDIA_UPLOAD_FAILED(1402, "Media uploaded failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    MEDIA_NOT_FOUND(1403, "Media not found", HttpStatus.NOT_FOUND),
+    MEDIA_DELETE_FAILED(1404, "Media delete failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    TARGET_TYPE_NOT_FOUND(1405, "Target type not found", HttpStatus.NOT_FOUND),
     // Restaurant error
     RESTAURANT_NOTEXISTED(3000, "Restaurant not existed", HttpStatus.NOT_FOUND),
     BRANCH_NOTEXISTED(3001, "Branch not existed", HttpStatus.NOT_FOUND),
     RESTAURANT_DELETE_FAILED(3002, "Failed to delete restaurant", HttpStatus.INTERNAL_SERVER_ERROR),
+    
+    // Menu Item errors
+    MENUITEM_NOT_FOUND(3100, "Menu item not found", HttpStatus.NOT_FOUND),
+    CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
+    CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
 
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
