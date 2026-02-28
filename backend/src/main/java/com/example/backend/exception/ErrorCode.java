@@ -29,6 +29,11 @@ public enum ErrorCode {
     BRANCH_NOTEXISTED(3001, "Branch not existed", HttpStatus.NOT_FOUND),
     RESTAURANT_DELETE_FAILED(3002, "Failed to delete restaurant", HttpStatus.INTERNAL_SERVER_ERROR),
 
+    // Staff & Role errors
+    STAFFACCOUNT_NOTEXISTED(3101, "Staff account does not exist", HttpStatus.NOT_FOUND),
+    ROLE_NOTEXISTED(3102, "Role does not exist", HttpStatus.NOT_FOUND),
+    STAFFACCOUNT_DELETED(3103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;
