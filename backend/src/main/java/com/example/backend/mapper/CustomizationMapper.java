@@ -13,10 +13,12 @@ import java.util.UUID;
 public interface CustomizationMapper {
 
     // Map từ entity → DTO
+    @Mapping(target = "id", source = "customizationId")
     @Mapping(target = "restaurantId", source = "restaurant.restaurantId")
     CustomizationDTO toCustomizationDTO(Customization customization);
 
     // Map từ DTO → entity
+    @Mapping(target = "customizationId", source = "id")
     @Mapping(target = "restaurant", source = "restaurantId", qualifiedByName = "mapRestaurantFromId")
     Customization toCustomization(CustomizationDTO customizationDTO);
 
@@ -28,5 +30,7 @@ public interface CustomizationMapper {
         return restaurant;
     }
 
+    @Mapping(target = "id", source = "customizationId")
+    @Mapping(target = "restaurantId", source = "restaurant.restaurantId")
     CustomizationDTO toCustomizationDTOForBranchMenuItem(Customization customization);
 }

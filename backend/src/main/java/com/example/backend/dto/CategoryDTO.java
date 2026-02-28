@@ -11,7 +11,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDTO {
-    private UUID categoryId;
+    private UUID id;
     private String name;
     private UUID restaurantId;
     private Set<UUID> customizationIds;

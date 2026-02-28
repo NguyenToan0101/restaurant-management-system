@@ -80,7 +80,6 @@ public class MenuItemService {
         item.setDescription(request.getDescription());
         item.setPrice(request.getPrice());
         item.setBestSeller(request.isBestSeller());
-        item.setHasCustomization(request.isHasCustomization());
         item.setStatus(EntityStatus.ACTIVE);
         item.setRestaurant(restaurant);
         item.setCategory(category);     
@@ -92,6 +91,9 @@ public class MenuItemService {
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
             item.setCustomizations(customizations);
+            item.setHasCustomization(true);
+        } else {
+            item.setHasCustomization(false);
         }
 
         MenuItem savedItem = menuItemRepository.save(item);
@@ -123,7 +125,6 @@ public class MenuItemService {
         existing.setDescription(request.getDescription());
         existing.setPrice(request.getPrice());
         existing.setBestSeller(request.isBestSeller());
-        existing.setHasCustomization(request.isHasCustomization());
         existing.setUpdatedAt(Instant.now());
 
         if (request.getCategoryId() != null) {
@@ -134,12 +135,18 @@ public class MenuItemService {
             existing.setCategory(null);
         }
 
-        if (request.getCustomizationIds() != null) {
+        // Clear existing customizations first
+        existing.getCustomizations().clear();
+
+        if (request.getCustomizationIds() != null && !request.getCustomizationIds().isEmpty()) {
             Set<Customization> customizations = request.getCustomizationIds().stream()
                     .map(id2 -> customizationRepository.findById(id2)
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
-            existing.setCustomizations(customizations);
+            existing.getCustomizations().addAll(customizations);
+            existing.setHasCustomization(true);
+        } else {
+            existing.setHasCustomization(false);
         }
 
         MenuItem updated = menuItemRepository.save(existing);

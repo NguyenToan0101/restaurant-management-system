@@ -63,6 +63,7 @@ public class CategoryService {
 
         if (request.getCustomizationIds() != null && !request.getCustomizationIds().isEmpty()) {
             Set<Customization> customizations = request.getCustomizationIds().stream()
+                    .filter(id -> id != null)
                     .map(id -> customizationRepository.findById(id)
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
@@ -81,16 +82,21 @@ public class CategoryService {
         existing.setName(dto.getName());
         existing.setUpdatedAt(Instant.now());
 
-        if (dto.getCustomizationIds() != null) {
+        // Clear existing customizations first
+        existing.getCustomizations().clear();
+
+        if (dto.getCustomizationIds() != null && !dto.getCustomizationIds().isEmpty()) {
             Set<Customization> customizations = dto.getCustomizationIds().stream()
+                    .filter(cid -> cid != null)
                     .map(cid -> customizationRepository.findById(cid)
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
 
-            existing.setCustomizations(customizations);
+            existing.getCustomizations().addAll(customizations);
         }
 
-        return categoryMapper.toCategoryDTO(categoryRepository.save(existing));
+        Category saved = categoryRepository.save(existing);
+        return categoryMapper.toCategoryDTO(saved);
     }
 
     @Transactional

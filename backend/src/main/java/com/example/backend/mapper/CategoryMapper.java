@@ -16,10 +16,12 @@ import java.util.stream.Collectors;
 @Mapper(componentModel = "spring")
 public interface CategoryMapper {
 
+    @Mapping(target = "id", source = "categoryId")
     @Mapping(target = "restaurantId", source = "restaurant.restaurantId")
     @Mapping(target = "customizationIds", source = "customizations", qualifiedByName = "mapCustomizationsToIds")
     CategoryDTO toCategoryDTO(Category category);
 
+    @Mapping(target = "categoryId", source = "id")
     @Mapping(target = "restaurant", source = "restaurantId", qualifiedByName = "mapRestaurantFromId")
     @Mapping(target = "customizations", source = "customizationIds", qualifiedByName = "mapIdsToCustomizations")
     Category toCategory(CategoryDTO dto);
