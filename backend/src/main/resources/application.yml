@@ -10,6 +10,13 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
 
   liquibase:
     enabled: false
@@ -22,4 +29,9 @@ jwt:
   secret-key: ${JWT_SECRET_KEY}
 
 frontend: 
-  base-url: ${FRONTEND_BASE_URL:http://localhost:5000}
+  base-url: ${FRONTEND_BASE_URL}
+
+cloudinary:
+  cloud_name: ${CLOUD_NAME}
+  api_key: ${CLOUD_API_KEY}
+  api_secret: ${CLOUD_API_SECRET}
