@@ -25,12 +25,20 @@ public enum ErrorCode {
     REFRESH_TOKEN_NOT_FOUND(1301, "Refresh token không tồn tại", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED(1302, "Refresh token đã hết hạn", HttpStatus.UNAUTHORIZED),
 
+    // Google OAuth errors (1400-1499)
+    INVALID_AUTHORIZATION_CODE(1400, "Mã xác thực không hợp lệ hoặc đã hết hạn", HttpStatus.UNAUTHORIZED),
+    GOOGLE_SERVICE_UNAVAILABLE(1401, "Dịch vụ Google tạm thời không khả dụng", HttpStatus.SERVICE_UNAVAILABLE),
+    INVALID_ID_TOKEN(1402, "ID token không hợp lệ", HttpStatus.UNAUTHORIZED),
+    EMAIL_NOT_VERIFIED(1403, "Email chưa được xác thực trên Google", HttpStatus.UNAUTHORIZED),
+    USER_CANCELLED_LOGIN(1404, "Người dùng đã hủy đăng nhập", HttpStatus.UNAUTHORIZED),
+    INVALID_STATE_PARAMETER(1405, "State parameter không hợp lệ", HttpStatus.UNAUTHORIZED),
+
     //Cloudinary errors
-    MEDIA_EMPTY(1401, "Media empty", HttpStatus.NOT_FOUND),
-    MEDIA_UPLOAD_FAILED(1402, "Media uploaded failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    MEDIA_NOT_FOUND(1403, "Media not found", HttpStatus.NOT_FOUND),
-    MEDIA_DELETE_FAILED(1404, "Media delete failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    TARGET_TYPE_NOT_FOUND(1405, "Target type not found", HttpStatus.NOT_FOUND),
+    MEDIA_EMPTY(1501, "Media empty", HttpStatus.NOT_FOUND),
+    MEDIA_UPLOAD_FAILED(1502, "Media uploaded failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    MEDIA_NOT_FOUND(1503, "Media not found", HttpStatus.NOT_FOUND),
+    MEDIA_DELETE_FAILED(1504, "Media delete failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    TARGET_TYPE_NOT_FOUND(1505, "Target type not found", HttpStatus.NOT_FOUND),
     // Restaurant error
     RESTAURANT_NOTEXISTED(3000, "Restaurant not existed", HttpStatus.NOT_FOUND),
     BRANCH_NOTEXISTED(3001, "Branch not existed", HttpStatus.NOT_FOUND),

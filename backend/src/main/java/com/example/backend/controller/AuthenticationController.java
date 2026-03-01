@@ -5,7 +5,10 @@ import com.example.backend.dto.request.LogoutRequest;
 import com.example.backend.dto.request.RefreshRequest;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.AuthenticationResponse;
+import com.example.backend.dto.response.GoogleAuthUrlResponse;
+import com.example.backend.mapper.TokenMapper;
 import com.example.backend.services.AuthenticationService;
+import com.example.backend.services.GoogleOAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final GoogleOAuthService googleOAuthService;
+    private final TokenMapper tokenMapper;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthenticationResponse>> login(
@@ -76,6 +81,42 @@ public class AuthenticationController {
         response.setMessage("Logout successful");
         
         log.info("Logout successful");
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/google/url")
+    public ResponseEntity<GoogleAuthUrlResponse> getGoogleAuthUrl() {
+        log.info("Google OAuth authorization URL request received");
+        
+        GoogleAuthUrlResponse authUrlResponse = googleOAuthService.generateAuthorizationUrl();
+        
+        log.info("Google OAuth authorization URL generated successfully");
+        return ResponseEntity.ok(authUrlResponse);
+    }
+
+    @PostMapping("/google/callback")
+    public ResponseEntity<ApiResponse<AuthenticationResponse>> googleCallback(
+            @RequestParam String code,
+            @RequestParam String state,
+            HttpServletRequest httpRequest
+    ) {
+        log.info("Google OAuth callback request received");
+        
+        String clientIp = extractClientIp(httpRequest);
+        String userAgent = extractUserAgent(httpRequest);
+        
+        // Authenticate with Google
+        var user = googleOAuthService.authenticateWithGoogle(code, state);
+        
+        // Map to JWT tokens
+        AuthenticationResponse authResponse = tokenMapper.mapToJwtTokens(user, clientIp, userAgent);
+        
+        ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Google authentication successful");
+        response.setResult(authResponse);
+        
+        log.info("Google authentication successful for email: {}", user.getEmail());
         return ResponseEntity.ok(response);
     }
 
