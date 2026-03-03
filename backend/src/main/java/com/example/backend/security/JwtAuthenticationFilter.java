@@ -1,8 +1,6 @@
 package com.example.backend.security;
 
 import com.example.backend.entities.User;
-import com.example.backend.exception.ErrorCode;
-import com.example.backend.exception.JwtAuthenticationException;
 import com.example.backend.repositories.UserRepository;
 import com.example.backend.services.JwtService;
 import com.nimbusds.jwt.SignedJWT;
@@ -12,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,99 +25,58 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    
+
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    
+
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-        // Skip nếu là public endpoint
-        String requestPath = request.getRequestURI();
-        if (isPublicEndpoint(requestPath)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        
-        try {
-            // Extract token từ Authorization header
-            String token = extractTokenFromRequest(request);
-            
-            if (token == null) {
-                throw new JwtAuthenticationException(ErrorCode.JWT_MISSING);
-            }
-            
-            // Validate token với JwtService
-            SignedJWT jwt = jwtService.validateAccessToken(token);
-            
-            // Get user ID từ token
-            UUID userId = jwtService.getUserIdFromToken(jwt);
-            
-            // Load user từ database
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new JwtAuthenticationException(ErrorCode.USER_NOT_FOUND));
-            
-            // Tạo Authentication object
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
+
+        String token = extractTokenFromRequest(request);
+
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                String role = jwt.getJWTClaimsSet().getClaim("role").toString();
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-                
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        Collections.singletonList(authority)
-                );
-                
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                // Set vào SecurityContext
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                
-                log.debug("Successfully authenticated user: {}", user.getEmail());
-            } catch (java.text.ParseException e) {
-                log.error("Failed to parse JWT claims", e);
-                throw new JwtAuthenticationException(ErrorCode.INVALID_JWT_FORMAT);
+                SignedJWT jwt = jwtService.validateAccessToken(token);
+                UUID userId = jwtService.getUserIdFromToken(jwt);
+
+                User user = userRepository.findById(userId).orElse(null);
+
+                if (user != null) {
+                    String role = jwt.getJWTClaimsSet().getClaim("role").toString();
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            Collections.singletonList(
+                                    new SimpleGrantedAuthority("ROLE_" + role)));
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource()
+                                    .buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+
+            } catch (Exception e) {
+                // ❗ KHÔNG trả lỗi ở đây
+                // Chỉ log thôi
+                log.warn("Invalid JWT: {}", e.getMessage());
             }
-            
-        } catch (JwtAuthenticationException e) {
-            log.error("JWT authentication failed: {}", e.getMessage());
-            
-            // Set response status to 401 for JWT errors
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            
-            String jsonResponse = String.format(
-                "{\"code\": %d, \"message\": \"%s\"}",
-                e.getErrorCode().getCode(),
-                e.getErrorCode().getMessage()
-            );
-            response.getWriter().write(jsonResponse);
-            return;
         }
-        
-        // Continue filter chain
+
         filterChain.doFilter(request, response);
     }
-    
+
     private String extractTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        
+
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        
+
         return null;
-    }
-    
-    private boolean isPublicEndpoint(String requestPath) {
-        return requestPath.equals("/api/auth/login") || 
-               requestPath.equals("/api/auth/refresh") ||
-               requestPath.equals("/api/auth/logout") ||
-               requestPath.startsWith("/api/auth/google/") ||
-               requestPath.startsWith("/actuator/health");
     }
 }
