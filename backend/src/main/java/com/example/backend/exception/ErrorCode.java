@@ -14,6 +14,7 @@ public enum ErrorCode {
     USER_INACTIVE(1103, "Account has been deactivated", HttpStatus.FORBIDDEN),
     USER_EXISTED(1001, "User already existed", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(1104, "You do not have permission to access this resource", HttpStatus.FORBIDDEN),
+    UNAUTHENTICATED(1105, "Access token is missing or invalid", HttpStatus.UNAUTHORIZED),
 
     // JWT errors (1200-1299)
     INVALID_JWT_SIGNATURE(1201, "Invalid JWT signature", HttpStatus.UNAUTHORIZED),
