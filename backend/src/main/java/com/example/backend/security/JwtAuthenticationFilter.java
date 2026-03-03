@@ -120,6 +120,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return requestPath.equals("/api/auth/login") || 
                requestPath.equals("/api/auth/refresh") ||
                requestPath.equals("/api/auth/logout") ||
-               requestPath.startsWith("/api/auth/google/");
+               requestPath.startsWith("/api/auth/google/") ||
+               requestPath.startsWith("/actuator/health");
     }
 }
