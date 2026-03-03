@@ -85,39 +85,64 @@ public class AuthenticationController {
     }
 
     @GetMapping("/google/url")
-    public ResponseEntity<GoogleAuthUrlResponse> getGoogleAuthUrl() {
+    public ResponseEntity<ApiResponse<GoogleAuthUrlResponse>> getGoogleAuthUrl() {
         log.info("Google OAuth authorization URL request received");
         
         GoogleAuthUrlResponse authUrlResponse = googleOAuthService.generateAuthorizationUrl();
         
+        ApiResponse<GoogleAuthUrlResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Google OAuth URL generated successfully");
+        response.setResult(authUrlResponse);
+        
         log.info("Google OAuth authorization URL generated successfully");
-        return ResponseEntity.ok(authUrlResponse);
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/google/callback")
-    public ResponseEntity<ApiResponse<AuthenticationResponse>> googleCallback(
+    @GetMapping("/google/callback")
+    public ResponseEntity<?> googleCallback(
             @RequestParam String code,
             @RequestParam String state,
             HttpServletRequest httpRequest
     ) {
         log.info("Google OAuth callback request received");
         
-        String clientIp = extractClientIp(httpRequest);
-        String userAgent = extractUserAgent(httpRequest);
-        
-        // Authenticate with Google
-        var user = googleOAuthService.authenticateWithGoogle(code, state);
-        
-        // Map to JWT tokens
-        AuthenticationResponse authResponse = tokenMapper.mapToJwtTokens(user, clientIp, userAgent);
-        
-        ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
-        response.setCode(200);
-        response.setMessage("Google authentication successful");
-        response.setResult(authResponse);
-        
-        log.info("Google authentication successful for email: {}", user.getEmail());
-        return ResponseEntity.ok(response);
+        try {
+            String clientIp = extractClientIp(httpRequest);
+            String userAgent = extractUserAgent(httpRequest);
+            
+            // Authenticate with Google
+            var user = googleOAuthService.authenticateWithGoogle(code, state);
+            
+            // Map to JWT tokens
+            AuthenticationResponse authResponse = tokenMapper.mapToJwtTokens(user, clientIp, userAgent);
+            
+            // Redirect to frontend with tokens in URL (will be handled by frontend)
+            String frontendUrl = String.format(
+                "%s/auth/google/callback?access_token=%s&refresh_token=%s",
+                System.getenv("FRONTEND_BASE_URL"),
+                authResponse.getAccessToken(),
+                authResponse.getRefreshToken()
+            );
+            
+            return ResponseEntity.status(302)
+                    .header("Location", frontendUrl)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Google OAuth callback failed: {}", e.getMessage());
+            
+            // Redirect to frontend with error
+            String frontendUrl = String.format(
+                "%s/login?error=%s",
+                System.getenv("FRONTEND_BASE_URL"),
+                e.getMessage()
+            );
+            
+            return ResponseEntity.status(302)
+                    .header("Location", frontendUrl)
+                    .build();
+        }
     }
 
     private String extractClientIp(HttpServletRequest request) {
