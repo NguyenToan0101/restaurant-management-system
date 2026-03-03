@@ -27,6 +27,8 @@ jobs:
           context: .
           push: true
           tags: khoigianua/bentox:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
