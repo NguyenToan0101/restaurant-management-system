@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, LoginRequest, AuthenticationResponse, LogoutRequest } from '@/types/dto';
+import type { ApiResponse, LoginRequest, AuthenticationResponse, LogoutRequest, GoogleAuthUrlResponse, GoogleCallbackRequest } from '@/types/dto';
 import { useAuthStore } from '@/stores/authStore';
 
 class AuthApi {
@@ -25,6 +25,20 @@ class AuthApi {
 
   isAuthenticated(): boolean {
     return useAuthStore.getState().isAuthenticated();
+  }
+
+  async getGoogleAuthUrl(): Promise<GoogleAuthUrlResponse> {
+    const response = await axiosClient.get<ApiResponse<GoogleAuthUrlResponse>>('/auth/google/url');
+    return response.data.result;
+  }
+
+  async googleCallback(code: string, state: string): Promise<AuthenticationResponse> {
+    const request: GoogleCallbackRequest = { code, state };
+    const response = await axiosClient.post<ApiResponse<AuthenticationResponse>>('/auth/google/callback', request);
+    
+    useAuthStore.getState().setAuthData(response.data.result);
+    
+    return response.data.result;
   }
 }
 

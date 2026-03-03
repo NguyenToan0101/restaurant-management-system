@@ -11,3 +11,13 @@ export interface AuthenticationResponse {
   refreshToken: string;
   user: UserDTO;
 }
+
+export interface GoogleAuthUrlResponse {
+  authorizationUrl: string;
+  state: string;
+}
+
+export interface GoogleCallbackRequest {
+  code: string;
+  state: string;
+}

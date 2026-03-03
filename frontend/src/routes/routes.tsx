@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
+import GoogleCallback from "@/pages/GoogleCallback";
 import NotFound from "@/pages/NotFound";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
@@ -43,6 +44,9 @@ const AppRoutes = () => {
           <Login />
         </PublicRoute>
       } />
+
+      {/* Google OAuth callback - public route */}
+      <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
       {/* Protected routes */}
       <Route path="/restaurants" element={

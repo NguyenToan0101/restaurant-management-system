@@ -119,6 +119,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private boolean isPublicEndpoint(String requestPath) {
         return requestPath.equals("/api/auth/login") || 
                requestPath.equals("/api/auth/refresh") ||
-               requestPath.equals("/api/auth/logout");
+               requestPath.equals("/api/auth/logout") ||
+               requestPath.startsWith("/api/auth/google/");
     }
 }

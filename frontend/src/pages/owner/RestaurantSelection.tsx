@@ -62,12 +62,12 @@ const RestaurantSelection = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/60 backdrop-blur-xl sticky top-0 z-30">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
               <Store className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight">RestoHub</span>
-          </div>
+          </Link>
           <ThemeToggle />
         </div>
       </header>
