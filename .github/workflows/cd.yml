@@ -26,7 +26,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: yourdockerhub/restaurant-app:latest
+          tags: khoigianua/bentox:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
