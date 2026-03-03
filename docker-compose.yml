@@ -1,8 +1,6 @@
 services:
   spring-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: khoigianua/bentox:latest
     environment:
       - DB_URL=${DB_URL}
       - DB_USER=${DB_USER}

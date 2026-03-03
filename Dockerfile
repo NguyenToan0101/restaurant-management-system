@@ -2,7 +2,7 @@
 FROM node:22 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
@@ -17,7 +17,7 @@ RUN ./mvnw dependency:go-offline
 COPY backend/src ./src
 # Copy frontend build output to static resources
 COPY --from=frontend-builder /app/frontend/dist ./src/main/resources/static
-RUN ./mvnw clean package -DskipTests
+RUN ./mvnw package -DskipTests
 
 
 # Stage 3: Runtime
