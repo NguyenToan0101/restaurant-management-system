@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import GoogleCallback from "@/pages/GoogleCallback";
 import NotFound from "@/pages/NotFound";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
@@ -22,7 +23,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   if (isAuthenticated) {
-    return <Navigate to="/restaurants" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -44,6 +45,8 @@ const AppRoutes = () => {
           <Login />
         </PublicRoute>
       } />
+
+      <Route path="/register" element={<Register />} />
 
       {/* Google OAuth callback - public route */}
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
