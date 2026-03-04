@@ -19,7 +19,7 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/restaurants');
+      navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
@@ -111,7 +111,7 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{" "}
-            <button className="text-primary font-semibold hover:underline">Sign up free</button>
+            <Link to="/register" className="text-primary font-semibold hover:underline">Sign up free</Link>
           </p>
         </div>
       </div>

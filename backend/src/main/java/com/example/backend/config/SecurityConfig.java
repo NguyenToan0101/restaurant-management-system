@@ -54,6 +54,10 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
                                 "/api/auth/google/**",
+                                "/api/users/signup",
+                                "/api/users/mail",
+                                "/api/users/mail/otp",
+                                "/api/users/forgetpass",
                                 "/actuator/health",
                                 "/actuator/health/**")
                         .permitAll()

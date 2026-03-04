@@ -21,6 +21,13 @@ spring:
   liquibase:
     enabled: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      timeout: 6000
+
 jwt:
   access-token:
     expiration: 3600 # 1 hour in seconds
@@ -54,3 +61,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+brevo:
+  api_key: ${BREVO_API_KEY}
+  mail_base_url: ${BREVO_MAIL_URL}
+  sender_email: noreply@bentox.store
+  sender_name: BentoX
