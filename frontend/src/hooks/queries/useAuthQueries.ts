@@ -13,7 +13,7 @@ export const useLogin = () => {
       toast.success('Welcome back!', {
         description: `Logged in as ${data.user.email}`,
       });
-      navigate('/restaurants');
+      navigate('/');
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
