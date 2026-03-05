@@ -32,9 +32,17 @@ class AuthApi {
   // Redirect to Spring Security OAuth2 authorization endpoint
   redirectToGoogleLogin(): void {
     // OAuth2 endpoints are at root level, not under /api
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-    const serverUrl = baseUrl.replace('/api', ''); // Remove /api suffix
-    window.location.href = `${serverUrl}/oauth2/authorization/google`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    
+    if (baseUrl) {
+      // Use configured base URL
+      const serverUrl = baseUrl.replace('/api', ''); // Remove /api suffix
+      window.location.href = `${serverUrl}/oauth2/authorization/google`;
+    } else {
+      // In production, use same origin as frontend
+      const serverUrl = window.location.origin;
+      window.location.href = `${serverUrl}/oauth2/authorization/google`;
+    }
   }
 
   // Get current authenticated user
