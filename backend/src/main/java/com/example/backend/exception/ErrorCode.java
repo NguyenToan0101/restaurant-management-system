@@ -31,6 +31,7 @@ public enum ErrorCode {
     // Refresh token errors (1300-1399)
     REFRESH_TOKEN_NOT_FOUND(1301, "Refresh token not found", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED(1302, "Refresh token has expired", HttpStatus.UNAUTHORIZED),
+    INVALID_REFRESH_TOKEN(1303, "Invalid refresh token", HttpStatus.BAD_REQUEST),
 
     // Google OAuth errors (1400-1499)
     INVALID_AUTHORIZATION_CODE(1400, "Invalid or expired authorization code", HttpStatus.UNAUTHORIZED),

@@ -7,8 +7,8 @@ export interface UserDTO {
 }
 
 export interface AuthenticationResponse {
-  accessToken: string;
-  refreshToken: string;
+  accessToken: string | null;
+  refreshToken: string | null;
   user: UserDTO;
 }
 

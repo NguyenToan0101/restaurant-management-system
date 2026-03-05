@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/routes";
+import { useAuthInit } from "./hooks/useAuthInit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,8 +23,10 @@ declare global {
 }
 window.queryClient = queryClient;
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const AppContent = () => {
+  useAuthInit();
+  
+  return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -31,6 +34,12 @@ const App = () => (
         <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AppContent />
   </QueryClientProvider>
 );
 
