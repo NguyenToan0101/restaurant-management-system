@@ -1,6 +1,5 @@
 package com.example.backend.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,6 +10,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LogoutRequest {
-    @NotBlank(message = "Refresh token must not be blank")
+    // Optional - can be provided in request body or will be read from cookie
     private String refreshToken;
 }

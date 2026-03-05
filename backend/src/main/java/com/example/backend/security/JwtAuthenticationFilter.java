@@ -30,6 +30,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // Skip JWT filter for OAuth2 endpoints
+        return path.startsWith("/oauth2/") || path.startsWith("/login/oauth2/");
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -71,10 +78,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
+        // First, try to get token from Authorization header (for API clients)
         String bearerToken = request.getHeader("Authorization");
-
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
+        }
+
+        // Second, try to get token from HttpOnly cookie (for browser clients)
+        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (jakarta.servlet.http.Cookie cookie : cookies) {
+                if ("access_token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
         }
 
         return null;

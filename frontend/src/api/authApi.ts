@@ -1,25 +1,27 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, LoginRequest, AuthenticationResponse, LogoutRequest, GoogleAuthUrlResponse, GoogleCallbackRequest } from '@/types/dto';
+import type { ApiResponse, LoginRequest, AuthenticationResponse } from '@/types/dto';
 import { useAuthStore } from '@/stores/authStore';
 
 class AuthApi {
   async login(email: string, password: string): Promise<AuthenticationResponse> {
     const request: LoginRequest = { email, password };
     const response = await axiosClient.post<ApiResponse<AuthenticationResponse>>('/auth/login', request);
-    
-    useAuthStore.getState().setAuthData(response.data.result);
-    
-    return response.data.result;
+
+    const result = response.data.result;
+    // Backend đã set token vào HttpOnly cookie
+    // Chỉ lưu user data vào store (không lưu token vào memory/localStorage)
+    useAuthStore.getState().setAuthData({
+      accessToken: null,
+      refreshToken: null,
+      user: result.user,
+    });
+
+    return result;
   }
 
   async logout(): Promise<void> {
-    const refreshToken = useAuthStore.getState().refreshToken;
-    
-    if (refreshToken) {
-      const request: LogoutRequest = { refreshToken };
-      await axiosClient.post<ApiResponse<void>>('/auth/logout', request);
-    }
-    
+    // Logout will clear cookies automatically
+    await axiosClient.post<ApiResponse<void>>('/auth/logout', {});
     useAuthStore.getState().clearAuthData();
   }
 
@@ -27,17 +29,17 @@ class AuthApi {
     return useAuthStore.getState().isAuthenticated();
   }
 
-  async getGoogleAuthUrl(): Promise<GoogleAuthUrlResponse> {
-    const response = await axiosClient.get<ApiResponse<GoogleAuthUrlResponse>>('/auth/google/url');
-    return response.data.result;
+  // Redirect to Spring Security OAuth2 authorization endpoint
+  redirectToGoogleLogin(): void {
+    // OAuth2 endpoints are at root level, not under /api
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+    const serverUrl = baseUrl.replace('/api', ''); // Remove /api suffix
+    window.location.href = `${serverUrl}/oauth2/authorization/google`;
   }
 
-  async googleCallback(code: string, state: string): Promise<AuthenticationResponse> {
-    const request: GoogleCallbackRequest = { code, state };
-    const response = await axiosClient.post<ApiResponse<AuthenticationResponse>>('/auth/google/callback', request);
-    
-    useAuthStore.getState().setAuthData(response.data.result);
-    
+  // Get current authenticated user
+  async getCurrentUser(): Promise<any> {
+    const response = await axiosClient.get<ApiResponse<any>>('/auth/me');
     return response.data.result;
   }
 }
