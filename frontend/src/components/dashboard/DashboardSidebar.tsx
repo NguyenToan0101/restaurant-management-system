@@ -1,20 +1,31 @@
 import { Link, useParams, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, UtensilsCrossed, ShoppingCart, Users, Settings,
-  Store, ChevronLeft,
+  Store, ChevronLeft, FolderTree, Sliders,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarTrigger, useSidebar, SidebarHeader,
+  SidebarTrigger, useSidebar, SidebarHeader, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRestaurant } from "@/hooks/queries/useRestaurantQueries";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 const menuItems = [
   { title: "Overview", url: "", icon: LayoutDashboard },
-  { title: "Menu Management", url: "/menu", icon: UtensilsCrossed },
+  { 
+    title: "Menu Management", 
+    url: "/menu", 
+    icon: UtensilsCrossed,
+    subItems: [
+      { title: "Menu Items", url: "/menu" },
+      { title: "Categories", url: "/categories" },
+      { title: "Customizations", url: "/customizations" },
+    ]
+  },
   { title: "Orders", url: "/orders", icon: ShoppingCart },
   { title: "Staff", url: "/staff", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
@@ -95,21 +106,53 @@ export function DashboardSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <NavLink
-                      to={`${basePath}${item.url}`}
-                      end={item.url === ""}
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                  {item.subItems ? (
+                    <Collapsible defaultOpen={item.subItems.some(sub => isActive(sub.url))}>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.title}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.subItems.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={isActive(subItem.url)}
+                              >
+                                <NavLink
+                                  to={`${basePath}${subItem.url}`}
+                                  className="hover:bg-sidebar-accent/50"
+                                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                                >
+                                  <span>{subItem.title}</span>
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      tooltip={item.title}
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
+                      <NavLink
+                        to={`${basePath}${item.url}`}
+                        end={item.url === ""}
+                        className="hover:bg-sidebar-accent/50"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

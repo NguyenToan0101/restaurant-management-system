@@ -52,9 +52,6 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
     
-    @Column(name = "phone")
-    private String phone;
-    
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private EntityStatus status = EntityStatus.ACTIVE;
@@ -100,12 +97,6 @@ public class User {
         this.username = username;
     }
     
-    public String getPhone() {
-        return phone;
-    }
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
     public EntityStatus getStatus() {
         return status;
     }

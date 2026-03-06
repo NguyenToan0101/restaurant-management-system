@@ -6,7 +6,7 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   user: UserDTO | null;
-  
+
   setAuthData: (authResponse: AuthenticationResponse) => void;
   clearAuthData: () => void;
   updateTokens: (accessToken: string, refreshToken: string) => void;
@@ -41,14 +41,17 @@ export const useAuthStore = create<AuthState>()(
       },
 
       isAuthenticated: () => {
-        return !!get().accessToken;
+        const state = get();
+        // Authenticated khi có user data (đã verify với backend)
+        // Token thực sự nằm trong HttpOnly cookie, không lưu trong store
+        return !!state.user;
       },
     }),
     {
       name: 'auth-storage',
+      // Chỉ persist user data để hiển thị UI nhanh
+      // Tokens KHÔNG được persist - được quản lý qua HttpOnly cookie
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
       }),
     }

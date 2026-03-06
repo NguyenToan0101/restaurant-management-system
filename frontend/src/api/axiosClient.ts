@@ -1,35 +1,28 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
+
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000,
+  withCredentials: true, // Enable sending cookies
 });
 
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value?: unknown) => void;
-  reject: (reason?: unknown) => void;
-}> = [];
+let refreshPromise: Promise<string | null> | null = null;
 
-const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+// Helper: chỉ là JWT thực khi bắt đầu bằng 'eyJ' (base64 header)
+const isRealJwt = (token: string | null): boolean =>
+  !!token && token.startsWith('eyJ');
 
 axiosClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
-    if (token && config.headers) {
+    // Chỉ gửi Authorization header khi token là JWT thực (không phải placeholder 'cookie')
+    if (isRealJwt(token) && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -40,82 +33,65 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: number };
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401) {
-      if (originalRequest.url?.includes('/auth/')) {
-        return Promise.reject(error);
-      }
-
-      originalRequest._retry = originalRequest._retry || 0;
-
-      if (originalRequest._retry >= 3) {
-        useAuthStore.getState().clearAuthData();
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      originalRequest._retry += 1;
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return axiosClient(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      isRefreshing = true;
-
-      const refreshToken = useAuthStore.getState().refreshToken;
-
-      if (!refreshToken) {
-        isRefreshing = false;
-        processQueue(new Error('No refresh token'), null);
-        useAuthStore.getState().clearAuthData();
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      try {
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
-          { refreshToken }
-        );
-
-        const authResponse = response.data.result;
-        const { accessToken, refreshToken: newRefreshToken } = authResponse;
-
-        useAuthStore.getState().updateTokens(accessToken, newRefreshToken);
-        axiosClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        }
-
-        processQueue(null, accessToken);
-
-        if (window.queryClient) {
-          window.queryClient.invalidateQueries();
-        }
-
-        return axiosClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError as Error, null);
-        useAuthStore.getState().clearAuthData();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+    if (!error.response || error.response.status !== 401) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    // Không retry các endpoint auth (tránh vòng lặp)
+    if (originalRequest.url?.includes('/auth/')) {
+      return Promise.reject(error);
+    }
+
+    // Tránh retry 2 lần
+    if (originalRequest._retry) {
+      useAuthStore.getState().clearAuthData();
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+
+    try {
+      if (!refreshPromise) {
+        refreshPromise = (async () => {
+          try {
+            // Refresh token có trong HttpOnly cookie, backend tự đọc
+            // Backend sẽ set lại access_token cookie mới qua Set-Cookie
+            await axios.post(
+              `${baseURL}/auth/refresh`,
+              {}, // Empty body
+              { withCredentials: true }
+            );
+            return 'refreshed';
+          } catch {
+            useAuthStore.getState().clearAuthData();
+            window.location.href = '/login';
+            return null;
+          } finally {
+            refreshPromise = null;
+          }
+        })();
+      }
+
+      const result = await refreshPromise;
+
+      if (!result) {
+        return Promise.reject(error);
+      }
+
+      // Retry request gốc - cookie mới sẽ tự được gửi nớm withCredentials: true
+      // Xóa Authorization header nếu có để backend dùng cookie
+      if (originalRequest.headers) {
+        delete originalRequest.headers.Authorization;
+      }
+
+      return axiosClient(originalRequest);
+
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 );
 
