@@ -61,6 +61,10 @@ const Navbar = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/restaurants')}>
                   <Store className="w-4 h-4 mr-2" />
                   My Restaurants
@@ -101,6 +105,10 @@ const Navbar = () => {
                 <div className="text-sm text-secondary-foreground/60 px-3 py-2">
                   {user?.email}
                 </div>
+                <Button variant="ghost" className="w-full text-secondary-foreground/60 justify-start" onClick={() => { navigate('/profile'); setMobileOpen(false); }}>
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Button>
                 <Button variant="ghost" className="w-full text-secondary-foreground/60 justify-start" onClick={() => { navigate('/restaurants'); setMobileOpen(false); }}>
                   <Store className="w-4 h-4 mr-2" />
                   My Restaurants
