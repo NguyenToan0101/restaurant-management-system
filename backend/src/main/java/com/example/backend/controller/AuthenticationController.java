@@ -30,10 +30,6 @@ public class AuthenticationController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         log.info("Login request received for email: {}", request.getEmail());
-        log.info("Scheme: {}", httpRequest.getScheme());
-        log.info("X-Forwarded-Proto: {}", httpRequest.getHeader("X-Forwarded-Proto"));
-        log.info("ServerName: {}", httpRequest.getServerName());
-        log.info("RequestURL: {}", httpRequest.getRequestURL());
 
         String clientIp = extractClientIp(httpRequest);
         String userAgent = extractUserAgent(httpRequest);
@@ -119,7 +115,7 @@ public class AuthenticationController {
 
     @GetMapping("/me")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<com.example.backend.dto.response.UserDTO>> getCurrentUser() {
+    public ResponseEntity<ApiResponse<com.example.backend.dto.response.UserResponse>> getCurrentUser() {
         log.info("Get current user request received");
 
         // Get authenticated user from SecurityContext
@@ -141,14 +137,13 @@ public class AuthenticationController {
                 .orElseThrow(() -> new com.example.backend.exception.AppException(
                         com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
 
-        com.example.backend.dto.response.UserDTO userDTO = new com.example.backend.dto.response.UserDTO(
+        com.example.backend.dto.response.UserResponse userDTO = new com.example.backend.dto.response.UserResponse(
                 user.getUserId(),
                 user.getEmail(),
                 user.getUsername(),
-                null, // phone
                 user.getRole().getName().name());
 
-        ApiResponse<com.example.backend.dto.response.UserDTO> response = new ApiResponse<>();
+        ApiResponse<com.example.backend.dto.response.UserResponse> response = new ApiResponse<>();
         response.setCode(200);
         response.setMessage("User retrieved successfully");
         response.setResult(userDTO);

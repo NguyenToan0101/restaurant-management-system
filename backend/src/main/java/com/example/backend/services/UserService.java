@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.backend.dto.UserDTO;
+
+import com.example.backend.dto.response.UserInfoResponse;
 import com.example.backend.dto.request.ChangePasswordRequest;
 import com.example.backend.dto.request.ForgetPasswordRequest;
 import com.example.backend.dto.request.SignupRequest;
@@ -23,6 +25,7 @@ import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.repositories.RoleRepository;
+import com.example.backend.repositories.GoogleAccountRepository;
 import com.example.backend.repositories.UserRepository;
 
 @Service
@@ -32,12 +35,14 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
+    private final GoogleAccountRepository googleAccountRepository;
 
-    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder, RoleRepository roleRepository) {
+    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder, RoleRepository roleRepository, GoogleAccountRepository googleAccountRepository) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.roleRepository = roleRepository;
+        this.googleAccountRepository = googleAccountRepository;
     }
 
     public List<UserDTO> getAll() {
@@ -100,10 +105,47 @@ public class UserService {
         
         user.setEmail(userDTO.getEmail());
         user.setUsername(userDTO.getUsername());
-        user.setRole(roleRepository.findByName(userDTO.getRole().getName())
-                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOTEXISTED)));
         
         return userMapper.toUserDto(userRepository.save(user));
+    }
+
+    public UserInfoResponse getUserInfo(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOTEXISTED));
+        
+        // Check if user has Google account
+        boolean isGoogleAccount = googleAccountRepository.findByUser(user).isPresent();
+        
+        com.example.backend.dto.response.UserInfoResponse response = new com.example.backend.dto.response.UserInfoResponse();
+        response.setUserId(user.getUserId().toString());
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setGoogleAccount(isGoogleAccount);
+        
+        return response;
+    }
+
+    public UserInfoResponse updateUserInfo(UUID userId, com.example.backend.dto.request.UserInfoUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOTEXISTED));
+        
+        // Only update username
+        if (request.getUsername() != null && !request.getUsername().isEmpty()) {
+            user.setUsername(request.getUsername());
+        }
+        
+        User savedUser = userRepository.save(user);
+        
+        // Check if user has Google account
+        boolean isGoogleAccount = googleAccountRepository.findByUser(savedUser).isPresent();
+        
+        com.example.backend.dto.response.UserInfoResponse response = new com.example.backend.dto.response.UserInfoResponse();
+        response.setUserId(savedUser.getUserId().toString());
+        response.setUsername(savedUser.getUsername());
+        response.setEmail(savedUser.getEmail());
+        response.setGoogleAccount(isGoogleAccount);
+        
+        return response;
     }
     
     public PageResponse<UserDTO> getUserPaginated(int page, int size) {

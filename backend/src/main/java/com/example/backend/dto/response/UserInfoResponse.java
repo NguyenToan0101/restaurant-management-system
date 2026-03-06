@@ -9,8 +9,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthenticationResponse {
-    private String accessToken;
-    private String refreshToken;
-    private UserResponse user;
+public class UserInfoResponse {
+    private String userId;
+    private String username;
+    private String email;
+    private boolean isGoogleAccount;
 }
