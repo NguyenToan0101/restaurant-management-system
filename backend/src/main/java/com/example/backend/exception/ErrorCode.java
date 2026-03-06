@@ -58,9 +58,8 @@ public enum ErrorCode {
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
 
     // Staff & Role errors
-    STAFFACCOUNT_NOTEXISTED(3101, "Staff account does not exist", HttpStatus.NOT_FOUND),
-    ROLE_NOTEXISTED(3102, "Role does not exist", HttpStatus.NOT_FOUND),
-    STAFFACCOUNT_DELETED(3103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
+    STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),
+    STAFFACCOUNT_DELETED(4103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
 
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
