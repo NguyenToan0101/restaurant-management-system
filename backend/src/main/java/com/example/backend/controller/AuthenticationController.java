@@ -30,6 +30,10 @@ public class AuthenticationController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         log.info("Login request received for email: {}", request.getEmail());
+        log.info("Scheme: {}", httpRequest.getScheme());
+        log.info("X-Forwarded-Proto: {}", httpRequest.getHeader("X-Forwarded-Proto"));
+        log.info("ServerName: {}", httpRequest.getServerName());
+        log.info("RequestURL: {}", httpRequest.getRequestURL());
 
         String clientIp = extractClientIp(httpRequest);
         String userAgent = extractUserAgent(httpRequest);
