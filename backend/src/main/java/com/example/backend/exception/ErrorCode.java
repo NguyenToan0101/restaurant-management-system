@@ -57,6 +57,10 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
 
+    // Staff & Role errors
+    STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),
+    STAFFACCOUNT_DELETED(4103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
+
     // Area & Table errors (3200-3299)
     AREA_NOT_FOUND(3200, "Area not found", HttpStatus.NOT_FOUND),
     AREA_NAME_EXISTED(3201, "Area name already exists in this branch", HttpStatus.BAD_REQUEST),

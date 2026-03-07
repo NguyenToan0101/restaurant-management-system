@@ -26,5 +26,5 @@ public class PageResponse<T> {
     public void setTotalPages(int totalPages) {
         this.totalPages = totalPages;
     }
-    
+
 }
