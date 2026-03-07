@@ -13,6 +13,7 @@ import com.example.backend.entities.BranchMenuItem;
 import com.example.backend.entities.MenuItem;
 // import com.example.backend.entities.MenuItemStatus;
 import com.example.backend.entities.Restaurant;
+import com.example.backend.entities.RoleName;
 import com.example.backend.entities.User;
 import com.example.backend.entities.FeatureCode;
 import com.example.backend.exception.AppException;
@@ -22,6 +23,7 @@ import com.example.backend.mapper.BranchMapper;
 import com.example.backend.repositories.BranchRepository;
 // import com.example.backend.repository.MenuItemRepository;
 import com.example.backend.repositories.RestaurantRepository;
+import com.example.backend.repositories.StaffAccountRepository;
 
 @Service
 public class BranchService {
@@ -29,6 +31,7 @@ public class BranchService {
     private final BranchRepository branchRepository;
     private final BranchMapper branchMapper;
     private final RestaurantRepository restaurantRepository;
+    private final StaffAccountRepository staffAccountRepository;
     // private final FeatureLimitCheckerService featureLimitCheckerService;
     // private final BranchMenuItemRepository branchMenuItemRepository;
     // private final MenuItemRepository menuItemRepository;
@@ -36,7 +39,8 @@ public class BranchService {
     public BranchService(
             BranchRepository branchRepository,
             BranchMapper branchMapper,
-            RestaurantRepository restaurantRepository
+            RestaurantRepository restaurantRepository,
+            StaffAccountRepository staffAccountRepository
             // FeatureLimitCheckerService featureLimitCheckerService,
             // BranchMenuItemRepository branchMenuItemRepository,
             // MenuItemRepository menuItemRepository
@@ -44,9 +48,20 @@ public class BranchService {
         this.branchRepository = branchRepository;
         this.branchMapper = branchMapper;
         this.restaurantRepository = restaurantRepository;
+        this.staffAccountRepository = staffAccountRepository;
         // this.featureLimitCheckerService = featureLimitCheckerService;
         // this.branchMenuItemRepository = branchMenuItemRepository;
         // this.menuItemRepository = menuItemRepository;
+    }
+
+    private BranchDTO toDtoWithStaffCount(Branch branch) {
+        BranchDTO dto = branchMapper.toDto(branch);
+        long count = staffAccountRepository.countByBranchAndRole_NameNot(
+                branch,
+                RoleName.BRANCH_MANAGER
+        );
+        dto.setStaffCount(count);
+        return dto;
     }
 
     private User getCurrentUser() {
@@ -68,13 +83,13 @@ public class BranchService {
     }
 
     public List<BranchDTO> getAll() {
-        return branchRepository.findAll().stream().map(branchMapper::toDto).toList();
+        return branchRepository.findAll().stream().map(this::toDtoWithStaffCount).toList();
     }
 
     public BranchDTO getById(UUID id) {
         Branch b = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        return branchMapper.toDto(b);
+        return toDtoWithStaffCount(b);
     }
 
     @Transactional
@@ -111,7 +126,7 @@ public class BranchService {
         //     branchMenuItemRepository.save(branchMenuItem);
         // }
         
-        return branchMapper.toDto(saved);
+        return toDtoWithStaffCount(saved);
     }
 
     @Transactional
@@ -133,7 +148,7 @@ public class BranchService {
 
         branchMapper.updateEntityFromDto(dto, exist);
         Branch saved = branchRepository.save(exist);
-        return branchMapper.toDto(saved);
+        return toDtoWithStaffCount(saved);
     }
 
     @Transactional
@@ -149,7 +164,7 @@ public class BranchService {
         checkRestaurantOwnership(restaurantId);
         
         return branchRepository.findByRestaurant_RestaurantId(restaurantId)
-                .stream().map(branchMapper::toDto).toList();
+                .stream().map(this::toDtoWithStaffCount).toList();
     }
 
     public List<BranchDTO> getActiveByRestaurant(UUID restaurantId) {
@@ -157,7 +172,7 @@ public class BranchService {
         checkRestaurantOwnership(restaurantId);
         
         return branchRepository.findByRestaurant_RestaurantIdAndIsActiveTrue(restaurantId)
-                .stream().map(branchMapper::toDto).toList();
+                .stream().map(this::toDtoWithStaffCount).toList();
     }
 
     @Transactional(readOnly = true)
@@ -189,7 +204,7 @@ public class BranchService {
         
         return branchRepository.findByOwnerId(ownerId)
                 .stream()
-                .map(branchMapper::toDto)
+                .map(this::toDtoWithStaffCount)
                 .toList();
     }
 }

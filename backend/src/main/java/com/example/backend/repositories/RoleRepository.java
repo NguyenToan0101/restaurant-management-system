@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface RoleRepository extends JpaRepository<Role, UUID> {
-    
+
     /**
      * Find role by name
      * @param name Role name enum

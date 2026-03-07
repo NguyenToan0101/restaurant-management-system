@@ -16,6 +16,7 @@ public class BranchDTO {
     @JsonProperty("isActive")
     private boolean active = true;
     private String mail;
+    private long staffCount;
 
     public UUID getBranchId() {
         return branchId;
@@ -88,5 +89,13 @@ public class BranchDTO {
 
     public void setRestaurantName(String restaurantName) {
         this.restaurantName = restaurantName;
+    }
+
+    public long getStaffCount() {
+        return staffCount;
+    }
+
+    public void setStaffCount(long staffCount) {
+        this.staffCount = staffCount;
     }
 }

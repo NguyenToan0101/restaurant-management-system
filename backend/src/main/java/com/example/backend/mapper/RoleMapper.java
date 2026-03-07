@@ -7,7 +7,7 @@ import com.example.backend.entities.Role;
 
 @Mapper(componentModel = "spring")
 public interface RoleMapper {
-    
+
     RoleDTO toRoleDTO(Role role);
 
 }
