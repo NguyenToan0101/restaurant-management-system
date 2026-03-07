@@ -48,7 +48,17 @@ class AuthApi {
   // Get current authenticated user
   async getCurrentUser(): Promise<any> {
     const response = await axiosClient.get<ApiResponse<any>>('/auth/me');
-    return response.data.result;
+    const user = response.data.result;
+    
+    // Transform role from string to RoleDTO object for consistency
+    if (user && typeof user.role === 'string') {
+      user.role = {
+        name: user.role,
+        description: user.role,
+      };
+    }
+    
+    return user;
   }
 }
 

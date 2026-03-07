@@ -8,7 +8,7 @@ export interface UserDTO {
   email: string;
   username: string;
   role: RoleDTO;
-  status: string;
+  status?: string;
 }
 
 export interface AuthenticationResponse {

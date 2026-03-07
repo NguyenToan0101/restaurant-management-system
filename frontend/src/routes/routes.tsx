@@ -7,6 +7,10 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
+import AdminLayout from "@/components/admin/AdminLayout";
+import Statistics from "@/pages/admin/Statistics";
+import PackageManagement from "@/pages/admin/PackageManagement";
+import UserManagement from "@/pages/admin/UserManagement";
 import Navbar from "@/components/Navbar";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -14,6 +18,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role?.name === "ADMIN";
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -72,6 +92,18 @@ const AppRoutes = () => {
           <RestaurantDashboard />
         </ProtectedRoute>
       } />
+
+      {/* Admin routes */}
+      <Route path="/admin/dashboard/*" element={
+        <AdminRoute>
+          <AdminLayout />
+        </AdminRoute>
+      }>
+        <Route path="statistics" element={<Statistics />} />
+        <Route path="packages" element={<PackageManagement />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route index element={<Navigate to="statistics" replace />} />
+      </Route>
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
