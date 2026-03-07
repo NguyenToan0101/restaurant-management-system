@@ -10,9 +10,9 @@ import Navbar from "@/components/Navbar";
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  // if (!isAuthenticated) {
+  //   return <Navigate to="/login" replace />;
+  // }
 
   return <>{children}</>;
 };
@@ -56,8 +56,13 @@ const AppRoutes = () => {
           <RestaurantDashboard />
         </ProtectedRoute>
       } />
-
+    
       <Route path="/dashboard/:id/*" element={
+        <ProtectedRoute>
+          <RestaurantDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard" element={
         <ProtectedRoute>
           <RestaurantDashboard />
         </ProtectedRoute>
