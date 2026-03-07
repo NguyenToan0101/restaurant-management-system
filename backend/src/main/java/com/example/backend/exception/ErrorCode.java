@@ -57,6 +57,16 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
 
+    // Package errors (3200-3299)
+    PACKAGE_NOTEXISTED(3200, "Package not found", HttpStatus.NOT_FOUND),
+    PACKAGE_NAME_EXISTED(3201, "Package name already exists", HttpStatus.BAD_REQUEST),
+
+    // Feature errors (3300-3399)
+    FEATURE_NOTEXISTED(3300, "Feature not found", HttpStatus.NOT_FOUND),
+    FEATURE_NAME_EMPTY(3301, "Feature name cannot be empty", HttpStatus.BAD_REQUEST),
+    FEATURE_NOTEXISTED_IN_PACKAGE(3302, "Feature not found in package", HttpStatus.NOT_FOUND),
+    FEATURE_VALUE_INVALID(3303, "Limit feature must have value greater than 0", HttpStatus.BAD_REQUEST),
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;
