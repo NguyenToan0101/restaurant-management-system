@@ -26,4 +26,7 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
 
     // Đếm số lượng nhân viên theo vai trò trong chi nhánh (cho Thống kê)
     long countByBranchAndRole_Name(Branch branch, RoleName roleName);
+
+    // Đếm số lượng nhân viên trong chi nhánh, loại bỏ một vai trò cụ thể (ví dụ BRANCH_MANAGER)
+    long countByBranchAndRole_NameNot(Branch branch, RoleName roleName);
 }
