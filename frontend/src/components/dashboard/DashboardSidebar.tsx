@@ -1,7 +1,7 @@
 import { Link, useParams, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, UtensilsCrossed, ShoppingCart, Users, Settings,
-  Store, ChevronLeft, FolderTree, Sliders,
+  Store, ChevronLeft, FolderTree, Sliders, MapPin,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -16,9 +16,9 @@ import { ChevronDown } from "lucide-react";
 
 const menuItems = [
   { title: "Overview", url: "", icon: LayoutDashboard },
-  { 
-    title: "Menu Management", 
-    url: "/menu", 
+  {
+    title: "Menu Management",
+    url: "/menu",
     icon: UtensilsCrossed,
     subItems: [
       { title: "Menu Items", url: "/menu" },
@@ -26,6 +26,7 @@ const menuItems = [
       { title: "Customizations", url: "/customizations" },
     ]
   },
+  { title: "Areas & Tables", url: "/areas", icon: MapPin },
   { title: "Orders", url: "/orders", icon: ShoppingCart },
   { title: "Staff", url: "/staff", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },

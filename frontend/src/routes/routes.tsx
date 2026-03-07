@@ -7,6 +7,8 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
+import AreaManagement from "@/pages/owner/AreaManagement";
+import TableManagement from "@/pages/owner/TableManagement";
 import Navbar from "@/components/Navbar";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -70,6 +72,18 @@ const AppRoutes = () => {
       <Route path="/dashboard/:id/*" element={
         <ProtectedRoute>
           <RestaurantDashboard />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dashboard/:id/branches/:branchId/areas" element={
+        <ProtectedRoute>
+          <AreaManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dashboard/:id/areas/:areaId/tables" element={
+        <ProtectedRoute>
+          <TableManagement />
         </ProtectedRoute>
       } />
 

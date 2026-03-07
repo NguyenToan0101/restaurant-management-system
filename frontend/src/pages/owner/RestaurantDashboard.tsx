@@ -32,6 +32,7 @@ import StaffManagement from "@/pages/owner/StaffManagement";
 import CategoryManagement from "@/pages/owner/CategoryManagement";
 import CustomizationManagement from "@/pages/owner/CustomizationManagement";
 import MenuItemManagement from "@/pages/owner/MenuItemManagement";
+import BranchAreaSelection from "@/pages/owner/BranchAreaSelection";
 import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
 import type { BranchDTO, RestaurantDTO } from "@/types/dto";
@@ -57,6 +58,7 @@ const RestaurantDashboard = () => {
         <Route path="menu" element={<MenuItemManagement />} />
         <Route path="categories" element={<CategoryManagement />} />
         <Route path="customizations" element={<CustomizationManagement />} />
+        <Route path="areas" element={<BranchAreaSelection />} />
         <Route path="orders" element={<CommingSoon title="Orders" />} />
         <Route path="staff" element={<StaffManagement />} />
         <Route path="settings" element={<CommingSoon title="Settings" />} />

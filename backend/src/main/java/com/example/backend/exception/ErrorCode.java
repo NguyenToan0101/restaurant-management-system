@@ -57,6 +57,13 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
 
+    // Area & Table errors (3200-3299)
+    AREA_NOT_FOUND(3200, "Area not found", HttpStatus.NOT_FOUND),
+    AREA_NAME_EXISTED(3201, "Area name already exists in this branch", HttpStatus.BAD_REQUEST),
+    TABLE_NOT_FOUND(3210, "Table not found", HttpStatus.NOT_FOUND),
+    TABLE_TAG_EXISTED(3211, "Table tag already exists in this area", HttpStatus.BAD_REQUEST),
+    INVALID_CAPACITY(3212, "Table capacity must be greater than 0", HttpStatus.BAD_REQUEST),
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;
