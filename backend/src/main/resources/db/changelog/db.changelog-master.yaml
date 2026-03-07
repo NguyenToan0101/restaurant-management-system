@@ -17,3 +17,6 @@ databaseChangeLog:
   - include:
       file: V006-remove-phone-column.sql
       relativeToChangelogFile: true
+  - include:
+      file: V007-seed-packages-features.sql
+      relativeToChangelogFile: true

@@ -7,3 +7,4 @@ export * from './staff.dto';
 export * from './category.dto';
 export * from './customization.dto';
 export * from './menu-item.dto';
+export * from './package.dto';

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { UtensilsCrossed, Menu, X, LogOut, User, Store } from "lucide-react";
+import { UtensilsCrossed, Menu, X, LogOut, User, Store, Shield } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
@@ -19,6 +19,8 @@ const Navbar = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const user = useAuthStore((state) => state.user);
   const logoutMutation = useLogout();
+
+  const isAdmin = user?.role?.name === "ADMIN";
 
   const navLinks = [
     { label: "Features", href: "#features" },
@@ -49,7 +51,15 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2">
+          {isAdmin && (
+            <Link to="/admin/dashboard/statistics">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/60 hover:text-secondary-foreground hover:bg-white/[0.06] gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                Admin
+              </Button>
+            </Link>
+          )}
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -69,6 +79,7 @@ const Navbar = () => {
                   <Store className="w-4 h-4 mr-2" />
                   My Restaurants
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
                   <LogOut className="w-4 h-4 mr-2" />
                   {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
@@ -102,6 +113,14 @@ const Navbar = () => {
           <div className="flex flex-col gap-2 mt-3">
             {isAuthenticated ? (
               <>
+                {isAdmin && (
+                  <Link to="/admin/dashboard/statistics">
+                    <Button variant="ghost" className="w-full text-secondary-foreground/60 justify-start gap-2" onClick={() => setMobileOpen(false)}>
+                      <Shield className="w-4 h-4" />
+                      Admin Dashboard
+                    </Button>
+                  </Link>
+                )}
                 <div className="text-sm text-secondary-foreground/60 px-3 py-2">
                   {user?.email}
                 </div>
