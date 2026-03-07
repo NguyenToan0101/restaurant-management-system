@@ -1,9 +1,14 @@
+export interface RoleDTO {
+  name: string;
+  description: string;
+}
+
 export interface UserDTO {
   userId: string;
   email: string;
   username: string;
-  phone: string;
-  role: string;
+  role: RoleDTO;
+  status: string;
 }
 
 export interface AuthenticationResponse {

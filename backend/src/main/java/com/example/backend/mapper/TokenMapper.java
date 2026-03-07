@@ -1,7 +1,7 @@
 package com.example.backend.mapper;
 
 import com.example.backend.dto.response.AuthenticationResponse;
-import com.example.backend.dto.response.UserDTO;
+import com.example.backend.dto.response.UserResponse;
 import com.example.backend.entities.User;
 import com.example.backend.services.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class TokenMapper {
         String refreshToken = jwtService.generateRefreshToken(user, clientIp, userAgent);
         
         // Map User to UserDTO
-        UserDTO userDTO = authenticationMapper.toUserDTO(user);
+        UserResponse userDTO = authenticationMapper.toUserResponse(user);
         
         log.info("Successfully generated JWT tokens for user {}", user.getEmail());
         

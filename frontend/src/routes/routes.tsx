@@ -4,6 +4,7 @@ import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
+import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
 import Navbar from "@/components/Navbar";
@@ -48,6 +49,12 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
 
       {/* Protected routes */}
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      } />
+
       <Route path="/restaurants" element={
         <ProtectedRoute>
           <RestaurantSelection />

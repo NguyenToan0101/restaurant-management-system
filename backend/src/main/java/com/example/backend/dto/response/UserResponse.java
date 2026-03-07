@@ -11,10 +11,9 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDTO {
+public class UserResponse {
     private UUID userId;
     private String email;
     private String username;
-    private String phone;
     private String role;
 }
