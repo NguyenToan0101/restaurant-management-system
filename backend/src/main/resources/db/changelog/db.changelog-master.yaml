@@ -8,3 +8,15 @@ databaseChangeLog:
   - include:
       file: V003-init-users-role-data.sql
       relativeToChangelogFile: true
+  - include:
+      file: V004-seed-targettype-data.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V005-create-google-account-table.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V006-remove-phone-column.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V007-seed-packages-features.sql
+      relativeToChangelogFile: true

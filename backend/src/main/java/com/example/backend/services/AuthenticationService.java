@@ -3,7 +3,7 @@ package com.example.backend.services;
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.request.RefreshRequest;
 import com.example.backend.dto.response.AuthenticationResponse;
-import com.example.backend.dto.response.UserDTO;
+import com.example.backend.dto.response.UserResponse;
 import com.example.backend.entities.EntityStatus;
 import com.example.backend.entities.User;
 import com.example.backend.exception.AppException;
@@ -51,7 +51,7 @@ public class AuthenticationService {
         String refreshToken = jwtService.generateRefreshToken(user, clientIp, userAgent);
         
         // Map User sang UserDTO
-        UserDTO userDTO = authenticationMapper.toUserDTO(user);
+        UserResponse userDTO = authenticationMapper.toUserResponse(user);
         
         log.info("Login successful for email: {}", request.getEmail());
         
@@ -73,7 +73,7 @@ public class AuthenticationService {
         String refreshToken = jwtService.generateRefreshToken(user, clientIp, userAgent);
         
         // Map User sang UserDTO
-        UserDTO userDTO = authenticationMapper.toUserDTO(user);
+        UserResponse userDTO = authenticationMapper.toUserResponse(user);
         
         log.info("Token refresh successful for user: {}", user.getEmail());
         

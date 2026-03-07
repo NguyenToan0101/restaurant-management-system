@@ -8,4 +8,5 @@ export interface BranchDTO {
     closingTime: string; // Format: "HH:mm:ss"
     isActive?: boolean;
     mail: string;
+    staffCount?: number;
 }

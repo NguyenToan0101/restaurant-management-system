@@ -2,6 +2,7 @@ package com.example.backend.exception;
 
 import com.example.backend.dto.response.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -72,6 +74,61 @@ public class GlobalExceptionHandler {
         
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(InvalidAuthorizationCodeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidAuthorizationCodeException(InvalidAuthorizationCodeException ex) {
+        log.error("Invalid authorization code: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(GoogleServiceUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGoogleServiceUnavailableException(GoogleServiceUnavailableException ex) {
+        log.error("Google service unavailable: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(InvalidIdTokenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidIdTokenException(InvalidIdTokenException ex) {
+        log.error("Invalid ID token: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailNotVerifiedException(EmailNotVerifiedException ex) {
+        log.error("Email not verified: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(UserCancelledLoginException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUserCancelledLoginException(UserCancelledLoginException ex) {
+        log.info("User cancelled login: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
                 .body(response);
     }
 
