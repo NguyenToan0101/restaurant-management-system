@@ -17,7 +17,7 @@ class StaffAccountApi {
   ): Promise<PageResponse<StaffAccountDTO>> {
     const response = await axiosClient.get<
       ApiResponse<PageResponse<StaffAccountBackendDTO>>
-    >('/staff/manager/paginated', {
+    >('/staff/owner/paginated', {
       params: { branchId, page, size },
     });
 

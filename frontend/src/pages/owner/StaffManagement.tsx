@@ -87,10 +87,25 @@ const StaffManagement = () => {
     null,
   );
 
-  // Form state
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [formRole, setFormRole] = useState<StaffRoleName>("WAITER");
+  const [passwordError, setPasswordError] = useState("");
+  
+  const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$/;
+
+  const validatePassword = (password: string) => {
+    if (!password) {
+      setPasswordError("Password is required");
+      return false;
+    }
+    if (!PASSWORD_REGEX.test(password)) {
+      setPasswordError("At least 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
 
   const {
     data: staffPage,
@@ -140,7 +155,7 @@ const StaffManagement = () => {
         branchId: selectedBranchId,
       });
     } else {
-      if (!formPassword.trim()) return;
+      if (!validatePassword(formPassword.trim())) return;
 
       await createStaff.mutateAsync({
         username: formUsername.trim(),
@@ -491,8 +506,15 @@ const StaffManagement = () => {
                   type="password"
                   placeholder="Enter a temporary password"
                   value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
+                  onChange={(e) => {
+                    setFormPassword(e.target.value);
+                    if (passwordError) validatePassword(e.target.value);
+                  }}
+                  onBlur={(e) => validatePassword(e.target.value)}
                 />
+                {passwordError && (
+                  <p className="text-sm text-destructive">{passwordError}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -507,6 +529,7 @@ const StaffManagement = () => {
                 <SelectContent>
                   <SelectItem value="WAITER">Waiter</SelectItem>
                   <SelectItem value="RECEPTIONIST">Receptionist</SelectItem>
+                  <SelectItem value="BRANCH_MANAGER">Branch Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -519,7 +542,7 @@ const StaffManagement = () => {
               onClick={handleSave}
               disabled={
                 !formUsername.trim() ||
-                (!editingStaff && !formPassword.trim()) ||
+                (!editingStaff && (!formPassword.trim() || !!passwordError)) ||
                 createStaff.isPending ||
                 updateStaff.isPending
               }

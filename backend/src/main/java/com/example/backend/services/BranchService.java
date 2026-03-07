@@ -56,10 +56,7 @@ public class BranchService {
 
     private BranchDTO toDtoWithStaffCount(Branch branch) {
         BranchDTO dto = branchMapper.toDto(branch);
-        long count = staffAccountRepository.countByBranchAndRole_NameNot(
-                branch,
-                RoleName.BRANCH_MANAGER
-        );
+        long count = staffAccountRepository.countByBranch(branch);
         dto.setStaffCount(count);
         return dto;
     }
