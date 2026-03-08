@@ -49,5 +49,6 @@ export interface RestaurantCreateRequest {
   name: string;
   email: string;
   restaurantPhone: string;
+  publicUrl?: string;
   description?: string;
 }
