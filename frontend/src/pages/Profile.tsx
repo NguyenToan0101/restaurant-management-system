@@ -598,7 +598,9 @@ const Profile = () => {
                               <Store className="w-5 h-5" />
                               {restaurant.name}
                             </CardTitle>
-                            <CardDescription>{restaurant.description || "No description"}</CardDescription>
+                            <CardDescription>
+                              {restaurant.publicUrl ? new URL(restaurant.publicUrl).pathname.slice(1) : restaurant.description || "No description"}
+                            </CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-2 text-sm">

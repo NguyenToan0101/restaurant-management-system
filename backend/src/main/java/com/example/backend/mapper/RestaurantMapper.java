@@ -20,25 +20,24 @@ public abstract class RestaurantMapper {
     @Mapping(source = "userId", target = "user.userId")
     public abstract Restaurant toRestaurant(RestaurantDTO dto);
     
-    // Custom method to build full URL from slug
-    protected String buildFullUrl(String slug) {
-        if (slug == null || slug.isEmpty()) {
+    // Public method to add full URL building - only for publicUrl field
+    public RestaurantDTO toRestaurantDtoWithFullUrl(Restaurant restaurant) {
+        if (restaurant == null) {
             return null;
         }
-        // If already a full URL, return as-is
-        if (slug.startsWith("http://") || slug.startsWith("https://")) {
-            return slug;
-        }
-        // Build full URL from slug
-        return webUrl + "/" + slug;
-    }
-    
-    // Override to add full URL building
-    public RestaurantDTO toRestaurantDtoWithFullUrl(Restaurant restaurant) {
+        
         RestaurantDTO dto = toRestaurantDto(restaurant);
+        
+        // Only build full URL for publicUrl field
         if (dto != null && dto.getPublicUrl() != null) {
-            dto.setPublicUrl(buildFullUrl(dto.getPublicUrl()));
+            String slug = dto.getPublicUrl();
+            // If already a full URL, keep as-is (backward compatibility)
+            if (!slug.startsWith("http://") && !slug.startsWith("https://")) {
+                // Build full URL from slug
+                dto.setPublicUrl(webUrl + "/" + slug);
+            }
         }
+        
         return dto;
     }
 }
