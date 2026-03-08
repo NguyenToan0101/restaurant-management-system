@@ -15,7 +15,7 @@ interface LocationState {
     address: string;
     phone: string;
     email: string;
-    website: string;
+    publicUrl: string;
     description: string;
   };
 }
@@ -48,6 +48,7 @@ const PaymentConfirm = () => {
           name: restaurant.name,
           email: restaurant.email,
           restaurantPhone: restaurant.phone,
+          publicUrl: restaurant.publicUrl,
           description: restaurant.description,
         },
         packageId: pkg.packageId!,
@@ -77,7 +78,7 @@ const PaymentConfirm = () => {
             <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
               <Store className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">RestoHub</span>
+            <span className="text-lg font-bold tracking-tight">BentoX</span>
           </div>
         </div>
       </header>
@@ -117,7 +118,7 @@ const PaymentConfirm = () => {
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{restaurant.address}</span></div>
                   <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /><span>{restaurant.phone}</span></div>
                   <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" /><span>{restaurant.email}</span></div>
-                  {restaurant.website && <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /><span>{restaurant.website}</span></div>}
+                  {restaurant.publicUrl && <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /><span>BentoX.com/{restaurant.publicUrl}</span></div>}
                 </div>
                 {restaurant.description && (
                   <p className="text-muted-foreground pt-2">{restaurant.description}</p>

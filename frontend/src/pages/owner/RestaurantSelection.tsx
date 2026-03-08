@@ -1,57 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowRight, Store, GitBranch, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRestaurantsByOwner } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByOwner } from "@/hooks/queries/useBranchQueries";
 import { useAuthStore } from "@/stores/authStore";
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useCreateRestaurant } from "@/hooks/queries/useRestaurantQueries";
 
 const RestaurantSelection = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const { data: restaurants, isLoading: isLoadingRestaurants } = useRestaurantsByOwner(user?.userId || '');
   const { data: branches } = useBranchesByOwner(user?.userId || '');
-  const createRestaurant = useCreateRestaurant();
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    restaurantPhone: '',
-    description: '',
-  });
-
-  const handleCreate = async () => {
-    if (!formData.name.trim() || !formData.email.trim() || !formData.restaurantPhone.trim() || !user?.userId) return;
-
-    await createRestaurant.mutateAsync({
-      userId: user.userId,
-      name: formData.name,
-      email: formData.email,
-      restaurantPhone: formData.restaurantPhone,
-      description: formData.description || undefined,
-    });
-
-    setDialogOpen(false);
-    setFormData({
-      name: '',
-      email: '',
-      restaurantPhone: '',
-      description: '',
-    });
-  };
 
   const getBranchCount = (restaurantId: string) => {
     return branches?.filter(b => b.restaurantId === restaurantId).length || 0;
@@ -66,7 +25,7 @@ const RestaurantSelection = () => {
             <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
               <Store className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">RestoHub</span>
+            <span className="text-lg font-bold tracking-tight">BentoX</span>
           </Link>
           <ThemeToggle />
         </div>
@@ -79,7 +38,7 @@ const RestaurantSelection = () => {
               <h1 className="text-3xl font-display mb-2">Your Restaurants</h1>
               <p className="text-muted-foreground">Select a restaurant to manage its dashboard</p>
             </div>
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => navigate('/payment/select')}>
               <Plus className="w-4 h-4 mr-2" />
               Create Restaurant
             </Button>
@@ -131,7 +90,7 @@ const RestaurantSelection = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Create your first restaurant to get started
                 </p>
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button onClick={() => navigate('/payment/select')}>
                   <Plus className="w-4 h-4 mr-1" />
                   Add Restaurant
                 </Button>
@@ -140,74 +99,6 @@ const RestaurantSelection = () => {
           </div>
         </div>
       </main>
-
-      {/* Create Restaurant Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Restaurant</DialogTitle>
-            <DialogDescription>
-              Enter your restaurant details to get started
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="restaurant-name">Restaurant Name *</Label>
-              <Input
-                id="restaurant-name"
-                placeholder="e.g. Pho Hanoi"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="restaurant-email">Email *</Label>
-              <Input
-                id="restaurant-email"
-                type="email"
-                placeholder="e.g. contact@phohanoi.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="restaurant-phone">Phone *</Label>
-              <Input
-                id="restaurant-phone"
-                placeholder="e.g. +84 123 456 789"
-                value={formData.restaurantPhone}
-                onChange={(e) => setFormData({ ...formData, restaurantPhone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="restaurant-description">Description</Label>
-              <Textarea
-                id="restaurant-description"
-                placeholder="Tell us about your restaurant..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleCreate}
-              disabled={!formData.name.trim() || !formData.email.trim() || !formData.restaurantPhone.trim() || createRestaurant.isPending}
-            >
-              {createRestaurant.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Restaurant'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

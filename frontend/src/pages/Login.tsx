@@ -45,7 +45,7 @@ const Login = () => {
             <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center">
               <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">RestoHub</span>
+            <span className="text-2xl font-bold tracking-tight">BentoX</span>
           </Link>
           <p className="text-muted-foreground mb-8 text-sm">Sign in to manage your restaurant</p>
 
@@ -115,7 +115,7 @@ const Login = () => {
           </div>
           <h2 className="text-3xl font-display mb-4">Restaurant management<br /><span className="text-gradient-hero">made effortless</span></h2>
           <p className="text-secondary-foreground/40 leading-relaxed text-sm">
-            Over 2,500 restaurants use RestoHub daily to streamline operations and grow their revenue.
+            Over 2,500 restaurants use BentoX daily to streamline operations and grow their revenue.
           </p>
         </div>
       </div>

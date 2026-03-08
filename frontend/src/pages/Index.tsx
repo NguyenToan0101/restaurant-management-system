@@ -17,7 +17,7 @@ const features = [
 ];
 
 const testimonials = [
-  { name: "Sarah Mitchell", role: "Owner, The Golden Fork", content: "RestoHub cut our management time by 30%. Revenue increased 20% within three months.", rating: 5 },
+  { name: "Sarah Mitchell", role: "Owner, The Golden Fork", content: "BentoX cut our management time by 30%. Revenue increased 20% within three months.", rating: 5 },
   { name: "James Chen", role: "GM, Bamboo Garden", content: "Managing 5 locations feels like managing one. The live dashboard is a game-changer.", rating: 5 },
   { name: "Maria Rodriguez", role: "Owner, Café del Sol", content: "Online reservations boosted bookings by 40%. Staff learned it in minutes.", rating: 5 },
 ];
@@ -217,7 +217,7 @@ const Index = () => {
           <div className="text-center mb-16">
             <p className="text-[13px] uppercase tracking-widest text-primary font-semibold mb-3">Testimonials</p>
             <h2 className="text-3xl md:text-4xl font-display mb-4">Loved by restaurant owners</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">See why thousands of restaurants choose RestoHub.</p>
+            <p className="text-muted-foreground max-w-lg mx-auto">See why thousands of restaurants choose BentoX.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
             {testimonials.map((t, i) => (
@@ -252,7 +252,7 @@ const Index = () => {
                 Ready to transform your restaurant?
               </h2>
               <p className="text-secondary-foreground/40 mb-8 max-w-md mx-auto">
-                Join 2,500+ restaurants already using RestoHub. Start free — no credit card needed.
+                Join 2,500+ restaurants already using BentoX. Start free — no credit card needed.
               </p>
               <Button 
                 variant="hero" 
@@ -275,9 +275,9 @@ const Index = () => {
               <div className="w-7 h-7 rounded-md brand-gradient flex items-center justify-center">
                 <ChefHat className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-sm tracking-tight">RestoHub</span>
+              <span className="font-bold text-sm tracking-tight">BentoX</span>
             </div>
-            <p className="text-xs text-muted-foreground">© 2026 RestoHub. All rights reserved.</p>
+            <p className="text-xs text-muted-foreground">© 2026 BentoX. All rights reserved.</p>
           </div>
         </div>
       </footer>

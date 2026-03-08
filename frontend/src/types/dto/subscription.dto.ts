@@ -39,6 +39,7 @@ export interface CreateRestaurantSubscriptionRequest {
     name: string;
     email: string;
     restaurantPhone: string;
+    publicUrl?: string;
     description?: string;
   };
   packageId: string;

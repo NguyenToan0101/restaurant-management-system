@@ -27,14 +27,14 @@ const PackageSelection = () => {
     address: "",
     phone: "",
     email: "",
-    website: "",
+    publicUrl: "",
     description: "",
   });
 
   const handleContinue = () => {
     if (step === "package" && selectedPkg) {
       setStep("restaurant");
-    } else if (step === "restaurant" && form.name && form.address && form.phone && form.email) {
+    } else if (step === "restaurant" && form.name && form.address && form.phone && form.email && form.publicUrl) {
       navigate("/payment/confirm", { 
         state: { 
           package: selectedPkg, 
@@ -57,7 +57,7 @@ const PackageSelection = () => {
             <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
               <Store className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">RestoHub</span>
+            <span className="text-lg font-bold tracking-tight">BentoX</span>
           </div>
         </div>
       </header>
@@ -196,11 +196,14 @@ const PackageSelection = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="website">Website (optional)</Label>
+                  <Label htmlFor="publicUrl">Public URL Slug *</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input id="website" placeholder="https://yourrestaurant.com" className="pl-10" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+                    <Input id="publicUrl" placeholder="pho-hanoi" className="pl-10" value={form.publicUrl} onChange={(e) => setForm({ ...form, publicUrl: e.target.value })} />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your restaurant's public menu URL: <span className="font-medium">bentox.store/{form.publicUrl || 'your-url'}</span>
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="desc">Description (optional)</Label>
@@ -211,7 +214,7 @@ const PackageSelection = () => {
                 <Button variant="outline" onClick={() => setStep("package")}>
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
-                <Button disabled={!form.name || !form.address || !form.phone || !form.email} onClick={handleContinue} className="gap-2">
+                <Button disabled={!form.name || !form.address || !form.phone || !form.email || !form.publicUrl} onClick={handleContinue} className="gap-2">
                   Review Order <ArrowRight className="w-4 h-4" />
                 </Button>
               </CardFooter>
