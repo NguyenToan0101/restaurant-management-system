@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Store, Clock, Copy, CheckCircle2, QrCode, Building2, CreditCard, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeCanvas } from "qrcode.react";
 
 interface LocationState {
   package: PackageFeatureDTO;
@@ -138,14 +139,27 @@ const PaymentCheckout = () => {
                 <QrCode className="w-5 h-5 text-primary" /> Scan to Pay
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex justify-center pb-8">
+            <CardContent className="flex flex-col items-center pb-8">
               {payment.qrCodeUrl ? (
-                <img src={payment.qrCodeUrl} alt="QR Code" className="w-52 h-52 rounded-2xl border-2" />
+                <>
+                  <div className="p-4 bg-white rounded-2xl border-2 border-border">
+                    <QRCodeCanvas
+                      value={payment.qrCodeUrl}
+                      size={200}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground text-center">
+                    Scan with your banking app to pay
+                  </p>
+                </>
               ) : (
                 <div className="w-52 h-52 rounded-2xl bg-muted border-2 border-dashed border-border flex items-center justify-center">
                   <div className="text-center text-muted-foreground">
                     <QrCode className="w-16 h-16 mx-auto mb-2 opacity-40" />
-                    <p className="text-xs">QR Code Loading...</p>
+                    <p className="text-xs">QR Code not available</p>
+                    <p className="text-xs mt-1">Please use bank transfer details below</p>
                   </div>
                 </div>
               )}
