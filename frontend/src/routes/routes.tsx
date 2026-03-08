@@ -17,6 +17,7 @@ import PaymentConfirm from "@/pages/payment/PaymentConfirm";
 import PaymentCheckout from "@/pages/payment/PaymentCheckout";
 import PaymentSuccess from "@/pages/payment/PaymentSuccess";
 import PaymentFailed from "@/pages/payment/PaymentFailed";
+import PaymentCancel from "@/pages/payment/PaymentCancel";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -101,6 +102,12 @@ const AppRoutes = () => {
       <Route path="/payment/failed" element={
         <ProtectedRoute>
           <PaymentFailed />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/payment/cancel" element={
+        <ProtectedRoute>
+          <PaymentCancel />
         </ProtectedRoute>
       } />
 
