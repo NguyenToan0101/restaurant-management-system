@@ -28,4 +28,9 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
 
     @Query("SELECT r FROM Restaurant r WHERE r.publicUrl LIKE %:suffix")
     List<Restaurant> findByPublicUrlEndingWith(@Param("suffix") String suffix);
+    
+    boolean existsByPublicUrl(String publicUrl);
+    
+    @Query("SELECT r FROM Restaurant r WHERE r.publicUrl = :baseSlug OR r.publicUrl LIKE CONCAT(:baseSlug, '-%')")
+    List<Restaurant> findByPublicUrlStartingWith(@Param("baseSlug") String baseSlug);
 }
