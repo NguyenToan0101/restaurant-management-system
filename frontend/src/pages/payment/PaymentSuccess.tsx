@@ -57,7 +57,7 @@ const PaymentSuccess = () => {
         </Card>
 
         <div className="space-y-3 pt-2">
-          <Button size="lg" className="w-full gap-2" onClick={() => navigate("/dashboard")}>
+          <Button size="lg" className="w-full gap-2" onClick={() => navigate("/restaurants")}>
             Go to Dashboard <ArrowRight className="w-4 h-4" />
           </Button>
           <Button variant="outline" className="w-full" onClick={() => navigate("/")}>

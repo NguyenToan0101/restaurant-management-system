@@ -6,7 +6,7 @@ import type { SubscriptionPaymentResponse } from "@/types/dto/subscription.dto";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Store, Clock, Copy, CheckCircle2, QrCode, Building2, CreditCard, X } from "lucide-react";
+import { ArrowLeft, Store, Clock, Copy, CheckCircle2, QrCode, Building2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from "qrcode.react";
 
@@ -65,8 +65,12 @@ const PaymentCheckout = () => {
 
   // Check payment status and redirect if paid
   useEffect(() => {
-    if (paymentStatus?.subscriptionPaymentStatus === "PAID") {
+    if (paymentStatus?.subscriptionPaymentStatus === "SUCCESS") {
       navigate("/payment/success", { state });
+    } else if (paymentStatus?.subscriptionPaymentStatus === "FAILED") {
+      navigate("/payment/failed", { state: { reason: "failed" } });
+    } else if (paymentStatus?.subscriptionPaymentStatus === "CANCELED") {
+      navigate("/payment/failed", { state: { reason: "cancelled" } });
     }
   }, [paymentStatus, navigate, state]);
 
@@ -197,22 +201,19 @@ const PaymentCheckout = () => {
 
           <Separator />
 
-          <div className="flex gap-3">
+          <div className="flex justify-center">
             <Button 
               variant="outline" 
-              className="flex-1 gap-2" 
+              className="w-full max-w-xs gap-2" 
               onClick={handleCancelPayment}
               disabled={cancelPayment.isPending}
             >
-              <X className="w-4 h-4" /> {cancelPayment.isPending ? "Cancelling..." : "Cancel"}
-            </Button>
-            <Button className="flex-1 gap-2" onClick={() => navigate("/payment/success", { state })}>
-              <CreditCard className="w-4 h-4" /> I've Paid
+              <X className="w-4 h-4" /> {cancelPayment.isPending ? "Cancelling..." : "Cancel Payment"}
             </Button>
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
-            After transferring, click "I've Paid" and we'll verify your payment within a few minutes.
+            Payment will be automatically verified once completed. Please wait after transferring.
           </p>
         </div>
       </main>

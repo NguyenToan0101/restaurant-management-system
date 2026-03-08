@@ -1,5 +1,5 @@
-export type SubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING';
-export type SubscriptionPaymentStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'EXPIRED';
+export type SubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING' | 'PENDING_PAYMENT';
+export type SubscriptionPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
 export type SubscriptionPaymentPurpose = 'NEW_SUBSCRIPTION' | 'RENEW' | 'UPGRADE';
 
 export interface SubscriptionPaymentResponse {

@@ -118,7 +118,7 @@ const PaymentConfirm = () => {
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{restaurant.address}</span></div>
                   <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /><span>{restaurant.phone}</span></div>
                   <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" /><span>{restaurant.email}</span></div>
-                  {restaurant.publicUrl && <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /><span>BentoX.com/{restaurant.publicUrl}</span></div>}
+                  {restaurant.publicUrl && <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /><span>restohub.com/{restaurant.publicUrl}</span></div>}
                 </div>
                 {restaurant.description && (
                   <p className="text-muted-foreground pt-2">{restaurant.description}</p>
@@ -139,7 +139,7 @@ const PaymentConfirm = () => {
                     <p className="text-sm text-muted-foreground">{pkg.description}</p>
                   </div>
                   <Badge variant="secondary" className="text-lg px-4 py-1">
-                    ${pkg.price}/{pkg.billingPeriod === 1 ? "mo" : `${pkg.billingPeriod}mo`}
+                    {pkg.price}VND/{pkg.billingPeriod === 1 ? "mo" : `${pkg.billingPeriod}mo`}
                   </Badge>
                 </div>
                 <Separator className="my-4" />
