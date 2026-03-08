@@ -63,6 +63,9 @@ public class SecurityConfig {
                                 "/api/users/mail/otp",
                                 "/api/users/forgetpass",
                                 "/api/packages/active",
+                                "/api/restaurant-subscriptions/**",
+                                "/api/subscriptions/**",
+                                "/api/payments/**",
                                 "/actuator/health",
                                 "/actuator/health/**")
                         .permitAll()
