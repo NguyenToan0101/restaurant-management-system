@@ -27,7 +27,7 @@ public class RestaurantService {
     private final BranchRepository branchRepository;
 
     @Value("${frontend.base-url}")
-    private String webUrl; // 👈 lấy từ application.yml, ví dụ hilldevil.space
+    private String webUrl; // 👈 lấy từ application.yml
 
     public RestaurantService(
             RestaurantRepository restaurantRepository,
@@ -44,20 +44,20 @@ public class RestaurantService {
 
     public List<RestaurantDTO> getAll() {
         return restaurantRepository.findAll().stream()
-                .map(restaurantMapper::toRestaurantDto)
+                .map(restaurantMapper::toRestaurantDtoWithFullUrl)
                 .toList();
     }
 
     public RestaurantDTO getById(UUID id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        return restaurantMapper.toRestaurantDto(restaurant);
+        return restaurantMapper.toRestaurantDtoWithFullUrl(restaurant);
     }
 
     @Transactional
     public RestaurantDTO create(RestaurantCreateRequest request) {
         Restaurant restaurant = createEntity(request);
-        return restaurantMapper.toRestaurantDto(restaurant);
+        return restaurantMapper.toRestaurantDtoWithFullUrl(restaurant);
     }
 
     @Transactional
@@ -74,23 +74,25 @@ public class RestaurantService {
         restaurant.setStatus(true); // Set status to true by default
 
         // Set publicUrl from request or auto-generate from name
+        String slug;
         if (request.getPublicUrl() != null && !request.getPublicUrl().trim().isEmpty()) {
-            // User provided a custom slug - just store it as-is (no http/https needed)
-            String slug = request.getPublicUrl()
+            // User provided a custom slug - sanitize it
+            slug = request.getPublicUrl()
                     .toLowerCase()
                     .trim()
                     .replaceAll("[^a-z0-9-]+", "-")
                     .replaceAll("(^-|-$)", "");
-            restaurant.setPublicUrl(slug);
         } else {
             // Auto-generate slug from restaurant name
-            String slug = request.getName()
+            slug = request.getName()
                     .toLowerCase()
                     .trim()
                     .replaceAll("[^a-z0-9]+", "-")
                     .replaceAll("(^-|-$)", "");
-            restaurant.setPublicUrl(slug);
         }
+        
+        // Store ONLY the slug in database for flexibility
+        restaurant.setPublicUrl(slug);
 
         return restaurantRepository.save(restaurant);
     }
@@ -107,7 +109,7 @@ public class RestaurantService {
         exist.setDescription(dto.getDescription());
 
         Restaurant saved = restaurantRepository.save(exist);
-        return restaurantMapper.toRestaurantDto(saved);
+        return restaurantMapper.toRestaurantDtoWithFullUrl(saved);
     }
 
     @Transactional
@@ -151,7 +153,7 @@ public class RestaurantService {
         }
         
         return restaurantRepository.findByUser_UserId(userId).stream()
-                .map(restaurantMapper::toRestaurantDto)
+                .map(restaurantMapper::toRestaurantDtoWithFullUrl)
                 .toList();
     }
 

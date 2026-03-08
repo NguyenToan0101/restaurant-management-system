@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { mockAdminUsers, mockPackages, type AdminUser, type UserRole } from "@/data/adminMockData";
+import { mockAdminUsers, type AdminUser, type UserRole } from "@/data/adminMockData";
 import { mockRestaurants } from "@/data/mockData";
 
 const roleBadgeVariant = (role: UserRole) => {
@@ -167,7 +167,7 @@ const UserManagement = () => {
               {detailUser.subscription && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Subscription</Label>
-                  <p className="text-sm text-foreground">{mockPackages.find(p => p.id === detailUser.subscription)?.name ?? "—"}</p>
+                  <p className="text-sm text-foreground">{detailUser.subscription ?? "—"}</p>
                 </div>
               )}
 
