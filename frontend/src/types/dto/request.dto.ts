@@ -43,3 +43,11 @@ export interface OTPValidateRequest {
   email: string;
   otp: string;
 }
+
+export interface RestaurantCreateRequest {
+  userId: string;
+  name: string;
+  email: string;
+  restaurantPhone: string;
+  description?: string;
+}

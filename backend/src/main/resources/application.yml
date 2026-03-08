@@ -81,3 +81,12 @@ brevo:
   mail_base_url: ${BREVO_MAIL_URL}
   sender_email: noreply@bentox.store
   sender_name: BentoX
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  base-url: https://api-merchant.payos.vn
+  # test first, will put this in env
+  return-url: https://bentox.store/payment/success
+  cancel-url: https://bentox.store/payment/cancel

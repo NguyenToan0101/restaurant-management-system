@@ -8,12 +8,22 @@ class AuthApi {
     const response = await axiosClient.post<ApiResponse<AuthenticationResponse>>('/auth/login', request);
 
     const result = response.data.result;
+    
+    // Transform role from string to RoleDTO object for consistency
+    const user = result.user;
+    if (user && typeof user.role === 'string') {
+      user.role = {
+        name: user.role,
+        description: user.role,
+      };
+    }
+    
     // Backend đã set token vào HttpOnly cookie
     // Chỉ lưu user data vào store (không lưu token vào memory/localStorage)
     useAuthStore.getState().setAuthData({
       accessToken: null,
       refreshToken: null,
-      user: result.user,
+      user: user,
     });
 
     return result;

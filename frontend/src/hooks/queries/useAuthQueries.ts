@@ -31,7 +31,7 @@ export const useLogout = () => {
     mutationFn: () => authApi.logout(),
     onSuccess: () => {
       toast.success('Logged out successfully');
-      navigate('/login');
+      navigate('/');
     },
     onError: () => {
       toast.error('Logout failed');

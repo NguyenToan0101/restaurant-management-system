@@ -70,6 +70,20 @@ public enum ErrorCode {
     FEATURE_NOTEXISTED_IN_PACKAGE(3302, "Feature not found in package", HttpStatus.NOT_FOUND),
     FEATURE_VALUE_INVALID(3303, "Limit feature must have value greater than 0", HttpStatus.BAD_REQUEST),
 
+    // Payment errors (3400-3499)
+    PAYMENT_GATEWAY_ERROR(3400, "Payment gateway error", HttpStatus.BAD_GATEWAY),
+    PAYMENT_SIGNATURE_VERIFY_FAILED(3401, "Payment signature verification failed", HttpStatus.BAD_REQUEST),
+    PAYMENT_NOT_FOUND(3402, "Payment not found", HttpStatus.NOT_FOUND),
+    PAYMENT_CANNOT_CANCEL(3403, "Payment cannot be cancelled", HttpStatus.BAD_REQUEST),
+    PAYMENT_WEBHOOK_FAILED(3404, "Payment webhook processing failed", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // Subscription errors (3500-3599)
+    SUBSCRIPTION_NOT_ACTIVE(3500, "Subscription not active", HttpStatus.BAD_REQUEST),
+    SUBSCRIPTION_NOT_FOUND(3501, "Subscription not found", HttpStatus.NOT_FOUND),
+    SUBSCRIPTION_ALREADY_CANCELLED(3502, "Subscription already cancelled", HttpStatus.BAD_REQUEST),
+    SUBSCRIPTION_ALREADY_EXPIRED(3503, "Subscription already expired", HttpStatus.BAD_REQUEST),
+
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;
