@@ -6,21 +6,13 @@ import java.util.UUID;
 
 import com.example.backend.dto.request.RestaurantCreateRequest;
 import com.example.backend.dto.RestaurantDTO;
-// import com.example.backend.dto.response.PageResponse;
 import com.example.backend.entities.Restaurant;
-import com.example.backend.entities.Subscription;
-import com.example.backend.entities.SubscriptionStatus;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.RestaurantMapper;
 import com.example.backend.repositories.RestaurantRepository;
-// import com.example.backend.repository.SubscriptionRepository;
 import com.example.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.repositories.BranchRepository;
@@ -81,31 +73,24 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setStatus(true); // Set status to true by default
 
-        // 👉 Xử lý URL thông minh cho cả local và production
-        String base = webUrl.trim();
-
-        // Nếu không có http/https -> tự động thêm
-        if (!base.startsWith("http://") && !base.startsWith("https://")) {
-            if (base.contains("localhost") || base.contains("127.0.0.1")) {
-                base = "http://" + base;
-            } else {
-                base = "https://" + base;
-            }
+        // Set publicUrl from request or auto-generate from name
+        if (request.getPublicUrl() != null && !request.getPublicUrl().trim().isEmpty()) {
+            // User provided a custom slug - just store it as-is (no http/https needed)
+            String slug = request.getPublicUrl()
+                    .toLowerCase()
+                    .trim()
+                    .replaceAll("[^a-z0-9-]+", "-")
+                    .replaceAll("(^-|-$)", "");
+            restaurant.setPublicUrl(slug);
+        } else {
+            // Auto-generate slug from restaurant name
+            String slug = request.getName()
+                    .toLowerCase()
+                    .trim()
+                    .replaceAll("[^a-z0-9]+", "-")
+                    .replaceAll("(^-|-$)", "");
+            restaurant.setPublicUrl(slug);
         }
-
-        // Bỏ dấu "/" cuối nếu có
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-
-        // Tạo slug từ tên nhà hàng
-        String slug = request.getName()
-                .toLowerCase()
-                .trim()
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-|-$)", "");
-
-        restaurant.setPublicUrl(base + "/" + slug);
 
         return restaurantRepository.save(restaurant);
     }

@@ -40,7 +40,7 @@ const Navbar = () => {
           <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
             <UtensilsCrossed className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-secondary-foreground">RestoHub</span>
+          <span className="text-lg font-bold tracking-tight text-secondary-foreground">BentoX</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-7">

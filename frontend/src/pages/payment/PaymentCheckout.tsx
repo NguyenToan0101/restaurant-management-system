@@ -102,7 +102,7 @@ const PaymentCheckout = () => {
             <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
               <Store className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">RestoHub</span>
+            <span className="text-lg font-bold tracking-tight">BentoX</span>
           </div>
         </div>
       </header>
