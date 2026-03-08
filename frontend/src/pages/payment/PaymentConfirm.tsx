@@ -159,7 +159,7 @@ const PaymentConfirm = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between text-lg font-bold">
                   <span>Total Due Today</span>
-                  <span className="text-2xl">${pkg.price}</span>
+                  <span className="text-2xl">{pkg.price}VND</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">Billed every {pkg.billingPeriod === 1 ? "month" : `${pkg.billingPeriod} months`}. Cancel anytime.</p>
               </CardContent>
