@@ -613,7 +613,14 @@ const Profile = () => {
                               {restaurant.publicUrl && (
                                 <div className="flex items-center gap-2">
                                   <span className="text-muted-foreground">URL:</span>
-                                  <span className="text-primary truncate">{restaurant.publicUrl}</span>
+                                  <a 
+                                    href={restaurant.publicUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary truncate hover:underline"
+                                  >
+                                    {restaurant.publicUrl}
+                                  </a>
                                 </div>
                               )}
                               <div className="pt-2">
