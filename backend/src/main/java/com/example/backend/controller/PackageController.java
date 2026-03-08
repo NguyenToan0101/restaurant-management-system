@@ -33,6 +33,13 @@ public class PackageController {
         return response;
     }
 
+    @GetMapping("/active")
+    public ApiResponse<List<PackageFeatureDTO>> getActivePackages() {
+        ApiResponse<List<PackageFeatureDTO>> response = new ApiResponse<>();
+        response.setResult(packageFeatureService.getActivePackagesWithFeatures());
+        return response;
+    }
+
     @GetMapping("/{packageId}")
     public ApiResponse<PackageFeatureDTO> getPackage(@PathVariable UUID packageId) {
         ApiResponse<PackageFeatureDTO> response = new ApiResponse<>();

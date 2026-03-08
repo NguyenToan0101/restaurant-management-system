@@ -12,6 +12,11 @@ import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import Navbar from "@/components/Navbar";
+import PackageSelection from "@/pages/payment/PackageSelection";
+import PaymentConfirm from "@/pages/payment/PaymentConfirm";
+import PaymentCheckout from "@/pages/payment/PaymentCheckout";
+import PaymentSuccess from "@/pages/payment/PaymentSuccess";
+import PaymentFailed from "@/pages/payment/PaymentFailed";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -67,6 +72,37 @@ const AppRoutes = () => {
       } />
 
       <Route path="/register" element={<Register />} />
+
+      {/* Payment routes */}
+      <Route path="/payment/select" element={
+        <ProtectedRoute>
+          <PackageSelection />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/payment/confirm" element={
+        <ProtectedRoute>
+          <PaymentConfirm />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/payment/checkout" element={
+        <ProtectedRoute>
+          <PaymentCheckout />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/payment/success" element={
+        <ProtectedRoute>
+          <PaymentSuccess />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/payment/failed" element={
+        <ProtectedRoute>
+          <PaymentFailed />
+        </ProtectedRoute>
+      } />
 
       {/* Protected routes */}
       <Route path="/profile" element={
