@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Check, Store, ShieldCheck, Download, 
+import {
+  Check, Store, ShieldCheck, Download,
   LayoutDashboard, Home, ArrowRight, FileText
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -15,10 +15,10 @@ import { cn } from "@/lib/utils";
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { 
-    package: PackageFeatureDTO; 
-    restaurant: { name: string }; 
-    payment: SubscriptionPaymentResponse 
+  const state = location.state as {
+    package: PackageFeatureDTO;
+    restaurant: { name: string };
+    payment: SubscriptionPaymentResponse
   } | null;
 
   const transactionId = state?.payment?.payOsOrderCode || "TXN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -32,7 +32,7 @@ const PaymentSuccess = () => {
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <Store className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold tracking-tight">RestoHub</span>
+            <span className="text-xl font-bold tracking-tight">BentoX</span>
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
             <ShieldCheck className="w-3.5 h-3.5" />
@@ -68,7 +68,7 @@ const PaymentSuccess = () => {
 
         <div className="max-w-xl w-full">
           {/* Main Status Section */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-10"
@@ -106,7 +106,7 @@ const PaymentSuccess = () => {
                   <SummaryRow label="Restaurant" value={state?.restaurant?.name || "N/A"} />
                   <SummaryRow label="Plan" value={state?.package?.name || "N/A"} />
                   <SummaryRow label="Billing Term" value={state?.package?.billingPeriod === 1 ? "Monthly" : `${state?.package?.billingPeriod} Months`} />
-                  
+
                   <div className="pt-4 mt-4 border-t border-slate-100 flex justify-between items-center">
                     <span className="text-sm font-bold text-slate-900">Total Amount</span>
                     <span className="text-2xl font-black text-slate-900">${state?.payment?.amount || state?.package?.price}.00</span>
@@ -117,14 +117,14 @@ const PaymentSuccess = () => {
           </motion.div>
 
           {/* Smooth Action Buttons */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="h-14 text-md font-bold shadow-lg shadow-primary/20 gap-2 group order-2 sm:order-1"
               variant="outline"
               onClick={() => navigate("/")}
@@ -132,8 +132,8 @@ const PaymentSuccess = () => {
               <Home className="w-4 h-4" />
               Home
             </Button>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="h-14 text-md font-bold shadow-xl shadow-primary/25 gap-2 group order-1 sm:order-2"
               onClick={() => navigate("/restaurants")}
             >
@@ -153,13 +153,13 @@ const PaymentSuccess = () => {
 };
 
 // Sub-component cho các dòng tóm tắt (Clean version)
-const SummaryRow = ({ 
-  label, 
-  value, 
-  isCode = false 
-}: { 
-  label: string; 
-  value: string; 
+const SummaryRow = ({
+  label,
+  value,
+  isCode = false
+}: {
+  label: string;
+  value: string;
   isCode?: boolean;
 }) => (
   <div className="flex justify-between items-center">

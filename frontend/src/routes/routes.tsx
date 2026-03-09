@@ -3,6 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
@@ -73,6 +74,12 @@ const AppRoutes = () => {
       } />
 
       <Route path="/register" element={<Register />} />
+
+      <Route path="/forgot-password" element={
+        <PublicRoute>
+          <ForgotPassword />
+        </PublicRoute>
+      } />
 
       {/* Payment routes */}
       <Route path="/payment/select" element={
