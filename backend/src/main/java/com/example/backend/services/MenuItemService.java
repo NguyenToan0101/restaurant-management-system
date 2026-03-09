@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,12 +28,14 @@ public class MenuItemService {
     private final BranchMenuItemRepository branchMenuItemRepository;
     private final MediaService mediaService;
     private final CustomizationMapper customizationMapper;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
                            CustomizationRepository customizationRepository, BranchMenuItemRepository branchMenuItemRepository,
                            MediaService mediaService,
-                           CustomizationMapper customizationMapper) {
+                           CustomizationMapper customizationMapper,
+                           FeatureLimitCheckerService featureLimitCheckerService) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -43,6 +44,7 @@ public class MenuItemService {
         this.branchMenuItemRepository = branchMenuItemRepository;
         this.mediaService = mediaService;
         this.customizationMapper = customizationMapper;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
@@ -70,6 +72,13 @@ public class MenuItemService {
     public MenuItemDTO create(MenuItemCreateRequest request, MultipartFile imageFile) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check menu item limit before creating
+        featureLimitCheckerService.checkLimit(
+                request.getRestaurantId(),
+                FeatureCode.LIMIT_MENU_ITEMS,
+                () -> menuItemRepository.countByRestaurant_RestaurantIdAndStatusNot(request.getRestaurantId(), EntityStatus.DELETED)
+        );
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
@@ -211,17 +220,14 @@ public class MenuItemService {
         return dto;
     }
 
-    // @Transactional
-    // public boolean canCreateMenuItem(UUID restaurantId) {
-    //     Supplier<Long> currentCountSupplier = () ->
-    //             menuItemRepository.countByRestaurant_RestaurantIdAndStatusNot(restaurantId, MenuItemStatus.DELETED);
-
-    //     return featureLimitCheckerService.isUnderLimit(
-    //             restaurantId,
-    //             FeatureCode.LIMIT_MENU_ITEMS,
-    //             currentCountSupplier
-    //     );
-    // }
+    @Transactional
+    public boolean canCreateMenuItem(UUID restaurantId) {
+        return featureLimitCheckerService.isUnderLimit(
+                restaurantId,
+                FeatureCode.LIMIT_MENU_ITEMS,
+                () -> menuItemRepository.countByRestaurant_RestaurantIdAndStatusNot(restaurantId, EntityStatus.DELETED)
+        );
+    }
 
     public List<CustomizationDTO> getCustomizationOfMenuItem(UUID menuItemId) {
         MenuItem menuItem = menuItemRepository.findById(menuItemId)

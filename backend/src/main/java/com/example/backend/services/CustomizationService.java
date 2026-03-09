@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Supplier;
 
 @Service
 public class CustomizationService {
@@ -29,18 +28,21 @@ public class CustomizationService {
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final CategoryRepository categoryRepository;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
 
     public CustomizationService(CustomizationRepository customizationRepository,
                                 CustomizationMapper customizationMapper,
                                 RestaurantRepository restaurantRepository,
                                 MenuItemRepository menuItemRepository,
-                                CategoryRepository categoryRepository) {
+                                CategoryRepository categoryRepository,
+                                FeatureLimitCheckerService featureLimitCheckerService) {
         this.customizationRepository = customizationRepository;
         this.customizationMapper = customizationMapper;
         this.restaurantRepository = restaurantRepository;
         this.menuItemRepository = menuItemRepository;
         this.categoryRepository = categoryRepository;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     public List<CustomizationDTO> getAllByRestaurant(UUID restaurantId) {
@@ -62,6 +64,18 @@ public class CustomizationService {
     public CustomizationDTO create(CustomizationCreateRequest request) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check limit for customizations per category if categoryId is provided
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+            
+            featureLimitCheckerService.checkLimit(
+                    request.getRestaurantId(),
+                    FeatureCode.LIMIT_CUSTOMIZATION_PER_CATEGORY,
+                    () -> customizationRepository.countByCategories_CategoryIdAndStatus(category.getCategoryId(), EntityStatus.ACTIVE)
+            );
+        }
 
         Customization customization = new Customization();
         customization.setName(request.getName());
@@ -105,20 +119,17 @@ public class CustomizationService {
         });
     }
 
-    // @Transactional
-    // public boolean canCreateCustomizationForCategory(UUID restaurantId, UUID categoryId) {
-    //     Category category = categoryRepository.findById(categoryId)
-    //             .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+    @Transactional
+    public boolean canCreateCustomizationForCategory(UUID restaurantId, UUID categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
-    //     Supplier<Long> currentCountSupplier = () ->
-    //             customizationRepository.countByCategories_CategoryIdAndStatusTrue(category.getCategoryId());
-
-    //     return featureLimitCheckerService.isUnderLimit(
-    //             restaurantId,
-    //             FeatureCode.LIMIT_CUSTOMIZATION_PER_CATEGORY,
-    //             currentCountSupplier
-    //     );
-    // }
+        return featureLimitCheckerService.isUnderLimit(
+                restaurantId,
+                FeatureCode.LIMIT_CUSTOMIZATION_PER_CATEGORY,
+                () -> customizationRepository.countByCategories_CategoryIdAndStatus(category.getCategoryId(), EntityStatus.ACTIVE)
+        );
+    }
 
     public List<UUID> getCustomizationByCategoryId(UUID categoryId) {
         return customizationRepository.findAllByCategories_CategoryIdAndStatus(categoryId, EntityStatus.ACTIVE)

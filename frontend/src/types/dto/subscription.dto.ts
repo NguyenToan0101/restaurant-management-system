@@ -44,3 +44,20 @@ export interface CreateRestaurantSubscriptionRequest {
   };
   packageId: string;
 }
+
+export interface CurrentSubscriptionOverviewDTO {
+  subscriptionId: string;
+  packageId: string;
+  packageName: string;
+  status: SubscriptionStatus;
+  startDate: string;
+  endDate: string;
+  amount: number;
+}
+
+export interface RestaurantSubscriptionOverviewDTO {
+  restaurantId: string;
+  restaurantName: string;
+  currentSubscription: CurrentSubscriptionOverviewDTO | null;
+  paymentHistory: SubscriptionPaymentResponse[];
+}

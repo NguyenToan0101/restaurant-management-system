@@ -13,8 +13,10 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CurrentSubscriptionOverviewDTO {
+    private static final long serialVersionUID = 1L;
     private UUID subscriptionId;
     private UUID packageId;
+    private String packageName;
     private SubscriptionStatus status;
     private LocalDate startDate;
     private LocalDate endDate;

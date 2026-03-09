@@ -30,6 +30,15 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
             """)
     Optional<Package> findActivePackageByRestaurantId(UUID restaurantId);
 
+    @Query("""
+            SELECT s FROM Subscription s
+            JOIN FETCH s.aPackage
+            WHERE s.restaurant.restaurantId = :restaurantId
+              AND s.status = 'ACTIVE'
+            ORDER BY s.createdAt DESC
+            """)
+    Optional<Subscription> findActiveSubscriptionByRestaurantId(UUID restaurantId);
+
     long countByRestaurant_RestaurantId(UUID restaurantId);
 
     @Query("""

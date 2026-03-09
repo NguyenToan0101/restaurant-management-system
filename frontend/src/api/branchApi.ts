@@ -45,6 +45,16 @@ class BranchApi {
     async delete(id: string): Promise<void> {
         await axiosClient.delete<ApiResponse<void>>(`/branches/${id}`);
     }
+
+    async canCreate(restaurantId: string): Promise<boolean> {
+        const response = await axiosClient.get<ApiResponse<boolean>>(`/branches/restaurant/${restaurantId}/can-create`);
+        return response.data.result;
+    }
+
+    async getLimit(restaurantId: string): Promise<number> {
+        const response = await axiosClient.get<ApiResponse<number>>(`/branches/restaurant/${restaurantId}/limit`);
+        return response.data.result;
+    }
 }
 
 export const branchApi = new BranchApi();

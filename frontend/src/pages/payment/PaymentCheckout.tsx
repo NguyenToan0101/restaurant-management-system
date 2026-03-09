@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useSubscriptionQueries } from "@/hooks/queries/useSubscriptionQueries";
 import type { PackageFeatureDTO } from "@/types/dto/package.dto";
 import type { SubscriptionPaymentResponse } from "@/types/dto/subscription.dto";
@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   ArrowLeft, Store, Clock, Copy, CheckCircle2, 
   QrCode, X, ShieldCheck, Check, CreditCard,
-  AlertCircle, Badge
+  AlertCircle, Badge, Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeCanvas } from "qrcode.react";
@@ -25,6 +25,7 @@ interface LocationState {
 const PaymentCheckout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const state = location.state as LocationState | null;
   const { toast } = useToast();
   const { cancelPayment, usePaymentStatusByOrderCode } = useSubscriptionQueries();
@@ -32,15 +33,26 @@ const PaymentCheckout = () => {
   const [copied, setCopied] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
 
-  const { data: paymentStatus } = usePaymentStatusByOrderCode(state?.payment?.payOsOrderCode);
+  // Get orderCode from query params or state
+  const orderCodeFromQuery = searchParams.get('orderCode');
+  const orderCode = orderCodeFromQuery || state?.payment?.payOsOrderCode;
+
+  // Fetch payment status using orderCode
+  const { data: paymentStatus, isLoading } = usePaymentStatusByOrderCode(orderCode);
+
+  // Use payment data from state or fetched data
+  const payment = state?.payment || paymentStatus;
+  const pkg = state?.package;
 
   useEffect(() => {
-    if (!state) {
+    if (!orderCode) {
       navigate("/payment/select");
       return;
     }
 
-    const expiredAt = new Date(state.payment.expiredAt).getTime();
+    if (!payment) return;
+
+    const expiredAt = new Date(payment.expiredAt).getTime();
     const now = Date.now();
     const remainingSeconds = Math.floor((expiredAt - now) / 1000);
     
@@ -62,7 +74,7 @@ const PaymentCheckout = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [state, navigate]);
+  }, [payment, navigate, orderCode]);
 
   useEffect(() => {
     if (paymentStatus?.subscriptionPaymentStatus === "SUCCESS") {
@@ -74,8 +86,18 @@ const PaymentCheckout = () => {
     }
   }, [paymentStatus, navigate, state]);
 
-  if (!state) return null;
-  const { package: pkg, payment } = state;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading payment information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!payment) return null;
 
   const mins = Math.floor(countdown / 60);
   const secs = countdown % 60;
@@ -203,14 +225,15 @@ const PaymentCheckout = () => {
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <Badge className="bg-primary/20 text-primary border-none mb-2">Order #{payment.payOsOrderCode}</Badge>
-                      <h3 className="text-2xl font-bold">{pkg.name} Subscription</h3>
+                      <h3 className="text-2xl font-bold">{payment.restaurantName || pkg?.name || 'Subscription'}</h3>
+                      <p className="text-sm text-slate-400 mt-1">{payment.purpose === 'RENEW' ? 'Renewal' : payment.purpose === 'UPGRADE' ? 'Upgrade' : 'New Subscription'}</p>
                     </div>
                     <CreditCard className="w-6 h-6 text-slate-500" />
                   </div>
                   
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-white">${payment.amount}</span>
-                    <span className="text-slate-400 font-medium">USD</span>
+                    <span className="text-4xl font-black text-white">{payment.amount.toLocaleString()}</span>
+                    <span className="text-slate-400 font-medium">VND</span>
                   </div>
                   
                   <Separator className="my-6 bg-slate-800" />

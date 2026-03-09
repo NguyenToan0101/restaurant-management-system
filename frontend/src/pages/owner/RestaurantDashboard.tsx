@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle,
+  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import CommingSoon from "@/pages/CommingSoon";
@@ -34,7 +34,9 @@ import CustomizationManagement from "@/pages/owner/CustomizationManagement";
 import MenuItemManagement from "@/pages/owner/MenuItemManagement";
 import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
+import { useBranchLimit, useCanCreateBranch } from "@/hooks/useFeatureLimits";
 import type { BranchDTO, RestaurantDTO } from "@/types/dto";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const RestaurantDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +70,8 @@ const RestaurantDashboard = () => {
 const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   const navigate = useNavigate();
   const { data: branches = [], isLoading: isLoadingBranches } = useBranchesByRestaurant(restaurant.restaurantId);
+  const { data: branchLimit } = useBranchLimit(restaurant.restaurantId);
+  const { data: canCreateBranch } = useCanCreateBranch(restaurant.restaurantId);
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
   const updateRestaurant = useUpdateRestaurant();
@@ -264,13 +268,40 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
                 <Store className="w-4 h-4 text-primary" />
                 Branch Management
               </CardTitle>
-              <Button size="sm" onClick={openCreate}>
+              <Button size="sm" onClick={openCreate} disabled={canCreateBranch === false}>
                 <Plus className="w-4 h-4 mr-1" />
                 Add Branch
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {/* Limit Info */}
+            {branchLimit !== null && branchLimit !== undefined && branchLimit !== -1 && branchLimit > 0 && (
+              <div className="px-6 pt-4">
+                <Alert className={`${canCreateBranch === false ? 'border-destructive/50 bg-destructive/5' : branches.length >= branchLimit * 0.8 ? 'border-amber/50 bg-amber/5' : 'border-primary/50 bg-primary/5'}`}>
+                  {canCreateBranch === false ? (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  ) : branches.length >= branchLimit * 0.8 ? (
+                    <AlertCircle className="h-4 w-4 text-amber" />
+                  ) : (
+                    <Info className="h-4 w-4 text-primary" />
+                  )}
+                  <AlertDescription className="text-sm">
+                    {branches.length} / {branchLimit} branches used
+                    {canCreateBranch === false && (
+                      <span className="ml-2 font-medium">
+                        - You've reached your branch limit. Upgrade your plan to add more branches.
+                      </span>
+                    )}
+                    {branches.length >= branchLimit * 0.8 && canCreateBranch !== false && (
+                      <span className="ml-2">
+                        - You're approaching your limit. Consider upgrading your plan.
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
             {isLoadingBranches ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { restaurantApi } from "@/api/restaurantApi";
 import { userApi } from "@/api/userApi";
+import { subscriptionApi } from "@/api/subscriptionApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +12,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
-import { Store, User, Mail, Save, Loader2, Camera, Upload, Trash2, X, Settings, Eye, EyeOff } from "lucide-react";
+import { Store, User, Mail, Save, Loader2, Camera, Upload, Trash2, X, Settings, Eye, EyeOff, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { RestaurantDTO, UserInfoUpdateRequest, UserInfoResponse } from "@/types/dto";
+import type { RestaurantDTO, UserInfoUpdateRequest, UserInfoResponse, RestaurantSubscriptionOverviewDTO } from "@/types/dto";
 import Navbar from "@/components/Navbar";
+import { RestaurantSubscriptionCard } from "@/components/subscription/RestaurantSubscriptionCard";
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
@@ -31,6 +33,8 @@ const Profile = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [restaurants, setRestaurants] = useState<RestaurantDTO[]>([]);
+  const [subscriptionsOverview, setSubscriptionsOverview] = useState<RestaurantSubscriptionOverviewDTO[]>([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -64,6 +68,7 @@ const Profile = () => {
       loadUserInfo();
       loadRestaurants();
       loadAvatar();
+      loadSubscriptionsOverview();
     }
   }, [user?.userId]);
 
@@ -108,6 +113,23 @@ const Profile = () => {
       });
     } finally {
       setIsLoadingRestaurants(false);
+    }
+  };
+
+  const loadSubscriptionsOverview = async () => {
+    try {
+      setIsLoadingSubscriptions(true);
+      const data = await subscriptionApi.getSubscriptionsOverviewForOwner();
+      setSubscriptionsOverview(data);
+    } catch (error) {
+      console.error("Failed to load subscriptions:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load subscriptions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSubscriptions(false);
     }
   };
 
@@ -321,6 +343,51 @@ const Profile = () => {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
+  const handleRenewSubscription = async (restaurantId: string) => {
+    try {
+      const payment = await subscriptionApi.renewSubscription(restaurantId);
+      
+      if (payment.qrCodeUrl) {
+        // Redirect to payment checkout page with orderCode
+        navigate(`/payment/checkout?orderCode=${payment.payOsOrderCode}`);
+      } else {
+        toast({
+          title: "Success",
+          description: "Subscription renewed successfully",
+        });
+        loadSubscriptionsOverview();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.message || "Failed to renew subscription",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpgradeSubscription = async (restaurantId: string) => {
+    // Navigate to package selection page with restaurantId and upgrade action
+    navigate(`/payment/select?restaurantId=${restaurantId}&action=upgrade`);
+  };
+
+  const handleCancelSubscription = async (subscriptionId: string) => {
+    try {
+      await subscriptionApi.cancelSubscription(subscriptionId);
+      toast({
+        title: "Success",
+        description: "Subscription cancelled successfully",
+      });
+      loadSubscriptionsOverview();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.message || "Failed to cancel subscription",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -342,8 +409,8 @@ const Profile = () => {
                 Personal Info
               </TabsTrigger>
               <TabsTrigger value="restaurants">
-                <Store className="w-4 h-4 mr-2" />
-                My Restaurants
+                <CreditCard className="w-4 h-4 mr-2" />
+                My Subscriptions
               </TabsTrigger>
             </TabsList>
 
@@ -565,80 +632,36 @@ const Profile = () => {
             <TabsContent value="restaurants" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>My Restaurants</CardTitle>
+                  <CardTitle>My Restaurant Subscriptions</CardTitle>
                   <CardDescription>
-                    List of restaurants you manage
+                    Manage subscriptions and view payment history for your restaurants
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoadingRestaurants ? (
+                  {isLoadingSubscriptions ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                     </div>
-                  ) : restaurants.length === 0 ? (
+                  ) : subscriptionsOverview.length === 0 ? (
                     <div className="text-center py-12">
                       <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-muted-foreground mb-4">
                         You don't have any restaurants yet
                       </p>
-                      <Button onClick={() => navigate("/restaurants")}>
+                      <Button onClick={() => navigate("/payment/select")}>
                         Create New Restaurant
                       </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {restaurants.map((restaurant) => (
-                        <Card
-                          key={restaurant.restaurantId}
-                          className="cursor-pointer hover:shadow-lg transition-shadow"
-                          onClick={() => navigate(`/restaurant/${restaurant.restaurantId}`)}
-                        >
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Store className="w-5 h-5" />
-                              {restaurant.name}
-                            </CardTitle>
-                            <CardDescription>
-                              {restaurant.publicUrl ? new URL(restaurant.publicUrl).pathname.slice(1) : restaurant.description || "No description"}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex items-center gap-2">
-                                <Mail className="w-4 h-4 text-muted-foreground" />
-                                <span>{restaurant.email}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Phone:</span>
-                                <span>{restaurant.restaurantPhone}</span>
-                              </div>
-                              {restaurant.publicUrl && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">URL:</span>
-                                  <a 
-                                    href={restaurant.publicUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary truncate hover:underline"
-                                  >
-                                    {restaurant.publicUrl}
-                                  </a>
-                                </div>
-                              )}
-                              <div className="pt-2">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    restaurant.status
-                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                  }`}
-                                >
-                                  {restaurant.status ? "Active" : "Inactive"}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {subscriptionsOverview.map((overview) => (
+                        <RestaurantSubscriptionCard
+                          key={overview.restaurantId}
+                          data={overview}
+                          onRenew={handleRenewSubscription}
+                          onUpgrade={handleUpgradeSubscription}
+                          onCancel={handleCancelSubscription}
+                        />
                       ))}
                     </div>
                   )}

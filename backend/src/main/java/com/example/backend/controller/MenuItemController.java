@@ -4,7 +4,9 @@ import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.CustomizationDTO;
 import com.example.backend.dto.MenuItemDTO;
 import com.example.backend.dto.request.MenuItemCreateRequest;
+import com.example.backend.entities.FeatureCode;
 import com.example.backend.services.MenuItemService;
+import com.example.backend.services.FeatureLimitCheckerService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,9 +18,12 @@ import java.util.UUID;
 public class MenuItemController {
 
     private final MenuItemService menuItemService;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
-    public MenuItemController(MenuItemService menuItemService) {
+    public MenuItemController(MenuItemService menuItemService,
+            FeatureLimitCheckerService featureLimitCheckerService) {
         this.menuItemService = menuItemService;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     @GetMapping("")
@@ -88,19 +93,45 @@ public class MenuItemController {
         return res;
     }
 
-    // @GetMapping("/restaurant/{restaurantId}/can-create")
-    // public ApiResponse<Boolean> canCreateMenuItem(
-    //         @PathVariable UUID restaurantId) {
-    //     ApiResponse<Boolean> res = new ApiResponse<>();
-    //     res.setResult(menuItemService.canCreateMenuItem(restaurantId));
-    //     return res;
-    // }
-
     @GetMapping("/customization/{menuItemId}")
     public ApiResponse<List<CustomizationDTO>> getCustomizationsOfMenuItem(@PathVariable UUID menuItemId) {
         ApiResponse<List<CustomizationDTO>> response = new ApiResponse<>();
         response.setResult(menuItemService.getCustomizationOfMenuItem(menuItemId));
         return response;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/can-create")
+    public ApiResponse<Boolean> canCreateMenuItem(
+            @PathVariable UUID restaurantId) {
+        ApiResponse<Boolean> res = new ApiResponse<>();
+        res.setResult(menuItemService.canCreateMenuItem(restaurantId));
+        return res;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/limit")
+    public ApiResponse<Integer> getMenuItemLimit(
+            @PathVariable UUID restaurantId) {
+        ApiResponse<Integer> res = new ApiResponse<>();
+        try {
+            int limit = featureLimitCheckerService.getLimitValue(
+                    restaurantId,
+                    FeatureCode.LIMIT_MENU_ITEMS);
+            res.setResult(limit);
+            // -1 means unlimited (Premium package or no subscription)
+            // 0 means no access (should not happen with current logic)
+            // >0 means specific limit (Standard package)
+            if (limit == -1) {
+                res.setMessage("Unlimited menu items");
+            } else if (limit == 0) {
+                res.setMessage("No active subscription");
+            } else {
+                res.setMessage("Limit: " + limit + " menu items");
+            }
+        } catch (Exception e) {
+            res.setResult(0);
+            res.setMessage("Error retrieving limit");
+        }
+        return res;
     }
 
 }
