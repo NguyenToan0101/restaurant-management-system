@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Settings2, Search, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Settings2, Search, Loader2, Info } from "lucide-react";
 import { useCustomizationQueries } from "@/hooks/queries/useCustomizationQueries";
+import { useCustomizationLimit } from "@/hooks/useFeatureLimits";
 import { CustomizationFormDialog } from "@/components/menu/CustomizationFormDialog";
 import { CustomizationDeleteDialog } from "@/components/menu/CustomizationDeleteDialog";
 import type { CustomizationDTO } from "@/types/dto";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CustomizationManagement = () => {
   const { id: restaurantId } = useParams<{ id: string }>();
   const { customizations, isLoading, createCustomization, updateCustomization, deleteCustomization, isCreating, isUpdating, isDeleting } = useCustomizationQueries(restaurantId);
+  const { data: customizationLimit } = useCustomizationLimit(restaurantId);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -91,6 +94,16 @@ const CustomizationManagement = () => {
           <Plus className="w-4 h-4 mr-1" /> Add Customization
         </Button>
       </div>
+
+      {/* Limit Info */}
+      {customizationLimit !== null && customizationLimit !== undefined && customizationLimit !== -1 && customizationLimit > 0 && (
+        <Alert className="mb-6 border-primary/50 bg-primary/5">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            Limit: {customizationLimit} customizations per category. This limit applies when assigning customizations to categories.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">

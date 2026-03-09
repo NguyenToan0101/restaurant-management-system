@@ -13,6 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RestaurantSubscriptionOverviewDTO {
+    private static final long serialVersionUID = 1L;
     private UUID restaurantId;
     private String restaurantName;
     private CurrentSubscriptionOverviewDTO currentSubscription;

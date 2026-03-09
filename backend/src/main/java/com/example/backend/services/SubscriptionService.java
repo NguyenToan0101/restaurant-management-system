@@ -27,6 +27,8 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class SubscriptionService {
@@ -151,10 +153,13 @@ public class SubscriptionService {
 
     @Transactional(readOnly = true)
     public List<SubscriptionPaymentResponse> getPaymentHistoryByRestaurant(UUID restaurantId) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+        
         return subscriptionPaymentRepository
                 .findAllBySubscription_Restaurant_RestaurantIdOrderByDateDesc(restaurantId)
                 .stream()
-                .map(this::subscriptionPaymentToResponse)
+                .map(payment -> subscriptionPaymentToResponse(payment, restaurant))
                 .collect(Collectors.toList());
     }
 
@@ -164,24 +169,27 @@ public class SubscriptionService {
     @Transactional(readOnly = true)
     public List<RestaurantSubscriptionOverviewDTO> getSubscriptionsOverviewForOwner() {
         User currentUser = securityUtil.getCurrentUser();
-        List<Restaurant> restaurants = restaurantRepository.findAllByUser_UserId(currentUser.getUserId());
+        
+        // Fetch restaurants with only necessary data
+        List<Restaurant> restaurants = restaurantRepository.findByUser_UserId(currentUser.getUserId());
 
         return restaurants.stream().map(restaurant -> {
             RestaurantSubscriptionOverviewDTO overview = new RestaurantSubscriptionOverviewDTO();
             overview.setRestaurantId(restaurant.getRestaurantId());
             overview.setRestaurantName(restaurant.getName());
 
-            Subscription currentSub = restaurant.getSubscriptions().stream()
-                    .filter(sub -> sub.getStatus() == SubscriptionStatus.ACTIVE)
-                    .max(Comparator.comparing(Subscription::getCreatedAt))
+            // Fetch active subscription separately with optimized query
+            Subscription currentSub = subscriptionRepository
+                    .findActiveSubscriptionByRestaurantId(restaurant.getRestaurantId())
                     .orElse(null);
 
             overview.setCurrentSubscription(mapToCurrentSubscriptionOverview(currentSub));
 
-            List<SubscriptionPaymentResponse> payments = restaurant.getSubscriptions().stream()
-                    .flatMap(sub -> sub.getSubscriptionPayments().stream())
-                    .sorted(Comparator.comparing(SubscriptionPayment::getDate).reversed())
-                    .map(this::subscriptionPaymentToResponse)
+            // Fetch only recent payment history (limit to 10 most recent)
+            List<SubscriptionPaymentResponse> payments = subscriptionPaymentRepository
+                    .findTop10BySubscription_Restaurant_RestaurantIdOrderByDateDesc(restaurant.getRestaurantId())
+                    .stream()
+                    .map(payment -> subscriptionPaymentToResponse(payment, restaurant))
                     .collect(Collectors.toList());
 
             overview.setPaymentHistory(payments);
@@ -315,6 +323,10 @@ public class SubscriptionService {
     }
 
     private SubscriptionPaymentResponse subscriptionPaymentToResponse(SubscriptionPayment payment) {
+        return subscriptionPaymentToResponse(payment, null);
+    }
+
+    private SubscriptionPaymentResponse subscriptionPaymentToResponse(SubscriptionPayment payment, Restaurant restaurant) {
         if (payment == null)
             return null;
         SubscriptionPaymentResponse dto = new SubscriptionPaymentResponse();
@@ -332,6 +344,16 @@ public class SubscriptionService {
         dto.setSubscriptionPaymentStatus(
                 payment.getSubscriptionPaymentStatus() != null ? payment.getSubscriptionPaymentStatus().name() : null);
         dto.setDate(payment.getDate());
+        
+        // Set restaurant info - use provided restaurant or fetch from subscription
+        if (restaurant != null) {
+            dto.setRestaurantId(restaurant.getRestaurantId());
+            dto.setRestaurantName(restaurant.getName());
+        } else if (payment.getSubscription() != null && payment.getSubscription().getRestaurant() != null) {
+            dto.setRestaurantId(payment.getSubscription().getRestaurant().getRestaurantId());
+            dto.setRestaurantName(payment.getSubscription().getRestaurant().getName());
+        }
+        
         return dto;
     }
 
@@ -341,6 +363,7 @@ public class SubscriptionService {
         CurrentSubscriptionOverviewDTO dto = new CurrentSubscriptionOverviewDTO();
         dto.setSubscriptionId(subscription.getSubscriptionId());
         dto.setPackageId(subscription.getaPackage() != null ? subscription.getaPackage().getPackageId() : null);
+        dto.setPackageName(subscription.getaPackage() != null ? subscription.getaPackage().getName() : null);
         dto.setStatus(subscription.getStatus());
         dto.setStartDate(subscription.getStartDate());
         dto.setEndDate(subscription.getEndDate());

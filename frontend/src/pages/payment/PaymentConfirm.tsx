@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSubscriptionQueries } from "@/hooks/queries/useSubscriptionQueries";
 import { useAuthStore } from "@/stores/authStore";
+import { subscriptionApi } from "@/api/subscriptionApi";
 import type { PackageFeatureDTO } from "@/types/dto/package.dto";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, ArrowRight, Store, MapPin, Phone, Mail, Globe, Check, Package, ShieldCheck, CreditCard } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 interface LocationState {
   package: PackageFeatureDTO;
-  restaurant: {
+  restaurant?: {
     name: string;
     address: string;
     phone: string;
@@ -19,6 +21,9 @@ interface LocationState {
     publicUrl: string;
     description: string;
   };
+  restaurantId?: string;
+  restaurantName?: string;
+  action?: "new" | "upgrade";
 }
 
 const PaymentConfirm = () => {
@@ -27,13 +32,16 @@ const PaymentConfirm = () => {
   const state = location.state as LocationState | null;
   const { user } = useAuthStore();
   const { createRestaurantWithSubscription } = useSubscriptionQueries();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!state) {
     navigate("/payment/select");
     return null;
   }
 
-  const { package: pkg, restaurant } = state;
+  const { package: pkg, restaurant, restaurantId, restaurantName, action = "new" } = state;
+  const isUpgrade = action === "upgrade";
+  
   const formatValue = (v?: number | null) => (v && v >= 9999 ? "Unlimited" : v);
   const formatPrice = (price: number) => price.toLocaleString('vi-VN');
 
@@ -43,29 +51,41 @@ const PaymentConfirm = () => {
       return;
     }
 
+    setIsProcessing(true);
     try {
-      const paymentResponse = await createRestaurantWithSubscription.mutateAsync({
-        restaurantRequest: {
-          userId: user.userId,
-          name: restaurant.name,
-          email: restaurant.email,
-          restaurantPhone: restaurant.phone,
-          publicUrl: restaurant.publicUrl,
-          description: restaurant.description,
-        },
-        packageId: pkg.packageId!,
-      });
+      let paymentResponse: any;
+
+      if (isUpgrade && restaurantId) {
+        // Upgrade existing subscription
+        paymentResponse = await subscriptionApi.upgradePackage(restaurantId, pkg.packageId!);
+      } else if (restaurant) {
+        // Create new restaurant with subscription
+        paymentResponse = await createRestaurantWithSubscription.mutateAsync({
+          restaurantRequest: {
+            userId: user.userId,
+            name: restaurant.name,
+            email: restaurant.email,
+            restaurantPhone: restaurant.phone,
+            publicUrl: restaurant.publicUrl,
+            description: restaurant.description,
+          },
+          packageId: pkg.packageId!,
+        });
+      }
 
       // Navigate to checkout with payment info
       navigate("/payment/checkout", {
         state: {
           package: pkg,
-          restaurant,
+          restaurant: restaurant || { name: restaurantName },
           payment: paymentResponse,
+          action,
         },
       });
     } catch (error) {
-      console.error("Failed to create subscription:", error);
+      console.error("Failed to process subscription:", error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -145,38 +165,68 @@ const PaymentConfirm = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
               >
-                <h1 className="text-4xl font-extrabold tracking-tight mb-2">Review your order</h1>
+                <h1 className="text-4xl font-extrabold tracking-tight mb-2">
+                  {isUpgrade ? "Confirm Upgrade" : "Review your order"}
+                </h1>
                 <p className="text-muted-foreground">
-                  Double check the information below before finalizing your subscription.
+                  {isUpgrade 
+                    ? "Review your package upgrade before proceeding to payment."
+                    : "Double check the information below before finalizing your subscription."}
                 </p>
               </motion.div>
 
-              {/* Restaurant Info Card */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                      <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-blue-600 dark:text-blue-400">
-                        <Store className="w-5 h-5" />
+              {/* Restaurant Info Card - Only show for new subscriptions */}
+              {!isUpgrade && restaurant && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                    <div className="p-6">
+                      <div className="flex items-center gap-2 mb-6">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-blue-600 dark:text-blue-400">
+                          <Store className="w-5 h-5" />
+                        </div>
+                        <h2 className="font-semibold text-lg">Restaurant Details</h2>
                       </div>
-                      <h2 className="font-semibold text-lg">Restaurant Details</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        <DetailItem icon={<Store className="w-4 h-4" />} label="Name" value={restaurant.name} />
+                        <DetailItem icon={<Mail className="w-4 h-4" />} label="Email" value={restaurant.email} />
+                        <DetailItem icon={<Phone className="w-4 h-4" />} label="Phone" value={restaurant.phone} />
+                        <DetailItem icon={<MapPin className="w-4 h-4" />} label="Address" value={restaurant.address} />
+                        {restaurant.publicUrl && (
+                          <DetailItem icon={<Globe className="w-4 h-4" />} label="Website" value={restaurant.publicUrl} />
+                        )}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-                      <DetailItem icon={<Store className="w-4 h-4" />} label="Name" value={restaurant.name} />
-                      <DetailItem icon={<Mail className="w-4 h-4" />} label="Email" value={restaurant.email} />
-                      <DetailItem icon={<Phone className="w-4 h-4" />} label="Phone" value={restaurant.phone} />
-                      <DetailItem icon={<MapPin className="w-4 h-4" />} label="Address" value={restaurant.address} />
-                      {restaurant.publicUrl && (
-                        <DetailItem icon={<Globe className="w-4 h-4" />} label="Website" value={restaurant.publicUrl} />
-                      )}
+                  </Card>
+                </motion.div>
+              )}
+
+              {/* Upgrade Info Card - Only show for upgrades */}
+              {isUpgrade && restaurantName && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <Card className="overflow-hidden border-none shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                    <div className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-blue-600 dark:text-blue-400">
+                          <Store className="w-5 h-5" />
+                        </div>
+                        <h2 className="font-semibold text-lg">Restaurant</h2>
+                      </div>
+                      <p className="text-2xl font-bold">{restaurantName}</p>
+                      <Badge className="mt-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                        Upgrading Subscription
+                      </Badge>
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
+                  </Card>
+                </motion.div>
+              )}
 
               {/* Package Info Card */}
               <motion.div
@@ -257,10 +307,10 @@ const PaymentConfirm = () => {
                     <Button
                       size="lg"
                       onClick={handleProceedToPayment}
-                      disabled={createRestaurantWithSubscription.isPending}
+                      disabled={isProcessing || createRestaurantWithSubscription.isPending}
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-md font-bold shadow-lg shadow-primary/20 group"
                     >
-                      {createRestaurantWithSubscription.isPending ? "Processing..." : "Proceed to Payment"}
+                      {(isProcessing || createRestaurantWithSubscription.isPending) ? "Processing..." : "Proceed to Payment"}
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                     <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest font-bold">

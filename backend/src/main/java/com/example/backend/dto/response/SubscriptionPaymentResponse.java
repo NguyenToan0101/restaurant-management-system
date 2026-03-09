@@ -15,6 +15,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SubscriptionPaymentResponse {
+    private static final long serialVersionUID = 1L;
     private UUID subscriptionPaymentId;
     private BigDecimal amount;
     private String payOsOrderCode;

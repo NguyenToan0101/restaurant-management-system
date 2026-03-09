@@ -19,11 +19,8 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
 
     Page<Restaurant> findByStatus(Pageable pageable, boolean status);
 
-    @EntityGraph(attributePaths = {
-            "subscriptions",
-            "subscriptions.aPackage",
-            "subscriptions.subscriptionPayments"
-    })
+    // Removed @EntityGraph to avoid eager fetching nested collections
+    // Use separate optimized queries instead
     List<Restaurant> findAllByUser_UserId(UUID userId);
 
     @Query("SELECT r FROM Restaurant r WHERE r.publicUrl LIKE %:suffix")

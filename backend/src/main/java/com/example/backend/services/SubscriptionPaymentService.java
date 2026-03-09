@@ -19,6 +19,8 @@ import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
+import java.time.ZoneId;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,6 +28,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class SubscriptionPaymentService {
@@ -37,6 +42,8 @@ public class SubscriptionPaymentService {
     private final ObjectMapper objectMapper;
     private final PackageRepository packageRepository;
     private final RestaurantRepository restaurantRepository;
+    private final Logger logger = LoggerFactory.getLogger(SubscriptionPaymentService.class);
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     public SubscriptionPaymentService(
             SubscriptionRepository subscriptionRepository,
@@ -122,7 +129,9 @@ public class SubscriptionPaymentService {
 
         subscriptionPaymentRepository.save(payment);
 
-        if (purpose != SubscriptionPaymentPurpose.RENEW) {
+        // Only set subscription to PENDING_PAYMENT for NEW_SUBSCRIPTION
+        // UPGRADE and RENEW should keep the subscription ACTIVE until payment succeeds
+        if (purpose == SubscriptionPaymentPurpose.NEW_SUBSCRIPTION) {
             subscription.setStatus(SubscriptionStatus.PENDING_PAYMENT);
             subscriptionRepository.save(subscription);
 
@@ -135,20 +144,40 @@ public class SubscriptionPaymentService {
     }
 
     private ProratedResult calculateProratedAmounts(Subscription subscription, Package newPackage) {
-        LocalDate today = LocalDate.now();
-        LocalDate endDate = subscription.getEndDate();
-        if (endDate == null || endDate.isBefore(today)) {
+
+        Instant now = Instant.now();
+
+        Instant startInstant = subscription.getStartDate()
+                .atStartOfDay(VIETNAM_ZONE)
+                .toInstant();
+
+        Instant endInstant = subscription.getEndDate()
+                .plusDays(1) // include last day
+                .atStartOfDay(VIETNAM_ZONE)
+                .toInstant();
+
+        if (endInstant.isBefore(now)) {
             throw new AppException(ErrorCode.SUBSCRIPTION_ALREADY_EXPIRED);
         }
 
-        long totalDays = ChronoUnit.DAYS.between(subscription.getStartDate(), endDate);
-        long remainingDays = ChronoUnit.DAYS.between(today, endDate);
+        long totalSeconds = ChronoUnit.SECONDS.between(startInstant, endInstant);
+        long remainingSeconds = ChronoUnit.SECONDS.between(now, endInstant);
 
-        int oldPackageValue = subscription.getaPackage().getPrice();
-        int credit = (int) Math.round((double) oldPackageValue * remainingDays / totalDays);
+        remainingSeconds = Math.max(0, remainingSeconds);
 
-        int newPrice = newPackage.getPrice();
-        int amountToPay = Math.max(0, newPrice - credit);
+        double remainingRatio = (double) remainingSeconds / totalSeconds;
+
+        int oldPackagePrice = subscription.getaPackage().getPrice();
+        int newPackagePrice = newPackage.getPrice();
+
+        int credit = (int) Math.round(oldPackagePrice * remainingRatio);
+        int proratedNewPrice = (int) Math.round(newPackagePrice * remainingRatio);
+
+        int amountToPay = Math.max(0, proratedNewPrice - credit);
+
+        logger.info(
+                "Stripe prorated calculation: remainingRatio={}, credit={}, proratedNewPrice={}, amountToPay={}",
+                remainingRatio, credit, proratedNewPrice, amountToPay);
 
         return new ProratedResult(amountToPay, credit);
     }
@@ -187,9 +216,9 @@ public class SubscriptionPaymentService {
             if ("00".equals(data.getCode())) {
                 payment.setSubscriptionPaymentStatus(SubscriptionPaymentStatus.SUCCESS);
 
-                LocalDate today = LocalDate.now();
+                LocalDate today = LocalDate.now(VIETNAM_ZONE);
                 Package targetPackage = payment.getTargetPackage();
-                
+
                 // Ensure targetPackage is loaded (handle lazy loading)
                 if (targetPackage == null) {
                     throw new AppException(ErrorCode.PACKAGE_NOTEXISTED);
@@ -217,9 +246,10 @@ public class SubscriptionPaymentService {
 
                     subscription.setaPackage(targetPackage);
 
-                    LocalDate newStart = subscription.getEndDate() != null && subscription.getEndDate().isAfter(today)
-                            ? subscription.getEndDate()
-                            : today;
+                    LocalDate newStart = subscription.getEndDate() != null &&
+                            !subscription.getEndDate().isBefore(today)
+                                    ? subscription.getEndDate()
+                                    : today;
 
                     subscription.setStartDate(newStart);
                     subscription.setEndDate(newStart.plusMonths(targetPackage.getBillingPeriod()));
@@ -271,7 +301,7 @@ public class SubscriptionPaymentService {
             subscription.setStatus(SubscriptionStatus.CANCELED);
             subscriptionRepository.save(subscription);
         }
-        
+
         // For UPGRADE and RENEW: Keep subscription ACTIVE, don't change anything
         // The subscription stays on its current package and terms
         // Only the payment is marked as CANCELED
@@ -293,21 +323,32 @@ public class SubscriptionPaymentService {
         }).collect(Collectors.toList());
     }
 
-    @Scheduled(fixedRate = 30 * 60 * 1000)
+    @Scheduled(cron = "0 */10 * * * *")
+    @Transactional
     public void cancelExpiredPendingPayments() {
+
         Instant now = Instant.now();
+        logger.info("Running cancelExpiredPendingPayments job at {}", now);
+
         List<SubscriptionPayment> expiredPayments = subscriptionPaymentRepository
                 .findAllBySubscriptionPaymentStatusAndExpiredAtBefore(
                         SubscriptionPaymentStatus.PENDING, now);
+
+        logger.info("Found {} expired pending payments", expiredPayments.size());
 
         for (SubscriptionPayment payment : expiredPayments) {
             payment.setSubscriptionPaymentStatus(SubscriptionPaymentStatus.CANCELED);
             subscriptionPaymentRepository.save(payment);
 
             Subscription subscription = payment.getSubscription();
-            if (payment.getPurpose() != SubscriptionPaymentPurpose.RENEW) {
+
+            if (payment.getPurpose() == SubscriptionPaymentPurpose.NEW_SUBSCRIPTION) {
+
                 subscription.setStatus(SubscriptionStatus.CANCELED);
-                subscriptionPaymentRepository.save(payment); // Hoặc subscriptionRepository.save(subscription)
+                subscriptionRepository.save(subscription);
+
+                logger.info("Subscription {} canceled because payment expired",
+                        subscription.getSubscriptionId());
             }
         }
     }

@@ -23,6 +23,9 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
 
     List<SubscriptionPayment> findAllBySubscription_Restaurant_RestaurantIdOrderByDateDesc(UUID restaurantId);
 
+    // Optimized: Fetch only top 10 most recent payments
+    List<SubscriptionPayment> findTop10BySubscription_Restaurant_RestaurantIdOrderByDateDesc(UUID restaurantId);
+
     @Query(value = """
                 SELECT
                     u.user_id AS user_id,

@@ -3,8 +3,9 @@ package com.example.backend.controller;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.CustomizationDTO;
 import com.example.backend.dto.request.CustomizationCreateRequest;
-// import com.example.backend.entities.FeatureCode;
+import com.example.backend.entities.FeatureCode;
 import com.example.backend.services.CustomizationService;
+import com.example.backend.services.FeatureLimitCheckerService;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -19,10 +20,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class CustomizationController {
 
     private final CustomizationService customizationService;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
-    public CustomizationController(CustomizationService customizationService
-             ) {
+    public CustomizationController(CustomizationService customizationService,
+            FeatureLimitCheckerService featureLimitCheckerService) {
         this.customizationService = customizationService;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     @GetMapping("")
@@ -60,46 +63,45 @@ public class CustomizationController {
         return new ApiResponse<>();
     }
 
-    // @GetMapping("/restaurant/{restaurantId}/category/{categoryId}/can-create")
-    // public ApiResponse<Boolean> canCreateCustomizationForCategory(
-    //         @PathVariable UUID restaurantId,
-    //         @PathVariable UUID categoryId) {
-    //     ApiResponse<Boolean> res = new ApiResponse<>();
-    //     res.setResult(customizationService.canCreateCustomizationForCategory(restaurantId, categoryId));
-    //     return res;
-    // }
-
-    // @GetMapping("/restaurant/{restaurantId}/limit")
-    // public ApiResponse<Integer> getCustomizationLimit(
-    //         @PathVariable UUID restaurantId) {
-    //     ApiResponse<Integer> res = new ApiResponse<>();
-    //     try {
-    //         int limit = featureLimitCheckerService.getLimitValue(
-    //                 restaurantId,
-    //                 FeatureCode.LIMIT_CUSTOMIZATION_PER_CATEGORY);
-    //         res.setResult(limit);
-    //         // -1 means unlimited (Premium package)
-    //         // 0 means no access (no subscription)
-    //         // >0 means specific limit (Basic package)
-    //         if (limit == -1) {
-    //             res.setMessage("Unlimited customizations");
-    //         } else if (limit == 0) {
-    //             res.setMessage("No active subscription");
-    //         } else {
-    //             res.setMessage("Limit: " + limit + " customizations per category");
-    //         }
-    //     } catch (Exception e) {
-    //         // If error, return 0 as limit
-    //         res.setResult(0);
-    //         res.setMessage("Error retrieving limit");
-    //     }
-    //     return res;
-    // }
-
     @GetMapping("/category/{categoryId}")
     public ApiResponse<List<UUID>> getCustomizationByCategory(@PathVariable UUID categoryId) {
         ApiResponse<List<UUID>> apiResponse = new ApiResponse<>();
         apiResponse.setResult(customizationService.getCustomizationByCategoryId(categoryId));
         return apiResponse;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/category/{categoryId}/can-create")
+    public ApiResponse<Boolean> canCreateCustomizationForCategory(
+            @PathVariable UUID restaurantId,
+            @PathVariable UUID categoryId) {
+        ApiResponse<Boolean> res = new ApiResponse<>();
+        res.setResult(customizationService.canCreateCustomizationForCategory(restaurantId, categoryId));
+        return res;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/limit")
+    public ApiResponse<Integer> getCustomizationLimit(
+            @PathVariable UUID restaurantId) {
+        ApiResponse<Integer> res = new ApiResponse<>();
+        try {
+            int limit = featureLimitCheckerService.getLimitValue(
+                    restaurantId,
+                    FeatureCode.LIMIT_CUSTOMIZATION_PER_CATEGORY);
+            res.setResult(limit);
+            // -1 means unlimited (Premium package or no subscription)
+            // 0 means no access (should not happen with current logic)
+            // >0 means specific limit (Standard package)
+            if (limit == -1) {
+                res.setMessage("Unlimited customizations per category");
+            } else if (limit == 0) {
+                res.setMessage("No active subscription");
+            } else {
+                res.setMessage("Limit: " + limit + " customizations per category");
+            }
+        } catch (Exception e) {
+            res.setResult(0);
+            res.setMessage("Error retrieving limit");
+        }
+        return res;
     }
 }

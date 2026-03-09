@@ -4,6 +4,7 @@ import type {
   SubscriptionPaymentResponse,
   SubscriptionResponse,
   CreateRestaurantSubscriptionRequest,
+  RestaurantSubscriptionOverviewDTO,
 } from '@/types/dto/subscription.dto';
 
 export const subscriptionApi = {
@@ -93,5 +94,13 @@ export const subscriptionApi = {
   // Cancel subscription
   cancelSubscription: async (subscriptionId: string): Promise<void> => {
     await axiosClient.put(`/subscriptions/${subscriptionId}/cancel`);
+  },
+
+  // Get subscriptions overview for current owner
+  getSubscriptionsOverviewForOwner: async (): Promise<RestaurantSubscriptionOverviewDTO[]> => {
+    const response = await axiosClient.get<ApiResponse<RestaurantSubscriptionOverviewDTO[]>>(
+      `/subscriptions/overview`
+    );
+    return response.data.result || [];
   },
 };

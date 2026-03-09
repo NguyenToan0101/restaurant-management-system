@@ -1,22 +1,44 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { packageApi } from "@/api/packageApi";
+import { subscriptionApi } from "@/api/subscriptionApi";
 import type { PackageFeatureDTO } from "@/types/dto/package.dto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, ArrowRight, Store, MapPin, Phone, Mail, Globe, ShieldCheck, Info } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight, Store, MapPin, Phone, Mail, Globe, ShieldCheck, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 const PackageSelection = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
+  
+  const restaurantId = searchParams.get('restaurantId');
+  const action = searchParams.get('action'); // 'upgrade', 'subscribe', or null
+  // Upgrade mode: upgrade existing active subscription
+  const isUpgradeMode = Boolean(restaurantId && action === 'upgrade');
+  // Subscribe mode: create new subscription for existing restaurant (no current subscription)
+  const isSubscribeMode = Boolean(restaurantId && action === 'subscribe');
+  
+  // Clean up invalid params on mount
+  useEffect(() => {
+    // If we have restaurantId but invalid action, or action without restaurantId, clear params
+    if ((restaurantId && action && action !== 'upgrade' && action !== 'subscribe') || 
+        ((action === 'upgrade' || action === 'subscribe') && !restaurantId)) {
+      setSearchParams({});
+    }
+  }, [restaurantId, action, setSearchParams]);
+  
   const [step, setStep] = useState<"package" | "restaurant">("package");
   const [selectedPkg, setSelectedPkg] = useState<PackageFeatureDTO | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Fetch active packages from backend
   const { data: activePackages = [], isLoading } = useQuery({
@@ -32,10 +54,38 @@ const PackageSelection = () => {
     description: "",
   });
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (step === "package" && selectedPkg) {
-      setStep("restaurant");
-      window.scrollTo(0, 0);
+      // If upgrade mode, directly process upgrade
+      if (isUpgradeMode && restaurantId) {
+        setIsProcessing(true);
+        try {
+          const payment = await subscriptionApi.upgradePackage(restaurantId, selectedPkg.packageId);
+          
+          if (payment.qrCodeUrl) {
+            // Redirect to payment checkout with orderCode
+            navigate(`/payment/checkout?orderCode=${payment.payOsOrderCode}`);
+          } else {
+            toast({
+              title: "Success",
+              description: "Package upgraded successfully",
+            });
+            navigate('/profile?tab=restaurants');
+          }
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error?.response?.data?.message || "Failed to upgrade package",
+            variant: "destructive",
+          });
+        } finally {
+          setIsProcessing(false);
+        }
+      } else {
+        // Normal flow - go to restaurant details
+        setStep("restaurant");
+        window.scrollTo(0, 0);
+      }
     } else if (step === "restaurant" && form.name && form.address && form.phone && form.email) {
       navigate("/payment/confirm", { 
         state: { 
@@ -139,9 +189,13 @@ const PackageSelection = () => {
                 className="space-y-8"
               >
                 <div className="text-center max-w-2xl mx-auto">
-                  <h1 className="text-4xl font-extrabold tracking-tight mb-3">Choose Your Plan</h1>
+                  <h1 className="text-4xl font-extrabold tracking-tight mb-3">
+                    {isUpgradeMode ? 'Upgrade Your Plan' : 'Choose Your Plan'}
+                  </h1>
                   <p className="text-muted-foreground">
-                    Unlock powerful features to grow your restaurant business efficiently.
+                    {isUpgradeMode 
+                      ? 'Select a new plan to upgrade your restaurant subscription.'
+                      : 'Unlock powerful features to grow your restaurant business efficiently.'}
                   </p>
                 </div>
 
@@ -225,12 +279,26 @@ const PackageSelection = () => {
                 <div className="flex justify-center pt-4">
                   <Button
                     size="lg"
-                    disabled={!selectedPkg}
+                    disabled={!selectedPkg || isProcessing}
                     onClick={handleContinue}
                     className="px-12 h-12 text-md font-bold group shadow-lg shadow-primary/20"
                   >
-                    Continue to Details
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : isUpgradeMode ? (
+                      <>
+                        Upgrade Package
+                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    ) : (
+                      <>
+                        Continue to Details
+                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </motion.div>
