@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, LoginRequest, AuthenticationResponse } from '@/types/dto';
+import type { ApiResponse, LoginRequest, AuthenticationResponse, StaffLoginRequest, StaffAuthResponse } from '@/types/dto';
 import { useAuthStore } from '@/stores/authStore';
 
 class AuthApi {
@@ -24,6 +24,23 @@ class AuthApi {
       accessToken: null,
       refreshToken: null,
       user: user,
+    });
+
+    return result;
+  }
+
+  async staffLogin(username: string, password: string): Promise<StaffAuthResponse> {
+    const request: StaffLoginRequest = { username, password };
+    const response = await axiosClient.post<ApiResponse<StaffAuthResponse>>('/auth/staff-login', request);
+
+    const result = response.data.result;
+    
+    // Backend đã set token vào HttpOnly cookie
+    // Chỉ lưu staff info vào store (không lưu token vào memory/localStorage)
+    useAuthStore.getState().setStaffAuthData({
+      accessToken: null,
+      refreshToken: null,
+      staffInfo: result.staffInfo,
     });
 
     return result;

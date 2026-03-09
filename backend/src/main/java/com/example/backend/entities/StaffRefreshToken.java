@@ -11,8 +11,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "refresh_token")
-public class RefreshToken {
+@Table(name = "staff_refresh_token")
+public class StaffRefreshToken {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -22,8 +22,8 @@ public class RefreshToken {
     private String tokenHash;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "staff_account_id", nullable = false)
+    private StaffAccount staffAccount;
 
     @Column(name = "issued_at", nullable = false)
     private Instant issuedAt;
@@ -36,8 +36,6 @@ public class RefreshToken {
 
     @Column(name = "user_agent")
     private String userAgent;
-
-
 
     public String getId() {
         return id;
@@ -55,12 +53,12 @@ public class RefreshToken {
         this.tokenHash = tokenHash;
     }
 
-    public User getUser() {
-        return user;
+    public StaffAccount getStaffAccount() {
+        return staffAccount;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setStaffAccount(StaffAccount staffAccount) {
+        this.staffAccount = staffAccount;
     }
 
     public Instant getIssuedAt() {
@@ -95,6 +93,4 @@ public class RefreshToken {
         this.userAgent = userAgent;
     }
 
-
 }
-

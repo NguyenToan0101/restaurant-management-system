@@ -38,3 +38,35 @@ export const useLogout = () => {
     },
   });
 };
+
+export const useStaffLogin = () => {
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: ({ username, password }: { username: string; password: string }) =>
+      authApi.staffLogin(username, password),
+    onSuccess: (data) => {
+      toast.success('Staff login successful!', {
+        description: `Welcome back, ${data.staffInfo.username}`,
+      });
+      // Route based on role
+      const role = data.staffInfo.role;
+      if (role === 'WAITER') {
+        navigate('/dashboard/waitter');
+      } else if (role === 'BRANCH_MANAGER') {
+        navigate('/dashboard/manager');
+      } else if (role === 'RECEPTIONIST') {
+        navigate('/dashboard/receptionist');
+      } else {
+        // Fallback dashboard
+        navigate('/dashboard');
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      toast.error('Staff Login Failed', {
+        description: message,
+      });
+    },
+  });
+};

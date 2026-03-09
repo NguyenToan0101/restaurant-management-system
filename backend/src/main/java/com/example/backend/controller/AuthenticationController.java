@@ -3,8 +3,10 @@ package com.example.backend.controller;
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.request.LogoutRequest;
 import com.example.backend.dto.request.RefreshRequest;
+import com.example.backend.dto.request.StaffLoginRequest;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.AuthenticationResponse;
+import com.example.backend.dto.response.StaffAuthResponse;
 import com.example.backend.services.AuthenticationService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,7 +39,7 @@ public class AuthenticationController {
         AuthenticationResponse authResponse = authenticationService.login(request, clientIp, userAgent);
 
         // Set JWT tokens in HttpOnly cookies
-        setAuthCookies(httpRequest, httpResponse, authResponse);
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
 
         ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
         response.setCode(200);
@@ -45,6 +47,30 @@ public class AuthenticationController {
         response.setResult(authResponse);
 
         log.info("Login successful for email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/staff-login")
+    public ResponseEntity<ApiResponse<StaffAuthResponse>> staffLogin(
+            @Valid @RequestBody StaffLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.info("Staff Login request received for username: {}", request.getUsername());
+
+        String clientIp = extractClientIp(httpRequest);
+        String userAgent = extractUserAgent(httpRequest);
+
+        StaffAuthResponse authResponse = authenticationService.staffLogin(request, clientIp, userAgent);
+
+        // Set JWT tokens in HttpOnly cookies
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
+
+        ApiResponse<StaffAuthResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Staff login successful");
+        response.setResult(authResponse);
+
+        log.info("Staff Login successful for username: {}", request.getUsername());
         return ResponseEntity.ok(response);
     }
 
@@ -72,7 +98,7 @@ public class AuthenticationController {
         AuthenticationResponse authResponse = authenticationService.refreshToken(refreshRequest, clientIp, userAgent);
 
         // Set new JWT tokens in HttpOnly cookies
-        setAuthCookies(httpRequest, httpResponse, authResponse);
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
 
         ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
         response.setCode(200);
@@ -157,13 +183,14 @@ public class AuthenticationController {
     private void setAuthCookies(
             HttpServletRequest request,
             HttpServletResponse response,
-            AuthenticationResponse authResponse) {
+            String accessToken,
+            String refreshToken) {
 
         boolean isProduction = request.isSecure() ||
                 "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
 
         // Access token cookie
-        Cookie accessTokenCookie = new Cookie("access_token", authResponse.getAccessToken());
+        Cookie accessTokenCookie = new Cookie("access_token", accessToken);
         accessTokenCookie.setHttpOnly(true);
         accessTokenCookie.setSecure(isProduction);
         accessTokenCookie.setPath("/");
@@ -172,7 +199,7 @@ public class AuthenticationController {
         response.addCookie(accessTokenCookie);
 
         // Refresh token cookie
-        Cookie refreshTokenCookie = new Cookie("refresh_token", authResponse.getRefreshToken());
+        Cookie refreshTokenCookie = new Cookie("refresh_token", refreshToken);
         refreshTokenCookie.setHttpOnly(true);
         refreshTokenCookie.setSecure(isProduction);
         refreshTokenCookie.setPath("/");
