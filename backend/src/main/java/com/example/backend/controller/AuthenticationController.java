@@ -109,6 +109,40 @@ public class AuthenticationController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/staff-refresh")
+    public ResponseEntity<ApiResponse<StaffAuthResponse>> staffRefresh(
+            @Valid @RequestBody(required = false) RefreshRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.info("Staff refresh token request received");
+
+        String clientIp = extractClientIp(httpRequest);
+        String userAgent = extractUserAgent(httpRequest);
+
+        String refreshToken = getRefreshTokenFromRequestOrCookie(request, httpRequest);
+
+        if (refreshToken == null) {
+            throw new com.example.backend.exception.AppException(
+                    com.example.backend.exception.ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        RefreshRequest refreshRequest = new RefreshRequest();
+        refreshRequest.setRefreshToken(refreshToken);
+
+        StaffAuthResponse authResponse = authenticationService.staffRefreshToken(refreshRequest, clientIp, userAgent);
+
+        // Set new JWT tokens in HttpOnly cookies
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
+
+        ApiResponse<StaffAuthResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Staff token refreshed successfully");
+        response.setResult(authResponse);
+
+        log.info("Staff token refresh successful");
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @Valid @RequestBody(required = false) LogoutRequest request,
@@ -144,7 +178,6 @@ public class AuthenticationController {
     public ResponseEntity<ApiResponse<com.example.backend.dto.response.UserResponse>> getCurrentUser() {
         log.info("Get current user request received");
 
-        // Get authenticated user from SecurityContext
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
 
@@ -154,27 +187,38 @@ public class AuthenticationController {
                     com.example.backend.exception.ErrorCode.UNAUTHENTICATED);
         }
 
-        com.example.backend.entities.User userFromContext = (com.example.backend.entities.User) authentication
-                .getPrincipal();
+        Object principal = authentication.getPrincipal();
+        com.example.backend.dto.response.UserResponse userDTO;
 
-        // Fetch user from database to ensure role is loaded within transaction
-        com.example.backend.entities.User user = userRepository
-                .findById(userFromContext.getUserId())
-                .orElseThrow(() -> new com.example.backend.exception.AppException(
-                        com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
-
-        com.example.backend.dto.response.UserResponse userDTO = new com.example.backend.dto.response.UserResponse(
-                user.getUserId(),
-                user.getEmail(),
-                user.getUsername(),
-                user.getRole().getName().name());
+        if (principal instanceof com.example.backend.entities.StaffAccount staff) {
+            // Staff account — data đã được load từ DB trong JwtAuthenticationFilter
+            userDTO = new com.example.backend.dto.response.UserResponse(
+                    staff.getStaffAccountId(),
+                    staff.getUsername(),
+                    staff.getUsername(),
+                    staff.getRole().getName().name());
+        } else if (principal instanceof com.example.backend.entities.User userFromContext) {
+            // Regular user — reload từ DB để đảm bảo role được load trong transaction
+            com.example.backend.entities.User user = userRepository
+                    .findById(userFromContext.getUserId())
+                    .orElseThrow(() -> new com.example.backend.exception.AppException(
+                            com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
+            userDTO = new com.example.backend.dto.response.UserResponse(
+                    user.getUserId(),
+                    user.getEmail(),
+                    user.getUsername(),
+                    user.getRole().getName().name());
+        } else {
+            throw new com.example.backend.exception.AppException(
+                    com.example.backend.exception.ErrorCode.UNAUTHENTICATED);
+        }
 
         ApiResponse<com.example.backend.dto.response.UserResponse> response = new ApiResponse<>();
         response.setCode(200);
         response.setMessage("User retrieved successfully");
         response.setResult(userDTO);
 
-        log.info("Current user retrieved successfully: {}", user.getEmail());
+        log.info("Current user retrieved successfully");
         return ResponseEntity.ok(response);
     }
 

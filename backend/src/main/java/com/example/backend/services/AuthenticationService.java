@@ -119,6 +119,27 @@ public class AuthenticationService {
     }
 
     @Transactional
+    public StaffAuthResponse staffRefreshToken(RefreshRequest request, String clientIp, String userAgent) {
+        log.info("Staff token refresh attempt");
+
+        StaffAccount staff = jwtService.validateStaffRefreshToken(request.getRefreshToken());
+
+        String accessToken = jwtService.generateAccessToken(staff);
+        String refreshToken = jwtService.generateRefreshToken(staff, clientIp, userAgent);
+
+        StaffAuthResponse.StaffInfo staffInfo = new StaffAuthResponse.StaffInfo(
+                staff.getStaffAccountId(),
+                staff.getUsername(),
+                staff.getRole().getName().name(),
+                staff.getBranch().getBranchId()
+        );
+
+        log.info("Staff token refresh successful for: {}", staff.getUsername());
+
+        return new StaffAuthResponse(accessToken, refreshToken, staffInfo);
+    }
+
+    @Transactional
     public void logout(String refreshToken) {
         log.info("Logout attempt");
         

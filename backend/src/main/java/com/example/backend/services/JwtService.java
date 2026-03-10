@@ -3,12 +3,10 @@ package com.example.backend.services;
 import com.example.backend.config.JwtProperties;
 import com.example.backend.entities.RefreshToken;
 import com.example.backend.entities.StaffAccount;
-import com.example.backend.entities.StaffRefreshToken;
 import com.example.backend.entities.User;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.exception.JwtAuthenticationException;
 import com.example.backend.repositories.RefreshTokenRepository;
-import com.example.backend.repositories.StaffRefreshTokenRepository;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -36,7 +34,6 @@ public class JwtService {
     
     private final JwtProperties jwtProperties;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final StaffRefreshTokenRepository staffRefreshTokenRepository;
     
     public String generateAccessToken(User user) {
         try {
@@ -145,7 +142,7 @@ public class JwtService {
         var now = Instant.now();
         var expiry = now.plusSeconds(jwtProperties.getRefreshTokenExpiration());
         
-        var refreshToken = new StaffRefreshToken();
+        var refreshToken = new RefreshToken();
         refreshToken.setId(tokenId);
         refreshToken.setTokenHash(tokenHash);
         refreshToken.setStaffAccount(staffAccount);
@@ -154,7 +151,7 @@ public class JwtService {
         refreshToken.setClientIp(clientIp);
         refreshToken.setUserAgent(userAgent);
         
-        staffRefreshTokenRepository.save(refreshToken);
+        refreshTokenRepository.save(refreshToken);
         
         return tokenId + ":" + tokenString;
     }
@@ -237,8 +234,12 @@ public class JwtService {
         String tokenId = parts[0];
         String tokenString = parts[1];
         
-        StaffRefreshToken storedToken = staffRefreshTokenRepository.findById(tokenId)
+        RefreshToken storedToken = refreshTokenRepository.findById(tokenId)
                 .orElseThrow(() -> new JwtAuthenticationException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        
+        if (storedToken.getStaffAccount() == null) {
+            throw new JwtAuthenticationException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
         
         var now = Instant.now();
         if (storedToken.getExpiresAt().isBefore(now)) {
@@ -280,8 +281,6 @@ public class JwtService {
         String tokenId = parts[0];
         if (refreshTokenRepository.existsById(tokenId)) {
             refreshTokenRepository.deleteById(tokenId);
-        } else if (staffRefreshTokenRepository.existsById(tokenId)) {
-            staffRefreshTokenRepository.deleteById(tokenId);
         }
     }
 }

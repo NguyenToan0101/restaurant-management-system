@@ -22,7 +22,7 @@ public class RefreshToken {
     private String tokenHash;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     @Column(name = "issued_at", nullable = false)
@@ -37,7 +37,9 @@ public class RefreshToken {
     @Column(name = "user_agent")
     private String userAgent;
 
-
+    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+    @JoinColumn(name = "staff_account_id", nullable = true)
+    private StaffAccount staffAccount;
 
     public String getId() {
         return id;
@@ -95,6 +97,12 @@ public class RefreshToken {
         this.userAgent = userAgent;
     }
 
+    public StaffAccount getStaffAccount() {
+        return staffAccount;
+    }
+
+    public void setStaffAccount(StaffAccount staffAccount) {
+        this.staffAccount = staffAccount;
+    }
 
 }
-

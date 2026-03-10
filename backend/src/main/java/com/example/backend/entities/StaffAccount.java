@@ -57,7 +57,7 @@ public class StaffAccount {
     private EntityStatus status = EntityStatus.ACTIVE;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "staffAccount")
-    private Set<StaffRefreshToken> refreshTokens = new LinkedHashSet<>();
+    private Set<RefreshToken> refreshTokens = new LinkedHashSet<>();
 
     public UUID getStaffAccountId() {
         return staffAccountId;
@@ -123,11 +123,11 @@ public class StaffAccount {
         this.status = status;
     }
 
-    public Set<StaffRefreshToken> getRefreshTokens() {
+    public Set<RefreshToken> getRefreshTokens() {
         return refreshTokens;
     }
 
-    public void setRefreshTokens(Set<StaffRefreshToken> refreshTokens) {
+    public void setRefreshTokens(Set<RefreshToken> refreshTokens) {
         this.refreshTokens = refreshTokens;
     }
 
