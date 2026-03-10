@@ -8,6 +8,7 @@ public class RestaurantCreateRequest {
     private String name;
     private String email;
     private String restaurantPhone;
+    private String publicUrl;
     private String description;
 
     public UUID getUserId() {
@@ -40,6 +41,14 @@ public class RestaurantCreateRequest {
 
     public void setRestaurantPhone(String restaurantPhone) {
         this.restaurantPhone = restaurantPhone;
+    }
+
+    public String getPublicUrl() {
+        return publicUrl;
+    }
+
+    public void setPublicUrl(String publicUrl) {
+        this.publicUrl = publicUrl;
     }
 
     public String getDescription() {

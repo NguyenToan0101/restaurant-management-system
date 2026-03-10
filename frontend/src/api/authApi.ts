@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, LoginRequest, AuthenticationResponse } from '@/types/dto';
+import type { ApiResponse, LoginRequest, AuthenticationResponse, StaffLoginRequest, StaffAuthResponse } from '@/types/dto';
 import { useAuthStore } from '@/stores/authStore';
 
 class AuthApi {
@@ -8,12 +8,39 @@ class AuthApi {
     const response = await axiosClient.post<ApiResponse<AuthenticationResponse>>('/auth/login', request);
 
     const result = response.data.result;
+    
+    // Transform role from string to RoleDTO object for consistency
+    const user = result.user;
+    if (user && typeof user.role === 'string') {
+      user.role = {
+        name: user.role,
+        description: user.role,
+      };
+    }
+    
     // Backend đã set token vào HttpOnly cookie
     // Chỉ lưu user data vào store (không lưu token vào memory/localStorage)
     useAuthStore.getState().setAuthData({
       accessToken: null,
       refreshToken: null,
-      user: result.user,
+      user: user,
+    });
+
+    return result;
+  }
+
+  async staffLogin(username: string, password: string): Promise<StaffAuthResponse> {
+    const request: StaffLoginRequest = { username, password };
+    const response = await axiosClient.post<ApiResponse<StaffAuthResponse>>('/auth/staff-login', request);
+
+    const result = response.data.result;
+    
+    // Backend đã set token vào HttpOnly cookie
+    // Chỉ lưu staff info vào store (không lưu token vào memory/localStorage)
+    useAuthStore.getState().setStaffAuthData({
+      accessToken: null,
+      refreshToken: null,
+      staffInfo: result.staffInfo,
     });
 
     return result;

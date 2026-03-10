@@ -45,6 +45,15 @@ public class PackageFeatureService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<PackageFeatureDTO> getActivePackagesWithFeatures() {
+        return packageRepository.findAllWithFeatures()
+                .stream()
+                .filter(Package::isAvailable) // Only active packages
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
     public PackageFeatureDTO getPackageWithFeatures(UUID packageId) {
         Package pkg = packageRepository.findOneWithFeaturesByPackageId(packageId)
                 .orElseThrow(() -> new AppException(ErrorCode.PACKAGE_NOTEXISTED));

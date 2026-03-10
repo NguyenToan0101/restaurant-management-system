@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AuthenticationResponse, UserDTO } from '@/types/dto';
+import type { AuthenticationResponse, UserDTO, StaffAuthResponse, StaffInfo } from '@/types/dto';
 
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   user: UserDTO | null;
+  staffInfo: StaffInfo | null;
 
   setAuthData: (authResponse: AuthenticationResponse) => void;
+  setStaffAuthData: (authResponse: StaffAuthResponse) => void;
   clearAuthData: () => void;
   updateTokens: (accessToken: string, refreshToken: string) => void;
   isAuthenticated: () => boolean;
@@ -19,12 +21,23 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
+      staffInfo: null,
 
       setAuthData: (authResponse: AuthenticationResponse) => {
         set({
           accessToken: authResponse.accessToken,
           refreshToken: authResponse.refreshToken,
           user: authResponse.user,
+          staffInfo: null,
+        });
+      },
+
+      setStaffAuthData: (authResponse: StaffAuthResponse) => {
+        set({
+          accessToken: authResponse.accessToken,
+          refreshToken: authResponse.refreshToken,
+          user: null,
+          staffInfo: authResponse.staffInfo,
         });
       },
 
@@ -33,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           user: null,
+          staffInfo: null,
         });
       },
 
@@ -42,9 +56,9 @@ export const useAuthStore = create<AuthState>()(
 
       isAuthenticated: () => {
         const state = get();
-        // Authenticated khi có user data (đã verify với backend)
+        // Authenticated khi có user data hoặc staff data
         // Token thực sự nằm trong HttpOnly cookie, không lưu trong store
-        return !!state.user;
+        return !!state.user || !!state.staffInfo;
       },
     }),
     {
@@ -53,6 +67,7 @@ export const useAuthStore = create<AuthState>()(
       // Tokens KHÔNG được persist - được quản lý qua HttpOnly cookie
       partialize: (state) => ({
         user: state.user,
+        staffInfo: state.staffInfo,
       }),
     }
   )

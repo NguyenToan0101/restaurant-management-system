@@ -28,6 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final com.example.backend.repositories.StaffAccountRepository staffAccountRepository;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -49,22 +50,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SignedJWT jwt = jwtService.validateAccessToken(token);
                 UUID userId = jwtService.getUserIdFromToken(jwt);
 
-                User user = userRepository.findById(userId).orElse(null);
+                Object userTypeClaim = jwt.getJWTClaimsSet().getClaim("userType");
+                if (userTypeClaim != null && "STAFF".equals(userTypeClaim.toString())) {
+                    com.example.backend.entities.StaffAccount staff = staffAccountRepository.findById(userId).orElse(null);
+                    if (staff != null) {
+                        String role = jwt.getJWTClaimsSet().getClaim("role").toString();
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                staff,
+                                null,
+                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } else {
+                    User user = userRepository.findById(userId).orElse(null);
 
-                if (user != null) {
-                    String role = jwt.getJWTClaimsSet().getClaim("role").toString();
+                    if (user != null) {
+                        String role = jwt.getJWTClaimsSet().getClaim("role").toString();
 
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            Collections.singletonList(
-                                    new SimpleGrantedAuthority("ROLE_" + role)));
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                user,
+                                null,
+                                Collections.singletonList(
+                                        new SimpleGrantedAuthority("ROLE_" + role)));
 
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource()
-                                    .buildDetails(request));
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource()
+                                        .buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
 
             } catch (Exception e) {

@@ -197,8 +197,8 @@ const PackageManagement = () => {
                       </button>
                     </TableCell>
                     <TableCell className="font-medium text-foreground">{pkg.name}</TableCell>
-                    <TableCell className="text-foreground">{pkg.price.toLocaleString('vi-VN')} VND/tháng</TableCell>
-                    <TableCell className="text-muted-foreground">{pkg.billingPeriod} tháng</TableCell>
+                    <TableCell className="text-foreground">{pkg.price.toLocaleString('vi-VN')}đ/month</TableCell>
+                    <TableCell className="text-muted-foreground">{pkg.billingPeriod} month</TableCell>
                     <TableCell>
                       <Badge variant={pkg.available ? "default" : "secondary"}>{pkg.available ? "Available" : "Inactive"}</Badge>
                     </TableCell>
@@ -261,7 +261,7 @@ const PackageManagement = () => {
                 <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Price (VND/tháng)</Label>
+                <Label>Price (đ/month)</Label>
                 <Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: +e.target.value }))} />
               </div>
             </div>
@@ -270,7 +270,7 @@ const PackageManagement = () => {
               <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} />
             </div>
             <div className="space-y-1.5">
-              <Label>Billing Period (tháng)</Label>
+              <Label>Billing Period (month)</Label>
               <Input type="number" value={form.billingPeriod} onChange={e => setForm(p => ({ ...p, billingPeriod: +e.target.value }))} min={1} />
             </div>
 

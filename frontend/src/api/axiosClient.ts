@@ -57,10 +57,14 @@ axiosClient.interceptors.response.use(
       if (!refreshPromise) {
         refreshPromise = (async () => {
           try {
+            // Determine which refresh endpoint to use based on session type
+            const isStaff = !!useAuthStore.getState().staffInfo;
+            const refreshEndpoint = isStaff ? `${baseURL}/auth/staff-refresh` : `${baseURL}/auth/refresh`;
+
             // Refresh token có trong HttpOnly cookie, backend tự đọc
             // Backend sẽ set lại access_token cookie mới qua Set-Cookie
             await axios.post(
-              `${baseURL}/auth/refresh`,
+              refreshEndpoint,
               {}, // Empty body
               { withCredentials: true }
             );

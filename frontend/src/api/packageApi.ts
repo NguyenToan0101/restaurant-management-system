@@ -3,9 +3,15 @@ import type { ApiResponse } from '@/types/dto/api-response.dto';
 import type { PackageFeatureDTO, FeatureDTO } from '@/types/dto/package.dto';
 
 export const packageApi = {
-  // Get all packages with features
+  // Get all packages with features (admin only)
   getAllPackages: async (): Promise<PackageFeatureDTO[]> => {
     const response = await axiosClient.get<ApiResponse<PackageFeatureDTO[]>>('/packages');
+    return response.data.result || [];
+  },
+
+  // Get active packages with features (public endpoint)
+  getActivePackages: async (): Promise<PackageFeatureDTO[]> => {
+    const response = await axiosClient.get<ApiResponse<PackageFeatureDTO[]>>('/packages/active');
     return response.data.result || [];
   },
 
