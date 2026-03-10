@@ -3,6 +3,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface StaffLoginRequest {
+  username: string;
+  password: string;
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }

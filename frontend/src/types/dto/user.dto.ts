@@ -17,6 +17,19 @@ export interface AuthenticationResponse {
   user: UserDTO;
 }
 
+export interface StaffInfo {
+  staffAccountId: string;
+  username: string;
+  role: string;
+  branchId: string;
+}
+
+export interface StaffAuthResponse {
+  accessToken: string | null;
+  refreshToken: string | null;
+  staffInfo: StaffInfo;
+}
+
 export interface GoogleAuthUrlResponse {
   authorizationUrl: string;
   state: string;

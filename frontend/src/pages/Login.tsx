@@ -100,6 +100,23 @@ const Login = () => {
             Don't have an account?{" "}
             <Link to="/register" className="text-primary font-semibold hover:underline">Sign up free</Link>
           </p>
+
+          <div className="mt-8 flex flex-col items-center">
+            <div className="relative w-full mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/40 border-dashed" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground">
+                <span className="bg-background px-3">STAFF ACCESS</span>
+              </div>
+            </div>
+            
+            <Link to="/staff-login" className="w-full">
+              <Button type="button" className="w-full font-semibold bg-[#4ade80] hover:bg-[#22c55e] text-[#022c22] rounded-lg h-11 transition-all duration-200" size="lg">
+                Restaurant Staff Login <span className="ml-1 opacity-70">›</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
