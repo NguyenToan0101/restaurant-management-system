@@ -210,7 +210,7 @@ export const RestaurantSubscriptionCard = ({ data, onRenew, onUpgrade, onCancel 
                   {data.currentSubscription.packageName}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {data.currentSubscription.amount.toLocaleString()} VND
+                  {data.currentSubscription.amount.toLocaleString()}đ
                 </p>
               </div>
 
@@ -305,7 +305,7 @@ export const RestaurantSubscriptionCard = ({ data, onRenew, onUpgrade, onCancel 
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {payment.amount.toLocaleString()} VND
+                      {payment.amount.toLocaleString()}đ
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ export const RestaurantSubscriptionCard = ({ data, onRenew, onUpgrade, onCancel 
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-primary">
-                              {pkg.price.toLocaleString()} VND
+                              {pkg.price.toLocaleString()}đ
                             </p>
                             <p className="text-xs text-muted-foreground">
                               per {pkg.billingPeriod} month
