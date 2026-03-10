@@ -106,4 +106,13 @@ export const userApi = {
     );
     return response.data.result;
   },
+
+  // Forgot password (reset password with OTP verification)
+  forgotPassword: async (email: string, password: string): Promise<boolean> => {
+    const response = await axiosClient.post<ApiResponse<boolean>>(
+      '/users/forgetpass',
+      { email, password }
+    );
+    return response.data.result;
+  },
 };
