@@ -51,4 +51,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     @Query("SELECT s FROM Subscription s WHERE s.endDate BETWEEN :fromDate AND :toDate AND s.status = 'ACTIVE'")
     List<Subscription> findSubscriptionsExpiringBetween(LocalDate fromDate, LocalDate toDate);
+
+    // Statistics queries
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = 'ACTIVE'")
+    Long countActiveSubscriptions();
 }

@@ -46,4 +46,44 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
     List<SubscriptionPayment> findAllBySubscriptionPaymentStatusAndExpiredAtBefore(
             SubscriptionPaymentStatus status, Instant time
     );
+
+    // Statistics queries
+    @Query("""
+        SELECT 
+            p.name,
+            COUNT(CASE WHEN sp.purpose = 'NEW_SUBSCRIPTION' THEN 1 END),
+            COUNT(CASE WHEN sp.purpose = 'RENEW' THEN 1 END),
+            COUNT(CASE WHEN sp.purpose = 'UPGRADE' THEN 1 END),
+            COALESCE(SUM(sp.amount), 0)
+        FROM SubscriptionPayment sp
+        JOIN sp.subscription s
+        JOIN s.aPackage p
+        WHERE sp.subscriptionPaymentStatus = 'SUCCESS'
+        AND sp.date >= :startDate AND sp.date <= :endDate
+        GROUP BY p.packageId, p.name
+        ORDER BY p.name
+        """)
+    List<Object[]> findPackageStatsByDateRange(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
+
+    @Query("""
+        SELECT 
+            COALESCE(SUM(sp.amount), 0)
+        FROM SubscriptionPayment sp
+        WHERE sp.subscriptionPaymentStatus = 'SUCCESS'
+        AND sp.date >= :startDate AND sp.date <= :endDate
+        """)
+    Long findTotalRevenueByDateRange(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
+
+    @Query(value = """
+        SELECT 
+            DATE(sp.date) as payment_date,
+            COALESCE(SUM(sp.amount), 0) as daily_revenue,
+            COUNT(sp.subscription_payment_id) as transaction_count
+        FROM subscription_payment sp
+        WHERE sp.subscription_payment_status = 'SUCCESS'
+        AND sp.date >= :startDate AND sp.date <= :endDate
+        GROUP BY DATE(sp.date)
+        ORDER BY payment_date
+        """, nativeQuery = true)
+    List<Object[]> findDailyRevenueByDateRange(@Param("startDate") Instant startDate, @Param("endDate") Instant endDate);
 }

@@ -178,7 +178,7 @@ const Index = () => {
                     </p>
                     <div className="mt-5 mb-6">
                       <span className={`text-4xl font-display ${isPopular ? "text-gradient-hero" : ""}`}>
-                        {pkg.price}VND
+                        {pkg.price}đ
                       </span>
                       <span className={`text-sm ${isPopular ? "text-secondary-foreground/35" : "text-muted-foreground"}`}>
                         /{pkg.billingPeriod} {pkg.billingPeriod === 1 ? 'month' : 'months'}

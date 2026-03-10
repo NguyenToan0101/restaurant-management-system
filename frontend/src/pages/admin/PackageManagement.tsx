@@ -197,7 +197,7 @@ const PackageManagement = () => {
                       </button>
                     </TableCell>
                     <TableCell className="font-medium text-foreground">{pkg.name}</TableCell>
-                    <TableCell className="text-foreground">{pkg.price.toLocaleString('vi-VN')} VND/month</TableCell>
+                    <TableCell className="text-foreground">{pkg.price.toLocaleString('vi-VN')}đ/month</TableCell>
                     <TableCell className="text-muted-foreground">{pkg.billingPeriod} month</TableCell>
                     <TableCell>
                       <Badge variant={pkg.available ? "default" : "secondary"}>{pkg.available ? "Available" : "Inactive"}</Badge>
@@ -261,7 +261,7 @@ const PackageManagement = () => {
                 <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Price (VND/month)</Label>
+                <Label>Price (đ/month)</Label>
                 <Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: +e.target.value }))} />
               </div>
             </div>

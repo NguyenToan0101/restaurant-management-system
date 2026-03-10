@@ -233,13 +233,13 @@ const PaymentCheckout = () => {
                   
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black text-white">{payment.amount.toLocaleString()}</span>
-                    <span className="text-slate-400 font-medium">VND</span>
+                    <span className="text-slate-400 font-medium">đ</span>
                   </div>
                   
                   <Separator className="my-6 bg-slate-800" />
                   
                   <div className="space-y-4">
-                    <TransferDetail 
+                    <TransferDetail
                       label="Bank Account" 
                       value={payment.accountNumber || "N/A"} 
                       onCopy={() => copyToClipboard(payment.accountNumber || "", "Account Number")}
