@@ -96,4 +96,10 @@ export const menuItemApi = {
 
   getCustomizations: (menuItemId: string) =>
     axiosClient.get<ApiResponse<CustomizationDTO[]>>(`/menu-items/customization/${menuItemId}`),
+
+  canCreate: (restaurantId: string) =>
+    axiosClient.get<ApiResponse<boolean>>(`/menu-items/restaurant/${restaurantId}/can-create`),
+
+  getLimit: (restaurantId: string) =>
+    axiosClient.get<ApiResponse<number>>(`/menu-items/restaurant/${restaurantId}/limit`),
 };

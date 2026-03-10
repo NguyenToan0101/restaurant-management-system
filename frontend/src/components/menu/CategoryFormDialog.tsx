@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +13,10 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Search, AlertCircle } from "lucide-react";
 import type { CategoryDTO, CustomizationDTO } from "@/types/dto";
+import { useCustomizationLimit } from "@/hooks/useFeatureLimits";
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -32,9 +35,16 @@ export function CategoryFormDialog({
   onSave,
   isSaving = false,
 }: CategoryFormDialogProps) {
+  const { id: restaurantId } = useParams<{ id: string }>();
+  const { data: customizationLimit } = useCustomizationLimit(restaurantId);
   const [formName, setFormName] = useState("");
   const [formCustIds, setFormCustIds] = useState<string[]>([]);
   const [searchCust, setSearchCust] = useState("");
+
+  const isLimitReached = useMemo(() => {
+    if (!customizationLimit || customizationLimit === -1 || customizationLimit === 0) return false;
+    return formCustIds.length >= customizationLimit;
+  }, [customizationLimit, formCustIds.length]);
 
   useEffect(() => {
     if (open) {
@@ -81,6 +91,15 @@ export function CategoryFormDialog({
           </div>
           <div className="space-y-2">
             <Label>Customizations</Label>
+            {customizationLimit !== null && customizationLimit !== undefined && customizationLimit !== -1 && customizationLimit > 0 && (
+              <Alert className={`mb-2 ${isLimitReached ? 'border-destructive/50 bg-destructive/5' : 'border-primary/50 bg-primary/5'}`}>
+                <AlertCircle className={`h-4 w-4 ${isLimitReached ? 'text-destructive' : 'text-primary'}`} />
+                <AlertDescription className="text-xs">
+                  {formCustIds.length} / {customizationLimit} customizations selected
+                  {isLimitReached && <span className="ml-1 font-medium">- Limit reached</span>}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -91,38 +110,43 @@ export function CategoryFormDialog({
               />
             </div>
             <div className="max-h-[180px] overflow-y-auto border rounded-md p-2 space-y-2">
-              {filteredCusts.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-2 hover:bg-muted/50 rounded px-2 py-1 transition-colors"
-                >
-                  <Checkbox
-                    id={`cust-${c.id}`}
-                    checked={formCustIds.includes(c.id)}
-                    className="rounded-none"
-                    onCheckedChange={(checked) => {
-                      setFormCustIds((prev) => {
-                        if (checked === true) {
-                          return [...prev, c.id];
-                        } else {
-                          return prev.filter((id) => id !== c.id);
-                        }
-                      });
-                    }}
-                  />
-                  <Label
-                    htmlFor={`cust-${c.id}`}
-                    className="flex-1 flex items-center justify-between cursor-pointer text-sm font-normal"
+              {filteredCusts.map((c) => {
+                const isChecked = formCustIds.includes(c.id);
+                const isDisabled = !isChecked && isLimitReached;
+                return (
+                  <div
+                    key={c.id}
+                    className={`flex items-center gap-2 hover:bg-muted/50 rounded px-2 py-1 transition-colors ${isDisabled ? 'opacity-50' : ''}`}
                   >
-                    <span>{c.name}</span>
-                    {c.price > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        ${c.price.toFixed(2)}
-                      </span>
-                    )}
-                  </Label>
-                </div>
-              ))}
+                    <Checkbox
+                      id={`cust-${c.id}`}
+                      checked={isChecked}
+                      disabled={isDisabled}
+                      className="rounded-none"
+                      onCheckedChange={(checked) => {
+                        setFormCustIds((prev) => {
+                          if (checked === true) {
+                            return [...prev, c.id];
+                          } else {
+                            return prev.filter((id) => id !== c.id);
+                          }
+                        });
+                      }}
+                    />
+                    <Label
+                      htmlFor={`cust-${c.id}`}
+                      className={`flex-1 flex items-center justify-between text-sm font-normal ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span>{c.name}</span>
+                      {c.price > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          ${c.price.toFixed(2)}
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                );
+              })}
             </div>
             {formCustIds.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-2">

@@ -21,4 +21,10 @@ export const customizationApi = {
 
   getByCategory: (categoryId: string) =>
     axiosClient.get<ApiResponse<string[]>>(`/customizations/category/${categoryId}`),
+
+  canCreateForCategory: (restaurantId: string, categoryId: string) =>
+    axiosClient.get<ApiResponse<boolean>>(`/customizations/restaurant/${restaurantId}/category/${categoryId}/can-create`),
+
+  getLimit: (restaurantId: string) =>
+    axiosClient.get<ApiResponse<number>>(`/customizations/restaurant/${restaurantId}/limit`),
 };

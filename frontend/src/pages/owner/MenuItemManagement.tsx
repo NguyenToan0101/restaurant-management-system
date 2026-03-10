@@ -18,16 +18,21 @@ import {
 import { useMenuItemQueries } from "@/hooks/queries/useMenuItemQueries";
 import { useCategoryQueries } from "@/hooks/queries/useCategoryQueries";
 import { useCustomizationQueries } from "@/hooks/queries/useCustomizationQueries";
+import { useMenuItemLimit, useCanCreateMenuItem } from "@/hooks/useFeatureLimits";
 import { MenuItemFormDialog } from "@/components/menu/MenuItemFormDialog";
 import { MenuItemDeleteDialog } from "@/components/menu/MenuItemDeleteDialog";
 import type { MenuItemDTO } from "@/types/dto";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Info } from "lucide-react";
 
 const MenuItemManagement = () => {
   const { id: restaurantId } = useParams<{ id: string }>();
   const { menuItems, isLoading, createMenuItem, updateMenuItem, deleteMenuItem, setActiveStatus, isCreating, isUpdating, isDeleting } = useMenuItemQueries(restaurantId);
   const { categories, isLoading: isLoadingCategories } = useCategoryQueries(restaurantId);
   const { customizations } = useCustomizationQueries(restaurantId);
-  
+  const { data: menuItemLimit } = useMenuItemLimit(restaurantId);
+  const { data: canCreate } = useCanCreateMenuItem(restaurantId);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItemDTO | null>(null);
@@ -133,6 +138,18 @@ const MenuItemManagement = () => {
 
   const getCatName = (catId: string) => categories.find((c) => c.id === catId)?.name ?? "Uncategorized";
 
+  const limitInfo = useMemo(() => {
+    if (menuItemLimit === null || menuItemLimit === undefined) return null;
+    if (menuItemLimit === -1) return { type: 'unlimited', message: 'Unlimited menu items' };
+    if (menuItemLimit === 0) return { type: 'no-subscription', message: 'No active subscription' };
+    return {
+      type: 'limited',
+      message: `${menuItems.length} / ${menuItemLimit} menu items used`,
+      isNearLimit: menuItems.length >= menuItemLimit * 0.8,
+      isAtLimit: !canCreate
+    };
+  }, [menuItemLimit, menuItems.length, canCreate]);
+
   if (isLoading || isLoadingCategories) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -153,11 +170,37 @@ const MenuItemManagement = () => {
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4 mr-1" /> Filters
           </Button>
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} disabled={canCreate === false}>
             <Plus className="w-4 h-4 mr-1" /> Add Item
           </Button>
         </div>
       </div>
+
+      {/* Limit Info */}
+      {limitInfo && limitInfo.type === 'limited' && (
+        <Alert className={`mb-6 ${limitInfo.isAtLimit ? 'border-destructive/50 bg-destructive/5' : limitInfo.isNearLimit ? 'border-amber/50 bg-amber/5' : 'border-primary/50 bg-primary/5'}`}>
+          {limitInfo.isAtLimit ? (
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          ) : limitInfo.isNearLimit ? (
+            <AlertCircle className="h-4 w-4 text-amber" />
+          ) : (
+            <Info className="h-4 w-4 text-primary" />
+          )}
+          <AlertDescription className="text-sm">
+            {limitInfo.message}
+            {limitInfo.isAtLimit && (
+              <span className="ml-2 font-medium">
+                You've reached your menu item limit. Upgrade your plan to add more items.
+              </span>
+            )}
+            {limitInfo.isNearLimit && !limitInfo.isAtLimit && (
+              <span className="ml-2">
+                You're approaching your limit. Consider upgrading your plan.
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Bulk Actions */}
       {selectedIds.size > 0 && (
@@ -215,9 +258,8 @@ const MenuItemManagement = () => {
           {filtered.map((item) => (
             <Card
               key={item.id}
-              className={`glass-card border-border/60 group hover:shadow-md transition-all overflow-hidden ${
-                selectedIds.has(item.id) ? "ring-2 ring-primary" : ""
-              } ${!item.isActive ? "opacity-70" : ""}`}
+              className={`glass-card border-border/60 group hover:shadow-md transition-all overflow-hidden ${selectedIds.has(item.id) ? "ring-2 ring-primary" : ""
+                } ${!item.isActive ? "opacity-70" : ""}`}
             >
               {/* Image */}
               <div className="relative h-40 bg-muted/50 flex items-center justify-center overflow-hidden">

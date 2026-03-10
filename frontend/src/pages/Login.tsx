@@ -45,7 +45,7 @@ const Login = () => {
             <div className="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center">
               <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">RestoHub</span>
+            <span className="text-2xl font-bold tracking-tight">BentoX</span>
           </Link>
           <p className="text-muted-foreground mb-8 text-sm">Sign in to manage your restaurant</p>
 
@@ -57,7 +57,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
-                <button type="button" className="text-xs text-primary hover:underline">Forgot password?</button>
+                <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
                 <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 rounded-lg pr-10" />
@@ -100,6 +100,23 @@ const Login = () => {
             Don't have an account?{" "}
             <Link to="/register" className="text-primary font-semibold hover:underline">Sign up free</Link>
           </p>
+
+          <div className="mt-8 flex flex-col items-center">
+            <div className="relative w-full mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/40 border-dashed" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground">
+                <span className="bg-background px-3">STAFF ACCESS</span>
+              </div>
+            </div>
+            
+            <Link to="/staff-login" className="w-full">
+              <Button type="button" className="w-full font-semibold bg-[#4ade80] hover:bg-[#22c55e] text-[#022c22] rounded-lg h-11 transition-all duration-200" size="lg">
+                Restaurant Staff Login <span className="ml-1 opacity-70">›</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -115,7 +132,7 @@ const Login = () => {
           </div>
           <h2 className="text-3xl font-display mb-4">Restaurant management<br /><span className="text-gradient-hero">made effortless</span></h2>
           <p className="text-secondary-foreground/40 leading-relaxed text-sm">
-            Over 2,500 restaurants use RestoHub daily to streamline operations and grow their revenue.
+            Over 2,500 restaurants use BentoX daily to streamline operations and grow their revenue.
           </p>
         </div>
       </div>

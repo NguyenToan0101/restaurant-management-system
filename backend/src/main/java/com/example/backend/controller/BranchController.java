@@ -15,16 +15,21 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.BranchDTO;
+import com.example.backend.entities.FeatureCode;
 import com.example.backend.services.BranchService;
+import com.example.backend.services.FeatureLimitCheckerService;
 
 @RestController
 @RequestMapping("/api/branches")
 public class BranchController {
 
     private final BranchService branchService;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
-    public BranchController(BranchService branchService) {
+    public BranchController(BranchService branchService,
+            FeatureLimitCheckerService featureLimitCheckerService) {
         this.branchService = branchService;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     @GetMapping("")
@@ -83,17 +88,43 @@ public class BranchController {
         return res;
     }
 
-    // @GetMapping("/restaurant/{restaurantId}/can-create")
-    // public ApiResponse<Boolean> canCreateBranch(@PathVariable UUID restaurantId) {
-    //     ApiResponse<Boolean> res = new ApiResponse<>();
-    //     res.setResult(branchService.canCreateBranch(restaurantId));
-    //     return res;
-    // }
-
     @GetMapping("/owner/{ownerId}")
     public ApiResponse<List<BranchDTO>> getBranchesByOwner(@PathVariable UUID ownerId) {
         ApiResponse<List<BranchDTO>> res = new ApiResponse<>();
         res.setResult(branchService.getBranchesByOwner(ownerId));
+        return res;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/can-create")
+    public ApiResponse<Boolean> canCreateBranch(@PathVariable UUID restaurantId) {
+        ApiResponse<Boolean> res = new ApiResponse<>();
+        res.setResult(branchService.canCreateBranch(restaurantId));
+        return res;
+    }
+
+    @GetMapping("/restaurant/{restaurantId}/limit")
+    public ApiResponse<Integer> getBranchLimit(
+            @PathVariable UUID restaurantId) {
+        ApiResponse<Integer> res = new ApiResponse<>();
+        try {
+            int limit = featureLimitCheckerService.getLimitValue(
+                    restaurantId,
+                    FeatureCode.LIMIT_BRANCH_CREATION);
+            res.setResult(limit);
+            // -1 means unlimited (Premium package or no subscription)
+            // 0 means no access (should not happen with current logic)
+            // >0 means specific limit (Standard package)
+            if (limit == -1) {
+                res.setMessage("Unlimited branches");
+            } else if (limit == 0) {
+                res.setMessage("No active subscription");
+            } else {
+                res.setMessage("Limit: " + limit + " branches");
+            }
+        } catch (Exception e) {
+            res.setResult(0);
+            res.setMessage("Error retrieving limit");
+        }
         return res;
     }
 }

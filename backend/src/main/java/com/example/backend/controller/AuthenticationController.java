@@ -3,8 +3,10 @@ package com.example.backend.controller;
 import com.example.backend.dto.request.LoginRequest;
 import com.example.backend.dto.request.LogoutRequest;
 import com.example.backend.dto.request.RefreshRequest;
+import com.example.backend.dto.request.StaffLoginRequest;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.response.AuthenticationResponse;
+import com.example.backend.dto.response.StaffAuthResponse;
 import com.example.backend.services.AuthenticationService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,7 +39,7 @@ public class AuthenticationController {
         AuthenticationResponse authResponse = authenticationService.login(request, clientIp, userAgent);
 
         // Set JWT tokens in HttpOnly cookies
-        setAuthCookies(httpRequest, httpResponse, authResponse);
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
 
         ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
         response.setCode(200);
@@ -45,6 +47,30 @@ public class AuthenticationController {
         response.setResult(authResponse);
 
         log.info("Login successful for email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/staff-login")
+    public ResponseEntity<ApiResponse<StaffAuthResponse>> staffLogin(
+            @Valid @RequestBody StaffLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.info("Staff Login request received for username: {}", request.getUsername());
+
+        String clientIp = extractClientIp(httpRequest);
+        String userAgent = extractUserAgent(httpRequest);
+
+        StaffAuthResponse authResponse = authenticationService.staffLogin(request, clientIp, userAgent);
+
+        // Set JWT tokens in HttpOnly cookies
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
+
+        ApiResponse<StaffAuthResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Staff login successful");
+        response.setResult(authResponse);
+
+        log.info("Staff Login successful for username: {}", request.getUsername());
         return ResponseEntity.ok(response);
     }
 
@@ -72,7 +98,7 @@ public class AuthenticationController {
         AuthenticationResponse authResponse = authenticationService.refreshToken(refreshRequest, clientIp, userAgent);
 
         // Set new JWT tokens in HttpOnly cookies
-        setAuthCookies(httpRequest, httpResponse, authResponse);
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
 
         ApiResponse<AuthenticationResponse> response = new ApiResponse<>();
         response.setCode(200);
@@ -80,6 +106,40 @@ public class AuthenticationController {
         response.setResult(authResponse);
 
         log.info("Token refresh successful");
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/staff-refresh")
+    public ResponseEntity<ApiResponse<StaffAuthResponse>> staffRefresh(
+            @Valid @RequestBody(required = false) RefreshRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.info("Staff refresh token request received");
+
+        String clientIp = extractClientIp(httpRequest);
+        String userAgent = extractUserAgent(httpRequest);
+
+        String refreshToken = getRefreshTokenFromRequestOrCookie(request, httpRequest);
+
+        if (refreshToken == null) {
+            throw new com.example.backend.exception.AppException(
+                    com.example.backend.exception.ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        RefreshRequest refreshRequest = new RefreshRequest();
+        refreshRequest.setRefreshToken(refreshToken);
+
+        StaffAuthResponse authResponse = authenticationService.staffRefreshToken(refreshRequest, clientIp, userAgent);
+
+        // Set new JWT tokens in HttpOnly cookies
+        setAuthCookies(httpRequest, httpResponse, authResponse.getAccessToken(), authResponse.getRefreshToken());
+
+        ApiResponse<StaffAuthResponse> response = new ApiResponse<>();
+        response.setCode(200);
+        response.setMessage("Staff token refreshed successfully");
+        response.setResult(authResponse);
+
+        log.info("Staff token refresh successful");
         return ResponseEntity.ok(response);
     }
 
@@ -118,7 +178,6 @@ public class AuthenticationController {
     public ResponseEntity<ApiResponse<com.example.backend.dto.response.UserResponse>> getCurrentUser() {
         log.info("Get current user request received");
 
-        // Get authenticated user from SecurityContext
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
 
@@ -128,27 +187,38 @@ public class AuthenticationController {
                     com.example.backend.exception.ErrorCode.UNAUTHENTICATED);
         }
 
-        com.example.backend.entities.User userFromContext = (com.example.backend.entities.User) authentication
-                .getPrincipal();
+        Object principal = authentication.getPrincipal();
+        com.example.backend.dto.response.UserResponse userDTO;
 
-        // Fetch user from database to ensure role is loaded within transaction
-        com.example.backend.entities.User user = userRepository
-                .findById(userFromContext.getUserId())
-                .orElseThrow(() -> new com.example.backend.exception.AppException(
-                        com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
-
-        com.example.backend.dto.response.UserResponse userDTO = new com.example.backend.dto.response.UserResponse(
-                user.getUserId(),
-                user.getEmail(),
-                user.getUsername(),
-                user.getRole().getName().name());
+        if (principal instanceof com.example.backend.entities.StaffAccount staff) {
+            // Staff account — data đã được load từ DB trong JwtAuthenticationFilter
+            userDTO = new com.example.backend.dto.response.UserResponse(
+                    staff.getStaffAccountId(),
+                    staff.getUsername(),
+                    staff.getUsername(),
+                    staff.getRole().getName().name());
+        } else if (principal instanceof com.example.backend.entities.User userFromContext) {
+            // Regular user — reload từ DB để đảm bảo role được load trong transaction
+            com.example.backend.entities.User user = userRepository
+                    .findById(userFromContext.getUserId())
+                    .orElseThrow(() -> new com.example.backend.exception.AppException(
+                            com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
+            userDTO = new com.example.backend.dto.response.UserResponse(
+                    user.getUserId(),
+                    user.getEmail(),
+                    user.getUsername(),
+                    user.getRole().getName().name());
+        } else {
+            throw new com.example.backend.exception.AppException(
+                    com.example.backend.exception.ErrorCode.UNAUTHENTICATED);
+        }
 
         ApiResponse<com.example.backend.dto.response.UserResponse> response = new ApiResponse<>();
         response.setCode(200);
         response.setMessage("User retrieved successfully");
         response.setResult(userDTO);
 
-        log.info("Current user retrieved successfully: {}", user.getEmail());
+        log.info("Current user retrieved successfully");
         return ResponseEntity.ok(response);
     }
 
@@ -157,13 +227,14 @@ public class AuthenticationController {
     private void setAuthCookies(
             HttpServletRequest request,
             HttpServletResponse response,
-            AuthenticationResponse authResponse) {
+            String accessToken,
+            String refreshToken) {
 
         boolean isProduction = request.isSecure() ||
                 "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
 
         // Access token cookie
-        Cookie accessTokenCookie = new Cookie("access_token", authResponse.getAccessToken());
+        Cookie accessTokenCookie = new Cookie("access_token", accessToken);
         accessTokenCookie.setHttpOnly(true);
         accessTokenCookie.setSecure(isProduction);
         accessTokenCookie.setPath("/");
@@ -172,7 +243,7 @@ public class AuthenticationController {
         response.addCookie(accessTokenCookie);
 
         // Refresh token cookie
-        Cookie refreshTokenCookie = new Cookie("refresh_token", authResponse.getRefreshToken());
+        Cookie refreshTokenCookie = new Cookie("refresh_token", refreshToken);
         refreshTokenCookie.setHttpOnly(true);
         refreshTokenCookie.setSecure(isProduction);
         refreshTokenCookie.setPath("/");

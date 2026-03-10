@@ -8,13 +8,26 @@ export interface UserDTO {
   email: string;
   username: string;
   role: RoleDTO;
-  status: string;
+  status?: string;
 }
 
 export interface AuthenticationResponse {
   accessToken: string | null;
   refreshToken: string | null;
   user: UserDTO;
+}
+
+export interface StaffInfo {
+  staffAccountId: string;
+  username: string;
+  role: string;
+  branchId: string;
+}
+
+export interface StaffAuthResponse {
+  accessToken: string | null;
+  refreshToken: string | null;
+  staffInfo: StaffInfo;
 }
 
 export interface GoogleAuthUrlResponse {

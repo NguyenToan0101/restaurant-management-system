@@ -52,6 +52,10 @@ public class StaffAccountService {
 
 
     public StaffAccountDTO createStaffAccount(CreateStaffAccountRequest createStaffAccountRequest) {
+        if (staffAccountRepository.existsByUsername(createStaffAccountRequest.getUsername())) {
+            throw new AppException(ErrorCode.STAFFACCOUNT_USERNAME_EXISTED);
+        }
+
         StaffAccount staffAccount = staffAccountMapper.createStaffAccount(createStaffAccountRequest);
         Role role = roleRepository.findByName(createStaffAccountRequest.getRole().getName()).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOTEXISTED));
         Branch branch = branchRepository.findById(createStaffAccountRequest.getBranchId()).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
@@ -109,6 +113,8 @@ public class StaffAccountService {
     public PageResponse<StaffAccountDTO> getStaffAccountPaginated(int page, int size, UUID branchId) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        
+        // Manager view: filter out BRANCH_MANAGER
         Page<StaffAccount> pageData = staffAccountRepository.findByBranchAndRole_NameNot(branch, RoleName.BRANCH_MANAGER, pageable);
 
         PageResponse<StaffAccountDTO> pageResponse = new PageResponse<>();
@@ -123,10 +129,12 @@ public class StaffAccountService {
         return staffAccountRepository.countByBranchAndRole_Name(branch, roleName);
     }
 
-    public PageResponse<StaffAccountDTO> getStaffAccountByRestaurantPaginated(int page, int size, UUID restaurantId) {
+    public PageResponse<StaffAccountDTO> getStaffAccountByBranchForOwnerPaginated(int page, int size, UUID branchId) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
-        restaurantRepository.findById(restaurantId).orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        Page<StaffAccount> pageData = staffAccountRepository.findByBranch_Restaurant_RestaurantId(restaurantId, pageable);
+        Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        
+        // Owner view: includes BRANCH_MANAGER
+        Page<StaffAccount> pageData = staffAccountRepository.findByBranch(branch, pageable);
 
         PageResponse<StaffAccountDTO> pageResponse = new PageResponse<>();
         pageResponse.setItems(pageData.map(staffAccount -> staffAccountMapper.toStaffAccountDTO(staffAccount)).toList());

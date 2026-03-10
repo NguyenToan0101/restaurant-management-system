@@ -1,7 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import heroImage from "@/assets/hero-restaurant.jpg";
 import { ArrowRight, BarChart3, Users, ShieldCheck, Smartphone, Clock, ChefHat, Star, Check, Zap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { packageApi } from "@/api/packageApi";
+import type { PackageFeatureDTO } from "@/types/dto/package.dto";
+import { useAuthStore } from "@/stores/authStore";
 
 const features = [
   { icon: BarChart3, title: "Revenue Analytics", desc: "Track revenue in real-time with beautiful dashboards. Drill down by dish, shift, and location.", iconStyle: "feature-icon-blue", iconColor: "text-primary" },
@@ -12,14 +16,8 @@ const features = [
   { icon: ShieldCheck, title: "Enterprise Security", desc: "End-to-end encryption, daily backups, role-based access, and SOC 2 compliance.", iconStyle: "feature-icon-violet", iconColor: "text-violet" },
 ];
 
-const plans = [
-  { name: "Starter", price: "$19", period: "/mo", desc: "For small restaurants", features: ["1 location", "Menu management", "Basic analytics", "Email support", "Up to 5 staff"], popular: false },
-  { name: "Professional", price: "$49", period: "/mo", desc: "For growing businesses", features: ["3 locations", "Everything in Starter", "Online reservations", "Team management", "Advanced analytics", "Priority support"], popular: true },
-  { name: "Enterprise", price: "Custom", period: "", desc: "For restaurant chains", features: ["Unlimited locations", "Everything in Pro", "API & integrations", "Inventory management", "Dedicated CSM", "Custom development"], popular: false },
-];
-
 const testimonials = [
-  { name: "Sarah Mitchell", role: "Owner, The Golden Fork", content: "RestoHub cut our management time by 30%. Revenue increased 20% within three months.", rating: 5 },
+  { name: "Sarah Mitchell", role: "Owner, The Golden Fork", content: "BentoX cut our management time by 30%. Revenue increased 20% within three months.", rating: 5 },
   { name: "James Chen", role: "GM, Bamboo Garden", content: "Managing 5 locations feels like managing one. The live dashboard is a game-changer.", rating: 5 },
   { name: "Maria Rodriguez", role: "Owner, Café del Sol", content: "Online reservations boosted bookings by 40%. Staff learned it in minutes.", rating: 5 },
 ];
@@ -31,7 +29,36 @@ const stats = [
   { value: "4.9★", label: "Rating" },
 ];
 
+const formatFeatureValue = (feature: any): string => {
+  if (!feature.value) return feature.featureName;
+  return `${feature.featureName}: ${feature.value}`;
+};
+
 const Index = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  
+  // Fetch active packages from API
+  const { data: packages, isLoading } = useQuery({
+    queryKey: ['active-packages'],
+    queryFn: packageApi.getActivePackages,
+  });
+
+  // Determine which package is most popular (middle one or highest price)
+  const getPopularIndex = (pkgs: PackageFeatureDTO[]) => {
+    if (pkgs.length === 3) return 1; // Middle package
+    if (pkgs.length === 2) return 1; // Second package
+    return Math.floor(pkgs.length / 2); // Middle package for any count
+  };
+
+  // Handle Get Started button click
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate('/payment/select');
+    } else {
+      navigate('/login');
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -63,12 +90,14 @@ const Index = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-              <Link to="/login">
-                <Button variant="hero" size="xl">
-                  Start Free Trial
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
+              <Button 
+                variant="hero" 
+                size="xl"
+                onClick={handleGetStarted}
+              >
+                Start Free Trial
+                <ArrowRight className="w-5 h-5" />
+              </Button>
               <a href="#features">
                 <Button variant="hero-outline" size="xl" className="border-white/15 text-secondary-foreground/70 hover:bg-white/[0.06] hover:text-secondary-foreground">
                   See How It Works
@@ -119,42 +148,66 @@ const Index = () => {
             <h2 className="text-3xl md:text-4xl font-display mb-4">Simple, transparent pricing</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">14-day free trial on all plans. No credit card required.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto items-start">
-            {plans.map((plan, i) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl p-7 opacity-0 animate-fade-in ${
-                  plan.popular
-                    ? "pricing-popular text-secondary-foreground shadow-2xl ring-1 ring-white/[0.08] scale-[1.02]"
-                    : "glass-card"
-                }`}
-                style={{ animationDelay: `${i * 0.12}s` }}
-              >
-                {plan.popular && (
-                  <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-primary to-violet text-primary-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-5">
-                    <Zap className="w-3 h-3" /> Most Popular
-                  </span>
-                )}
-                <h3 className="text-lg font-bold">{plan.name}</h3>
-                <p className={`text-sm mt-1 ${plan.popular ? "text-secondary-foreground/45" : "text-muted-foreground"}`}>{plan.desc}</p>
-                <div className="mt-5 mb-6">
-                  <span className={`text-4xl font-display ${plan.popular ? "text-gradient-hero" : ""}`}>{plan.price}</span>
-                  <span className={`text-sm ${plan.popular ? "text-secondary-foreground/35" : "text-muted-foreground"}`}>{plan.period}</span>
-                </div>
-                <ul className="space-y-2.5 mb-7">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <Check className={`w-4 h-4 flex-shrink-0 ${plan.popular ? "text-teal" : "text-primary"}`} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/login">
-                  <Button variant={plan.popular ? "hero" : "default"} className="w-full">Get Started</Button>
-                </Link>
-              </div>
-            ))}
-          </div>
+          
+          {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : packages && packages.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch">
+              {packages.map((pkg, i) => {
+                const isPopular = i === getPopularIndex(packages);
+                return (
+                  <div
+                    key={pkg.packageId}
+                    className={`rounded-2xl p-7 opacity-0 animate-fade-in flex flex-col ${
+                      isPopular
+                        ? "pricing-popular text-secondary-foreground shadow-2xl ring-1 ring-white/[0.08] scale-[1.02]"
+                        : "glass-card"
+                    }`}
+                    style={{ animationDelay: `${i * 0.12}s` }}
+                  >
+                    {isPopular && (
+                      <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-primary to-violet text-primary-foreground text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-5">
+                        <Zap className="w-3 h-3" /> Most Popular
+                      </span>
+                    )}
+                    <h3 className="text-lg font-bold">{pkg.name}</h3>
+                    <p className={`text-sm mt-1 ${isPopular ? "text-secondary-foreground/45" : "text-muted-foreground"}`}>
+                      {pkg.description || "Perfect for your business"}
+                    </p>
+                    <div className="mt-5 mb-6">
+                      <span className={`text-4xl font-display ${isPopular ? "text-gradient-hero" : ""}`}>
+                        {pkg.price}đ
+                      </span>
+                      <span className={`text-sm ${isPopular ? "text-secondary-foreground/35" : "text-muted-foreground"}`}>
+                        /{pkg.billingPeriod} {pkg.billingPeriod === 1 ? 'month' : 'months'}
+                      </span>
+                    </div>
+                    <ul className="space-y-2.5 mb-7 flex-grow">
+                      {pkg.features && pkg.features.map((feature) => (
+                        <li key={feature.featureId} className="flex items-center gap-2.5 text-sm">
+                          <Check className={`w-4 h-4 flex-shrink-0 ${isPopular ? "text-teal" : "text-primary"}`} />
+                          {formatFeatureValue(feature)}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button 
+                      variant={isPopular ? "hero" : "default"} 
+                      className="w-full mt-auto"
+                      onClick={handleGetStarted}
+                    >
+                      Get Started
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <p className="text-muted-foreground">No packages available at the moment.</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -164,7 +217,7 @@ const Index = () => {
           <div className="text-center mb-16">
             <p className="text-[13px] uppercase tracking-widest text-primary font-semibold mb-3">Testimonials</p>
             <h2 className="text-3xl md:text-4xl font-display mb-4">Loved by restaurant owners</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">See why thousands of restaurants choose RestoHub.</p>
+            <p className="text-muted-foreground max-w-lg mx-auto">See why thousands of restaurants choose BentoX.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
             {testimonials.map((t, i) => (
@@ -199,14 +252,16 @@ const Index = () => {
                 Ready to transform your restaurant?
               </h2>
               <p className="text-secondary-foreground/40 mb-8 max-w-md mx-auto">
-                Join 2,500+ restaurants already using RestoHub. Start free — no credit card needed.
+                Join 2,500+ restaurants already using BentoX. Start free — no credit card needed.
               </p>
-              <Link to="/login">
-                <Button variant="hero" size="xl">
-                  Start Free Trial
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
+              <Button 
+                variant="hero" 
+                size="xl"
+                onClick={handleGetStarted}
+              >
+                Start Free Trial
+                <ArrowRight className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -220,9 +275,9 @@ const Index = () => {
               <div className="w-7 h-7 rounded-md brand-gradient flex items-center justify-center">
                 <ChefHat className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-sm tracking-tight">RestoHub</span>
+              <span className="font-bold text-sm tracking-tight">BentoX</span>
             </div>
-            <p className="text-xs text-muted-foreground">© 2026 RestoHub. All rights reserved.</p>
+            <p className="text-xs text-muted-foreground">© 2026 BentoX. All rights reserved.</p>
           </div>
         </div>
       </footer>

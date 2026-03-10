@@ -8,7 +8,7 @@ import com.example.backend.entities.RoleName;
 import com.example.backend.services.StaffAccountService;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import jakarta.validation.Valid;
 import java.util.UUID;
 
 @RestController
@@ -35,7 +35,7 @@ public class StaffAccountController {
 
     // Tạo mới tài khoản nhân viên
     @PostMapping("")
-    public ApiResponse<StaffAccountDTO> createStaffAccount(@RequestBody CreateStaffAccountRequest request) {
+    public ApiResponse<StaffAccountDTO> createStaffAccount(@Valid @RequestBody CreateStaffAccountRequest request) {
         ApiResponse<StaffAccountDTO> apiResponse = new ApiResponse<>();
         apiResponse.setResult(staffAccountService.createStaffAccount(request));
         return apiResponse;
@@ -61,14 +61,14 @@ public class StaffAccountController {
     // 2. ENDPOINT CỦA CHỦ NHÀ HÀNG (OWNER)
     // ==========================================
 
-    // Xem danh sách nhân viên toàn bộ nhà hàng (Tất cả chi nhánh)
+    // Xem danh sách nhân viên trong một chi nhánh (Dành cho Owner - bao gồm cả Manager)
     @GetMapping("/owner/paginated")
-    public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByRestaurant(
+    public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByBranchForOwner(
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size,
-            @RequestParam UUID restaurantId) {
+            @RequestParam UUID branchId) {
         ApiResponse<PageResponse<StaffAccountDTO>> apiResponse = new ApiResponse<>();
-        apiResponse.setResult(staffAccountService.getStaffAccountByRestaurantPaginated(page, size, restaurantId));
+        apiResponse.setResult(staffAccountService.getStaffAccountByBranchForOwnerPaginated(page, size, branchId));
         return apiResponse;
     }
 

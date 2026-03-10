@@ -58,7 +58,7 @@ export function DashboardSidebar() {
                 <div className="w-7 h-7 rounded-lg brand-gradient flex items-center justify-center">
                   <UtensilsCrossed className="w-3.5 h-3.5 text-primary-foreground" />
                 </div>
-                <span className="text-sm font-bold tracking-tight text-sidebar-foreground">RestoHub</span>
+                <span className="text-sm font-bold tracking-tight text-sidebar-foreground">BentoX</span>
               </Link>
               <div className="ml-auto flex items-center gap-1">
                 <Link to="/restaurants" className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors p-1">

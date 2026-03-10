@@ -3,6 +3,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface StaffLoginRequest {
+  username: string;
+  password: string;
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }
@@ -24,6 +29,11 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+  password: string;
+}
+
 export interface UserInfoUpdateRequest {
   username: string;
 }
@@ -42,4 +52,13 @@ export interface OTPMailRequest {
 export interface OTPValidateRequest {
   email: string;
   otp: string;
+}
+
+export interface RestaurantCreateRequest {
+  userId: string;
+  name: string;
+  email: string;
+  restaurantPhone: string;
+  publicUrl?: string;
+  description?: string;
 }
