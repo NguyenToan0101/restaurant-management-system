@@ -56,6 +56,11 @@ class TableApi {
         return response.data.result;
     }
 
+    async markOccupied(id: string): Promise<AreaTableDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/tables/${id}/occupied`);
+        return response.data.result;
+    }
+
     async getByQrCode(qrCode: string): Promise<AreaTableDTO> {
         const response = await axiosClient.get<ApiResponse<AreaTableDTO>>(`/tables/qr?qrCode=${encodeURIComponent(qrCode)}`);
         return response.data.result;

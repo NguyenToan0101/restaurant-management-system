@@ -17,10 +17,22 @@ const StaffLogin = () => {
 
   useEffect(() => {
     // Only redirect if already authenticated before attempting login
-    // (e.g. user navigates back to /staff-login while still logged in)
-    // Do NOT redirect if mutation already handled navigation via onSuccess
     if (isAuthenticated && !staffLoginMutation.isSuccess && !staffLoginMutation.isPending) {
-      navigate('/');
+      const staffInfo = useAuthStore.getState().staffInfo;
+      if (staffInfo) {
+        const role = staffInfo.role;
+        if (role === 'WAITER') {
+          navigate('/waiter/dashboard');
+        } else if (role === 'BRANCH_MANAGER') {
+          navigate('/manager/dashboard');
+        } else if (role === 'RECEPTIONIST') {
+          navigate('/receptionist/dashboard');
+        } else {
+          navigate('/');
+        }
+      } else {
+        navigate('/');
+      }
     }
   }, [isAuthenticated, staffLoginMutation.isSuccess, staffLoginMutation.isPending, navigate]);
 

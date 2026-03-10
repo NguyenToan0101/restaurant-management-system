@@ -21,6 +21,7 @@ public class AreaMapper {
         dto.setStatus(entity.getStatus());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
+        // Fix: Use getAreas() which actually returns AreaTable entities (tables in this area)
         dto.setTableCount(entity.getAreas() != null ? entity.getAreas().size() : 0);
 
         return dto;

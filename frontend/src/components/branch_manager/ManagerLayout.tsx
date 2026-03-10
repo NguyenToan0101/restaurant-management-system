@@ -1,18 +1,14 @@
-import { ReactNode } from "react";
+import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { ManagerSidebar } from "./ManagerSidebar";
+import ManagerSidebar from "./ManagerSidebar";
 
-interface ManagerLayoutProps {
-  children: ReactNode;
-}
-
-const ManagerLayout = ({ children }: ManagerLayoutProps) => {
+const ManagerLayout = () => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="flex min-h-screen w-full">
         <ManagerSidebar />
-        <main className="flex-1 bg-background overflow-auto p-6 md:p-8">
-          {children}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
         </main>
       </div>
     </SidebarProvider>

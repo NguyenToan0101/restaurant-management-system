@@ -15,7 +15,7 @@ export const useTablesByArea = (areaId: string) => {
     return useQuery({
         queryKey: ['tables', 'area', areaId],
         queryFn: () => tableApi.getByArea(areaId),
-        enabled: !!areaId,
+        enabled: !!areaId && !areaId.startsWith('temp-'), // Don't fetch for temporary IDs
     });
 };
 
@@ -48,36 +48,15 @@ export const useCreateTable = () => {
 
     return useMutation({
         mutationFn: (data: AreaTableDTO) => tableApi.create(data),
-        onMutate: async (newTable) => {
-            await queryClient.cancelQueries({ queryKey: ['tables', 'area', newTable.areaId] });
-
-            const previousTables = queryClient.getQueryData<AreaTableDTO[]>(['tables', 'area', newTable.areaId]);
-
-            queryClient.setQueryData<AreaTableDTO[]>(
-                ['tables', 'area', newTable.areaId],
-                (old) => {
-                    if (!old) return [{ ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.FREE }];
-                    return [...old, { ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.FREE }];
-                }
-            );
-
-            return { previousTables, areaId: newTable.areaId };
-        },
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['tables'] });
-            queryClient.invalidateQueries({ queryKey: ['tables', 'area', context.areaId] });
+            queryClient.invalidateQueries({ queryKey: ['tables', 'area', variables.areaId] });
             toast({
                 title: 'Success',
                 description: 'Table created successfully',
             });
         },
-        onError: (error: any, variables, context) => {
-            if (context?.previousTables && context?.areaId) {
-                queryClient.setQueryData(
-                    ['tables', 'area', context.areaId],
-                    context.previousTables
-                );
-            }
+        onError: (error: any) => {
             toast({
                 title: 'Error',
                 description: error.response?.data?.message || 'Failed to create table',
@@ -282,6 +261,49 @@ export const useMarkTableAvailable = () => {
             toast({
                 title: 'Error',
                 description: error.response?.data?.message || 'Failed to mark table as available',
+                variant: 'destructive',
+            });
+        },
+    });
+};
+export const useMarkTableOccupied = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: string) => tableApi.markOccupied(id),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['tables'] });
+
+            const previousTables = queryClient.getQueriesData({ queryKey: ['tables'] });
+
+            queryClient.setQueriesData<AreaTableDTO[]>({ queryKey: ['tables'] }, (old) => {
+                if (!old) return old;
+                return old.map(table =>
+                    table.areaTableId === id ? { ...table, status: TableStatus.OCCUPIED } : table
+                );
+            });
+
+            return { previousTables };
+        },
+        onSuccess: (updatedTable) => {
+            queryClient.invalidateQueries({ queryKey: ['tables'] });
+            if (updatedTable.areaId) {
+                queryClient.invalidateQueries({ queryKey: ['tables', 'area', updatedTable.areaId] });
+            }
+            toast({
+                title: 'Success',
+                description: 'Table marked as occupied',
+            });
+        },
+        onError: (error: any, variables, context) => {
+            if (context?.previousTables) {
+                context.previousTables.forEach(([queryKey, data]) => {
+                    queryClient.setQueryData(queryKey, data);
+                });
+            }
+            toast({
+                title: 'Error',
+                description: error.response?.data?.message || 'Failed to mark table as occupied',
                 variant: 'destructive',
             });
         },

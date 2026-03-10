@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import {
     Plus, Pencil, Loader2, MapPin, CheckCircle, XCircle, Trash2, Table as TableIcon,
 } from "lucide-react";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
     useAreasByBranch,
     useCreateArea,
@@ -31,14 +30,15 @@ import {
     useDeactivateArea,
 } from "@/hooks/queries/useAreaQueries";
 import { useTablesByArea } from "@/hooks/queries/useTableQueries";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { useAuthStore } from "@/stores/authStore";
 import type { AreaDTO } from "@/types/dto";
 import { EntityStatus } from "@/types/dto";
 
-const AreaManagement = () => {
-    const { id: restaurantId, branchId } = useParams<{ id: string; branchId: string }>();
+const ManagerAreaManagement = () => {
     const navigate = useNavigate();
-    const { canManageAreas } = useRoleAccess();
+    const staffInfo = useAuthStore((state) => state.staffInfo);
+    const branchId = staffInfo?.branchId;
+
     const { data: areas = [], isLoading } = useAreasByBranch(branchId || '');
     const createArea = useCreateArea();
     const updateArea = useUpdateArea();
@@ -117,7 +117,7 @@ const AreaManagement = () => {
             <div className="p-6 lg:p-8">
                 <Card className="glass-card border-border/60">
                     <CardContent className="p-6 text-center text-muted-foreground">
-                        Please select a branch first
+                        No branch assigned to your account
                     </CardContent>
                 </Card>
             </div>
@@ -125,121 +125,110 @@ const AreaManagement = () => {
     }
 
     return (
-        <DashboardLayout>
-            <div className="p-6 lg:p-8">
-                <Card className="glass-card border-border/60">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <MapPin className="w-4 h-4 text-primary" />
-                                Area Management
-                            </CardTitle>
-                            {canManageAreas && (
-                                <Button size="sm" onClick={openCreate}>
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    Add Area
-                                </Button>
-                            )}
+        <div className="p-6 lg:p-8">
+            <Card className="glass-card border-border/60">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <MapPin className="w-4 h-4 text-primary" />
+                            Area Management
+                        </CardTitle>
+                        <Button size="sm" onClick={openCreate}>
+                            <Plus className="w-4 h-4 mr-1" />
+                            Add Area
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    ) : (
+                        <Tabs defaultValue="active" className="w-full">
+                            <div className="px-6 pt-2 flex items-center justify-between border-b">
+                                <TabsList>
+                                    <TabsTrigger value="active" className="gap-2">
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        Active ({activeAreas.length})
+                                    </TabsTrigger>
+                                    <TabsTrigger value="inactive" className="gap-2">
+                                        <XCircle className="w-3.5 h-3.5" />
+                                        Inactive ({inactiveAreas.length})
+                                    </TabsTrigger>
+                                    <TabsTrigger value="all" className="gap-2">
+                                        All ({areas.length})
+                                    </TabsTrigger>
+                                </TabsList>
                             </div>
-                        ) : (
-                            <Tabs defaultValue="active" className="w-full">
-                                <div className="px-6 pt-2 flex items-center justify-between border-b">
-                                    <TabsList>
-                                        <TabsTrigger value="active" className="gap-2">
-                                            <CheckCircle className="w-3.5 h-3.5" />
-                                            Active ({activeAreas.length})
-                                        </TabsTrigger>
-                                        <TabsTrigger value="inactive" className="gap-2">
-                                            <XCircle className="w-3.5 h-3.5" />
-                                            Inactive ({inactiveAreas.length})
-                                        </TabsTrigger>
-                                        <TabsTrigger value="all" className="gap-2">
-                                            All ({areas.length})
-                                        </TabsTrigger>
-                                    </TabsList>
+
+                            <TabsContent value="active" className="m-0">
+                                <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleDeactivateAll}
+                                        disabled={activeAreas.length === 0 || deactivateArea.isPending}
+                                    >
+                                        <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                                        Deactivate All
+                                    </Button>
                                 </div>
+                                <AreaGrid
+                                    areas={activeAreas}
+                                    onEdit={openEdit}
+                                    onDelete={openDelete}
+                                    onToggleStatus={(area) =>
+                                        area.status === EntityStatus.ACTIVE
+                                            ? deactivateArea.mutateAsync(area.areaId!)
+                                            : activateArea.mutateAsync(area.areaId!)
+                                    }
+                                    onViewTables={(areaId) => navigate(`/manager/areas/${areaId}/tables`)}
+                                />
+                            </TabsContent>
 
-                                <TabsContent value="active" className="m-0">
-                                    {canManageAreas && (
-                                        <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleDeactivateAll}
-                                                disabled={activeAreas.length === 0 || deactivateArea.isPending}
-                                            >
-                                                <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                                                Deactivate All
-                                            </Button>
-                                        </div>
-                                    )}
-                                    <AreaGrid
-                                        areas={activeAreas}
-                                        onEdit={openEdit}
-                                        onDelete={openDelete}
-                                        onToggleStatus={(area) =>
-                                            area.status === EntityStatus.ACTIVE
-                                                ? deactivateArea.mutateAsync(area.areaId!)
-                                                : activateArea.mutateAsync(area.areaId!)
-                                        }
-                                        onViewTables={(areaId) => navigate(`/dashboard/${restaurantId}/areas/${areaId}/tables`)}
-                                        canManage={canManageAreas}
-                                    />
-                                </TabsContent>
+                            <TabsContent value="inactive" className="m-0">
+                                <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleActivateAll}
+                                        disabled={inactiveAreas.length === 0 || activateArea.isPending}
+                                    >
+                                        <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                                        Activate All
+                                    </Button>
+                                </div>
+                                <AreaGrid
+                                    areas={inactiveAreas}
+                                    onEdit={openEdit}
+                                    onDelete={openDelete}
+                                    onToggleStatus={(area) =>
+                                        area.status === EntityStatus.ACTIVE
+                                            ? deactivateArea.mutateAsync(area.areaId!)
+                                            : activateArea.mutateAsync(area.areaId!)
+                                    }
+                                    onViewTables={(areaId) => navigate(`/manager/areas/${areaId}/tables`)}
+                                />
+                            </TabsContent>
 
-                                <TabsContent value="inactive" className="m-0">
-                                    {canManageAreas && (
-                                        <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleActivateAll}
-                                                disabled={inactiveAreas.length === 0 || activateArea.isPending}
-                                            >
-                                                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-                                                Activate All
-                                            </Button>
-                                        </div>
-                                    )}
-                                    <AreaGrid
-                                        areas={inactiveAreas}
-                                        onEdit={openEdit}
-                                        onDelete={openDelete}
-                                        onToggleStatus={(area) =>
-                                            area.status === EntityStatus.ACTIVE
-                                                ? deactivateArea.mutateAsync(area.areaId!)
-                                                : activateArea.mutateAsync(area.areaId!)
-                                        }
-                                        onViewTables={(areaId) => navigate(`/dashboard/${restaurantId}/areas/${areaId}/tables`)}
-                                        canManage={canManageAreas}
-                                    />
-                                </TabsContent>
-
-                                <TabsContent value="all" className="m-0">
-                                    <AreaGrid
-                                        areas={areas}
-                                        onEdit={openEdit}
-                                        onDelete={openDelete}
-                                        onToggleStatus={(area) =>
-                                            area.status === EntityStatus.ACTIVE
-                                                ? deactivateArea.mutateAsync(area.areaId!)
-                                                : activateArea.mutateAsync(area.areaId!)
-                                        }
-                                        onViewTables={(areaId) => navigate(`/dashboard/${restaurantId}/areas/${areaId}/tables`)}
-                                        canManage={canManageAreas}
-                                    />
-                                </TabsContent>
-                            </Tabs>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                            <TabsContent value="all" className="m-0">
+                                <AreaGrid
+                                    areas={areas}
+                                    onEdit={openEdit}
+                                    onDelete={openDelete}
+                                    onToggleStatus={(area) =>
+                                        area.status === EntityStatus.ACTIVE
+                                            ? deactivateArea.mutateAsync(area.areaId!)
+                                            : activateArea.mutateAsync(area.areaId!)
+                                    }
+                                    onViewTables={(areaId) => navigate(`/manager/areas/${areaId}/tables`)}
+                                />
+                            </TabsContent>
+                        </Tabs>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Create/Edit Area Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -312,7 +301,7 @@ const AreaManagement = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </DashboardLayout >
+        </div>
     );
 };
 
@@ -322,10 +311,9 @@ interface AreaTableProps {
     onDelete: (area: AreaDTO) => void;
     onToggleStatus: (area: AreaDTO) => void;
     onViewTables: (areaId: string) => void;
-    canManage: boolean;
 }
 
-const AreaGrid = ({ areas, onEdit, onDelete, onToggleStatus, onViewTables, canManage }: AreaTableProps) => {
+const AreaGrid = ({ areas, onEdit, onDelete, onToggleStatus, onViewTables }: AreaTableProps) => {
     if (areas.length === 0) {
         return (
             <div className="p-12 text-center text-muted-foreground">
@@ -345,7 +333,6 @@ const AreaGrid = ({ areas, onEdit, onDelete, onToggleStatus, onViewTables, canMa
                     onDelete={onDelete}
                     onToggleStatus={onToggleStatus}
                     onViewTables={onViewTables}
-                    canManage={canManage}
                 />
             ))}
         </div>
@@ -358,10 +345,9 @@ interface AreaCardProps {
     onDelete: (area: AreaDTO) => void;
     onToggleStatus: (area: AreaDTO) => void;
     onViewTables: (areaId: string) => void;
-    canManage: boolean;
 }
 
-const AreaCard = ({ area, onEdit, onDelete, onToggleStatus, onViewTables, canManage }: AreaCardProps) => {
+const AreaCard = ({ area, onEdit, onDelete, onToggleStatus, onViewTables }: AreaCardProps) => {
     const { data: tables = [] } = useTablesByArea(area.areaId || '');
     const isActive = area.status === EntityStatus.ACTIVE;
 
@@ -389,75 +375,54 @@ const AreaCard = ({ area, onEdit, onDelete, onToggleStatus, onViewTables, canMan
                         </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                        {canManage && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEdit(area);
-                                    }}
-                                >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDelete(area);
-                                    }}
-                                >
-                                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                </Button>
-                            </>
-                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(area);
+                            }}
+                        >
+                            <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(area);
+                            }}
+                        >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
                     </div>
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
                 <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    {canManage && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleStatus(area);
-                            }}
-                        >
-                            {isActive ? (
-                                <>
-                                    <CheckCircle className="w-3.5 h-3.5 text-teal mr-1.5" />
-                                    Active
-                                </>
-                            ) : (
-                                <>
-                                    <XCircle className="w-3.5 h-3.5 text-muted-foreground mr-1.5" />
-                                    Inactive
-                                </>
-                            )}
-                        </Button>
-                    )}
-                    {!canManage && (
-                        <div className="text-xs text-muted-foreground flex items-center">
-                            {isActive ? (
-                                <>
-                                    <CheckCircle className="w-3.5 h-3.5 text-teal mr-1.5" />
-                                    Active
-                                </>
-                            ) : (
-                                <>
-                                    <XCircle className="w-3.5 h-3.5 text-muted-foreground mr-1.5" />
-                                    Inactive
-                                </>
-                            )}
-                        </div>
-                    )}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleStatus(area);
+                        }}
+                    >
+                        {isActive ? (
+                            <>
+                                <CheckCircle className="w-3.5 h-3.5 text-teal mr-1.5" />
+                                Active
+                            </>
+                        ) : (
+                            <>
+                                <XCircle className="w-3.5 h-3.5 text-muted-foreground mr-1.5" />
+                                Inactive
+                            </>
+                        )}
+                    </Button>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -476,4 +441,4 @@ const AreaCard = ({ area, onEdit, onDelete, onToggleStatus, onViewTables, canMan
     );
 };
 
-export default AreaManagement;
+export default ManagerAreaManagement;

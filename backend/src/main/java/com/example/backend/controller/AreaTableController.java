@@ -176,6 +176,13 @@ public class AreaTableController {
         return response;
     }
 
+    @PutMapping("/{id}/occupied")
+    public ApiResponse<AreaTableDTO> markOccupied(@PathVariable UUID id) {
+        ApiResponse<AreaTableDTO> response = new ApiResponse<>();
+        response.setResult(areaTableService.markOccupied(id));
+        return response;
+    }
+
     @GetMapping("/qr")
     public ApiResponse<AreaTableDTO> getByQrCode(@RequestParam String qrCode) {
         ApiResponse<AreaTableDTO> response = new ApiResponse<>();

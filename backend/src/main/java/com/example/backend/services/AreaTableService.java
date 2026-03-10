@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.dto.AreaTableDTO;
 import com.example.backend.entities.Area;
 import com.example.backend.entities.AreaTable;
+import com.example.backend.entities.RoleName;
+import com.example.backend.entities.StaffAccount;
 import com.example.backend.entities.TableStatus;
 import com.example.backend.entities.User;
 import com.example.backend.exception.AppException;
@@ -18,6 +20,7 @@ import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.AreaTableMapper;
 import com.example.backend.repositories.AreaRepository;
 import com.example.backend.repositories.AreaTableRepository;
+import com.example.backend.repositories.StaffAccountRepository;
 
 @Service
 public class AreaTableService {
@@ -26,34 +29,75 @@ public class AreaTableService {
     private final AreaRepository areaRepository;
     private final AreaTableMapper areaTableMapper;
     private final QrCodeService qrCodeService;
+    private final StaffAccountRepository staffAccountRepository;
 
     public AreaTableService(
             AreaTableRepository areaTableRepository,
             AreaRepository areaRepository,
             AreaTableMapper areaTableMapper,
-            QrCodeService qrCodeService) {
+            QrCodeService qrCodeService,
+            StaffAccountRepository staffAccountRepository) {
         this.areaTableRepository = areaTableRepository;
         this.areaRepository = areaRepository;
         this.areaTableMapper = areaTableMapper;
         this.qrCodeService = qrCodeService;
+        this.staffAccountRepository = staffAccountRepository;
     }
 
-    private User getCurrentUser() {
+    private Object getCurrentPrincipal() {
         var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext()
                 .getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            return (User) authentication.getPrincipal();
+        if (authentication != null && authentication.getPrincipal() != null) {
+            return authentication.getPrincipal();
         }
         throw new AppException(ErrorCode.UNAUTHORIZED);
     }
 
     private void checkAreaAccess(UUID areaId) {
-        User currentUser = getCurrentUser();
+        Object principal = getCurrentPrincipal();
         Area area = areaRepository.findById(areaId)
                 .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
 
-        // Check if user is the restaurant owner
-        if (!area.getBranch().getRestaurant().getUser().getUserId().equals(currentUser.getUserId())) {
+        if (principal instanceof User) {
+            // Restaurant Owner - check if they own the restaurant
+            User user = (User) principal;
+            if (!area.getBranch().getRestaurant().getUser().getUserId().equals(user.getUserId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        } else if (principal instanceof StaffAccount) {
+            // Staff - check if they work at this branch
+            StaffAccount staff = (StaffAccount) principal;
+            if (!staff.getBranch().getBranchId().equals(area.getBranch().getBranchId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        } else {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void checkBranchManagerAccess(UUID areaId) {
+        Object principal = getCurrentPrincipal();
+        Area area = areaRepository.findById(areaId)
+                .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
+
+        if (principal instanceof User) {
+            // Restaurant Owner - NO ACCESS to create/update/delete
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        } else if (principal instanceof StaffAccount) {
+            // Only Branch Manager can create/update/delete
+            StaffAccount staff = (StaffAccount) principal;
+            
+            // Fetch staff with role to avoid LazyInitializationException
+            StaffAccount staffWithRole = staffAccountRepository.findByIdWithRole(staff.getStaffAccountId())
+                    .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED));
+            
+            if (!staffWithRole.getBranch().getBranchId().equals(area.getBranch().getBranchId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+            if (!RoleName.BRANCH_MANAGER.equals(staffWithRole.getRole().getName())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        } else {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
     }
@@ -108,53 +152,45 @@ public class AreaTableService {
 
     @Transactional
     public AreaTableDTO create(AreaTableDTO dto) {
-        try {
-            if (dto.getAreaId() == null) {
-                throw new AppException(ErrorCode.INVALID_REQUEST);
-            }
-
-            // Validate capacity
-            if (dto.getCapacity() == null || dto.getCapacity() <= 0) {
-                throw new AppException(ErrorCode.INVALID_CAPACITY);
-            }
-
-            checkAreaAccess(dto.getAreaId());
-
-            Area area = areaRepository.findById(dto.getAreaId())
-                    .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
-
-            // Check if table tag already exists in this area
-            if (areaTableRepository.existsByArea_AreaIdAndTag(dto.getAreaId(), dto.getTag())) {
-                throw new AppException(ErrorCode.TABLE_TAG_EXISTED);
-            }
-
-            AreaTable table = areaTableMapper.toEntity(dto);
-            table.setArea(area);
-            table.setStatus(TableStatus.FREE);
-
-            // Save first to get the ID
-            AreaTable saved = areaTableRepository.save(table);
-
-            // Generate QR code with the table ID
-            try {
-                String qrCode = qrCodeService.generateTableQrCode(saved.getAreaTableId());
-                saved.setQr(qrCode);
-                // Save again with QR code
-                saved = areaTableRepository.save(saved);
-            } catch (Exception e) {
-                // If QR generation fails, log but don't fail the entire operation
-                System.err.println("Failed to generate QR code: " + e.getMessage());
-                e.printStackTrace();
-            }
-
-            return areaTableMapper.toDto(saved);
-        } catch (AppException e) {
-            throw e;
-        } catch (Exception e) {
-            System.err.println("Error creating table: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to create table", e);
+        if (dto.getAreaId() == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
         }
+
+        // Validate capacity
+        if (dto.getCapacity() == null || dto.getCapacity() <= 0) {
+            throw new AppException(ErrorCode.INVALID_CAPACITY);
+        }
+
+        // Only Branch Manager can create tables
+        checkBranchManagerAccess(dto.getAreaId());
+
+        Area area = areaRepository.findById(dto.getAreaId())
+                .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
+
+        // Check if table tag already exists in this area
+        if (areaTableRepository.existsByArea_AreaIdAndTag(dto.getAreaId(), dto.getTag())) {
+            throw new AppException(ErrorCode.TABLE_TAG_EXISTED);
+        }
+
+        AreaTable table = areaTableMapper.toEntity(dto);
+        table.setArea(area);
+        table.setStatus(TableStatus.FREE);
+
+        // Save first to get the ID
+        AreaTable saved = areaTableRepository.save(table);
+
+        // Generate QR code with the table ID
+        try {
+            String qrCode = qrCodeService.generateTableQrCode(saved.getAreaTableId());
+            saved.setQr(qrCode);
+            // Save again with QR code
+            saved = areaTableRepository.save(saved);
+        } catch (Exception e) {
+            // If QR generation fails, log but don't fail the entire operation
+            System.err.println("Failed to generate QR code: " + e.getMessage());
+        }
+
+        return areaTableMapper.toDto(saved);
     }
 
     @Transactional
@@ -162,7 +198,8 @@ public class AreaTableService {
         AreaTable existing = areaTableRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
 
-        checkAreaAccess(existing.getArea().getAreaId());
+        // Only Restaurant Owner and Branch Manager can update tables
+        checkBranchManagerAccess(existing.getArea().getAreaId());
 
         // Validate capacity if provided
         if (dto.getCapacity() != null && dto.getCapacity() <= 0) {
@@ -187,7 +224,8 @@ public class AreaTableService {
         AreaTable table = areaTableRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
 
-        checkAreaAccess(table.getArea().getAreaId());
+        // Only Restaurant Owner and Branch Manager can delete tables
+        checkBranchManagerAccess(table.getArea().getAreaId());
 
         areaTableRepository.delete(table);
     }
@@ -197,7 +235,8 @@ public class AreaTableService {
         AreaTable table = areaTableRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
 
-        checkAreaAccess(table.getArea().getAreaId());
+        // Only Restaurant Owner and Branch Manager can change table status
+        checkBranchManagerAccess(table.getArea().getAreaId());
 
         table.setStatus(status);
         AreaTable saved = areaTableRepository.save(table);
@@ -212,6 +251,11 @@ public class AreaTableService {
     @Transactional
     public AreaTableDTO markAvailable(UUID id) {
         return setStatus(id, TableStatus.FREE);
+    }
+
+    @Transactional
+    public AreaTableDTO markOccupied(UUID id) {
+        return setStatus(id, TableStatus.OCCUPIED);
     }
 
     public AreaTableDTO getByQrCode(String qrCode) {

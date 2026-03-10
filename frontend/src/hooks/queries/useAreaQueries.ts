@@ -40,36 +40,15 @@ export const useCreateArea = () => {
 
     return useMutation({
         mutationFn: (data: AreaDTO) => areaApi.create(data),
-        onMutate: async (newArea) => {
-            await queryClient.cancelQueries({ queryKey: ['areas', 'branch', newArea.branchId] });
-
-            const previousAreas = queryClient.getQueryData<AreaDTO[]>(['areas', 'branch', newArea.branchId]);
-
-            queryClient.setQueryData<AreaDTO[]>(
-                ['areas', 'branch', newArea.branchId],
-                (old) => {
-                    if (!old) return [{ ...newArea, areaId: 'temp-' + Date.now(), status: EntityStatus.ACTIVE }];
-                    return [...old, { ...newArea, areaId: 'temp-' + Date.now(), status: EntityStatus.ACTIVE }];
-                }
-            );
-
-            return { previousAreas, branchId: newArea.branchId };
-        },
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['areas'] });
-            queryClient.invalidateQueries({ queryKey: ['areas', 'branch', context.branchId] });
+            queryClient.invalidateQueries({ queryKey: ['areas', 'branch', variables.branchId] });
             toast({
                 title: 'Success',
                 description: 'Area created successfully',
             });
         },
-        onError: (error: any, variables, context) => {
-            if (context?.previousAreas && context?.branchId) {
-                queryClient.setQueryData(
-                    ['areas', 'branch', context.branchId],
-                    context.previousAreas
-                );
-            }
+        onError: (error: any) => {
             toast({
                 title: 'Error',
                 description: error.response?.data?.message || 'Failed to create area',

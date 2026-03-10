@@ -41,12 +41,14 @@ import {
 } from "@/hooks/queries/useTableQueries";
 import { useArea, useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 import type { AreaTableDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
 
 const TableManagement = () => {
     const { id: restaurantId, areaId } = useParams<{ id: string; areaId: string }>();
     const navigate = useNavigate();
+    const { canManageTables } = useRoleAccess();
     const { data: area } = useArea(areaId || '');
     const { data: branches = [] } = useBranchesByRestaurant(restaurantId || '');
     const currentBranchId = area?.branchId;
@@ -193,10 +195,12 @@ const TableManagement = () => {
                                 </SelectContent>
                             </Select>
                         )}
-                        <Button onClick={openCreate} className="gap-2">
-                            <Plus className="w-4 h-4" />
-                            Add Table
-                        </Button>
+                        {canManageTables && (
+                            <Button onClick={openCreate} className="gap-2">
+                                <Plus className="w-4 h-4" />
+                                Add Table
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -292,27 +296,31 @@ const TableManagement = () => {
                                         onDelete={openDelete}
                                         onViewQr={openQr}
                                         onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
+                                        canManage={canManageTables}
                                     />
                                 </TabsContent>
 
                                 <TabsContent value="available" className="m-0">
-                                    <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={handleMarkOutOfOrderAll}
-                                            disabled={availableTables.length === 0 || markOutOfOrder.isPending}
-                                        >
-                                            <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                                            Mark All Out of Order
-                                        </Button>
-                                    </div>
+                                    {canManageTables && (
+                                        <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleMarkOutOfOrderAll}
+                                                disabled={availableTables.length === 0 || markOutOfOrder.isPending}
+                                            >
+                                                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                                                Mark All Out of Order
+                                            </Button>
+                                        </div>
+                                    )}
                                     <TableGrid
                                         tables={availableTables}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
                                         onViewQr={openQr}
                                         onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
+                                        canManage={canManageTables}
                                     />
                                 </TabsContent>
 
@@ -323,27 +331,31 @@ const TableManagement = () => {
                                         onDelete={openDelete}
                                         onViewQr={openQr}
                                         onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
+                                        canManage={canManageTables}
                                     />
                                 </TabsContent>
 
                                 <TabsContent value="out-of-order" className="m-0">
-                                    <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={handleMarkAvailableAll}
-                                            disabled={outOfOrderTables.length === 0 || markAvailable.isPending}
-                                        >
-                                            <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-                                            Mark All Available
-                                        </Button>
-                                    </div>
+                                    {canManageTables && (
+                                        <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleMarkAvailableAll}
+                                                disabled={outOfOrderTables.length === 0 || markAvailable.isPending}
+                                            >
+                                                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                                                Mark All Available
+                                            </Button>
+                                        </div>
+                                    )}
                                     <TableGrid
                                         tables={outOfOrderTables}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
                                         onViewQr={openQr}
                                         onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
+                                        canManage={canManageTables}
                                     />
                                 </TabsContent>
                             </Tabs>
@@ -483,9 +495,10 @@ interface TableGridProps {
     onDelete: (table: AreaTableDTO) => void;
     onViewQr: (table: AreaTableDTO) => void;
     onSetStatus: (table: AreaTableDTO, status: TableStatus) => void;
+    canManage: boolean;
 }
 
-const TableGrid = ({ tables, onEdit, onDelete, onViewQr, onSetStatus }: TableGridProps) => {
+const TableGrid = ({ tables, onEdit, onDelete, onViewQr, onSetStatus, canManage }: TableGridProps) => {
     if (tables.length === 0) {
         return (
             <div className="p-12 text-center text-muted-foreground">
@@ -506,6 +519,7 @@ const TableGrid = ({ tables, onEdit, onDelete, onViewQr, onSetStatus }: TableGri
                     onDelete={onDelete}
                     onViewQr={onViewQr}
                     onSetStatus={onSetStatus}
+                    canManage={canManage}
                 />
             ))}
         </div>
@@ -518,9 +532,10 @@ interface TableCardProps {
     onDelete: (table: AreaTableDTO) => void;
     onViewQr: (table: AreaTableDTO) => void;
     onSetStatus: (table: AreaTableDTO, status: TableStatus) => void;
+    canManage: boolean;
 }
 
-const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus }: TableCardProps) => {
+const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus, canManage }: TableCardProps) => {
     const getStatusStyles = () => {
         switch (table.status) {
             case TableStatus.FREE:
@@ -604,17 +619,19 @@ const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus }: TableCard
 
                     {/* Quick Actions - Show on hover */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 shadow-lg"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(table);
-                            }}
-                        >
-                            <Pencil className="w-3.5 h-3.5" />
-                        </Button>
+                        {canManage && (
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-7 w-7 shadow-lg"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(table);
+                                }}
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                        )}
                         <Button
                             variant="secondary"
                             size="icon"
@@ -626,23 +643,26 @@ const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus }: TableCard
                         >
                             <QrCode className="w-3.5 h-3.5" />
                         </Button>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 shadow-lg"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete(table);
-                            }}
-                        >
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
+                        {canManage && (
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-7 w-7 shadow-lg"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(table);
+                                }}
+                            >
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                        )}
                     </div>
 
                     {/* Status Selector */}
                     <select
                         value={table.status}
-                        onChange={(e) => onSetStatus(table, e.target.value as TableStatus)}
+                        onChange={canManage ? (e) => onSetStatus(table, e.target.value as TableStatus) : undefined}
+                        disabled={!canManage}
                         className="w-full text-xs px-2 py-1.5 rounded-lg border bg-background/50 backdrop-blur-sm cursor-pointer hover:bg-background transition-colors"
                         onClick={(e) => e.stopPropagation()}
                     >

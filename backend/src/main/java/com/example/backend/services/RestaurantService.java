@@ -6,13 +6,21 @@ import java.util.UUID;
 
 import com.example.backend.dto.request.RestaurantCreateRequest;
 import com.example.backend.dto.RestaurantDTO;
+// import com.example.backend.dto.response.PageResponse;
 import com.example.backend.entities.Restaurant;
+import com.example.backend.entities.Subscription;
+import com.example.backend.entities.SubscriptionStatus;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.RestaurantMapper;
 import com.example.backend.repositories.RestaurantRepository;
+// import com.example.backend.repository.SubscriptionRepository;
 import com.example.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.repositories.BranchRepository;
@@ -27,7 +35,7 @@ public class RestaurantService {
     private final BranchRepository branchRepository;
 
     @Value("${frontend.base-url}")
-    private String webUrl; // 👈 lấy từ application.yml
+    private String webUrl; // 👈 lấy từ application.yml, ví dụ hilldevil.space
 
     public RestaurantService(
             RestaurantRepository restaurantRepository,
@@ -44,20 +52,20 @@ public class RestaurantService {
 
     public List<RestaurantDTO> getAll() {
         return restaurantRepository.findAll().stream()
-                .map(restaurantMapper::toRestaurantDtoWithFullUrl)
+                .map(restaurantMapper::toRestaurantDto)
                 .toList();
     }
 
     public RestaurantDTO getById(UUID id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        return restaurantMapper.toRestaurantDtoWithFullUrl(restaurant);
+        return restaurantMapper.toRestaurantDto(restaurant);
     }
 
     @Transactional
     public RestaurantDTO create(RestaurantCreateRequest request) {
         Restaurant restaurant = createEntity(request);
-        return restaurantMapper.toRestaurantDtoWithFullUrl(restaurant);
+        return restaurantMapper.toRestaurantDto(restaurant);
     }
 
     @Transactional
@@ -71,104 +79,35 @@ public class RestaurantService {
         restaurant.setEmail(request.getEmail());
         restaurant.setRestaurantPhone(request.getRestaurantPhone());
         restaurant.setDescription(request.getDescription());
-        restaurant.setStatus(true); // Set status to true by default
+        restaurant.setStatus(false);
 
-        // Set publicUrl from request or auto-generate from name
-        String baseSlug;
-        if (request.getPublicUrl() != null && !request.getPublicUrl().trim().isEmpty()) {
-            // User provided a custom slug - sanitize it
-            baseSlug = slugify(request.getPublicUrl());
-        } else {
-            // Auto-generate slug from restaurant name
-            baseSlug = slugify(request.getName());
-        }
-        
-        // Ensure slug is unique by adding suffix if needed
-        String uniqueSlug = ensureUniqueSlug(baseSlug);
-        
-        // Store ONLY the slug in database for flexibility
-        restaurant.setPublicUrl(uniqueSlug);
+        // 👉 Xử lý URL thông minh cho cả local và production
+        String base = webUrl.trim();
 
-        return restaurantRepository.save(restaurant);
-    }
-    
-    /**
-     * Ensure slug is unique by adding numeric suffix if needed
-     * Example: "pho-hanoi" -> "pho-hanoi-2" if "pho-hanoi" exists
-     */
-    private String ensureUniqueSlug(String baseSlug) {
-        // Check if base slug is available
-        if (!restaurantRepository.existsByPublicUrl(baseSlug)) {
-            return baseSlug;
-        }
-        
-        // Find all restaurants with similar slugs
-        List<Restaurant> similarRestaurants = restaurantRepository.findByPublicUrlStartingWith(baseSlug);
-        
-        // Extract existing numbers and find the highest
-        int maxNumber = 1;
-        for (Restaurant r : similarRestaurants) {
-            String slug = r.getPublicUrl();
-            if (slug.equals(baseSlug)) {
-                continue; // Skip exact match
-            }
-            // Check if it matches pattern: baseSlug-{number}
-            if (slug.startsWith(baseSlug + "-")) {
-                String suffix = slug.substring(baseSlug.length() + 1);
-                try {
-                    int num = Integer.parseInt(suffix);
-                    maxNumber = Math.max(maxNumber, num);
-                } catch (NumberFormatException e) {
-                    // Not a number suffix, skip
-                }
+        // Nếu không có http/https -> tự động thêm
+        if (!base.startsWith("http://") && !base.startsWith("https://")) {
+            if (base.contains("localhost") || base.contains("127.0.0.1")) {
+                base = "http://" + base;
+            } else {
+                base = "https://" + base;
             }
         }
-        
-        // Return slug with next available number
-        return baseSlug + "-" + (maxNumber + 1);
-    }
-    
-    /**
-     * Convert Vietnamese text to URL-friendly slug
-     * Example: "Nguyên Khôi Vũ" -> "nguyen-khoi-vu"
-     */
-    private String slugify(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return "";
+
+        // Bỏ dấu "/" cuối nếu có
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
         }
-        
-        // Normalize Vietnamese characters to ASCII
-        String normalized = removeVietnameseDiacritics(text);
-        
-        // Convert to lowercase and replace spaces/special chars with hyphens
-        return normalized
+
+        // Tạo slug từ tên nhà hàng
+        String slug = request.getName()
                 .toLowerCase()
                 .trim()
-                .replaceAll("[^a-z0-9]+", "-")  // Replace non-alphanumeric with hyphen
-                .replaceAll("(^-|-$)", "");      // Remove leading/trailing hyphens
-    }
-    
-    /**
-     * Remove Vietnamese diacritics and convert to ASCII
-     */
-    private String removeVietnameseDiacritics(String text) {
-        // Vietnamese character mappings
-        text = text.replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a");
-        text = text.replaceAll("[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]", "A");
-        text = text.replaceAll("[èéẹẻẽêềếệểễ]", "e");
-        text = text.replaceAll("[ÈÉẸẺẼÊỀẾỆỂỄ]", "E");
-        text = text.replaceAll("[ìíịỉĩ]", "i");
-        text = text.replaceAll("[ÌÍỊỈĨ]", "I");
-        text = text.replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o");
-        text = text.replaceAll("[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]", "O");
-        text = text.replaceAll("[ùúụủũưừứựửữ]", "u");
-        text = text.replaceAll("[ÙÚỤỦŨƯỪỨỰỬỮ]", "U");
-        text = text.replaceAll("[ỳýỵỷỹ]", "y");
-        text = text.replaceAll("[ỲÝỴỶỸ]", "Y");
-        text = text.replaceAll("[đ]", "d");
-        text = text.replaceAll("[Đ]", "D");
-        
-        return text;
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+
+        restaurant.setPublicUrl(base + "/" + slug);
+
+        return restaurantRepository.save(restaurant);
     }
 
     public RestaurantDTO update(UUID id, RestaurantDTO dto) {
@@ -183,7 +122,7 @@ public class RestaurantService {
         exist.setDescription(dto.getDescription());
 
         Restaurant saved = restaurantRepository.save(exist);
-        return restaurantMapper.toRestaurantDtoWithFullUrl(saved);
+        return restaurantMapper.toRestaurantDto(saved);
     }
 
     @Transactional
@@ -215,19 +154,8 @@ public class RestaurantService {
     }
 
     public List<RestaurantDTO> getByOwner(UUID userId) {
-        // Get current authenticated user
-        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof com.example.backend.entities.User) {
-            com.example.backend.entities.User currentUser = (com.example.backend.entities.User) authentication.getPrincipal();
-            
-            // Check if current user is requesting their own restaurants
-            if (!currentUser.getUserId().equals(userId)) {
-                throw new AppException(ErrorCode.UNAUTHORIZED);
-            }
-        }
-        
         return restaurantRepository.findByUser_UserId(userId).stream()
-                .map(restaurantMapper::toRestaurantDtoWithFullUrl)
+                .map(restaurantMapper::toRestaurantDto)
                 .toList();
     }
 

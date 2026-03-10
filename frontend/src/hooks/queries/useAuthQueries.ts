@@ -52,14 +52,14 @@ export const useStaffLogin = () => {
       // Route based on role
       const role = data.staffInfo.role;
       if (role === 'WAITER') {
-        navigate('/dashboard/waitter');
+        navigate('/waiter/dashboard');
       } else if (role === 'BRANCH_MANAGER') {
-        navigate('/dashboard/manager');
+        navigate('/manager/dashboard');
       } else if (role === 'RECEPTIONIST') {
-        navigate('/dashboard/receptionist');
+        navigate('/receptionist/dashboard');
       } else {
         // Fallback dashboard
-        navigate('/dashboard');
+        navigate('/');
       }
     },
     onError: (error: any) => {
