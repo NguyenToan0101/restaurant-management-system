@@ -3,6 +3,8 @@ export * from './user.dto';
 export * from './request.dto';
 export * from './restaurant.dto';
 export * from './branch.dto';
+export * from './area.dto';
+export * from './table.dto';
 export * from './staff.dto';
 export * from './category.dto';
 export * from './customization.dto';

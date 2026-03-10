@@ -7,6 +7,8 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.example.backend.entities.Branch;
@@ -20,6 +22,10 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
 
     Optional<StaffAccount> findByUsername(String username);
     boolean existsByUsername(String username);
+    
+    // Find staff with role eagerly loaded to avoid LazyInitializationException
+    @Query("SELECT s FROM StaffAccount s JOIN FETCH s.role WHERE s.staffAccountId = :staffId")
+    Optional<StaffAccount> findByIdWithRole(@Param("staffId") UUID staffId);
     
     // Lấy nhân viên theo chi nhánh, loại bỏ vai trò Manager (cho Branch Manager)
     Page<StaffAccount> findByBranchAndRole_NameNot(Branch branch, RoleName roleName, Pageable pageable);

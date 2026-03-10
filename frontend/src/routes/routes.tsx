@@ -9,11 +9,12 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
-import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
 import UserManagement from "@/pages/admin/UserManagement";
+import AreaManagement from "@/pages/owner/AreaManagement";
+import TableManagement from "@/pages/owner/TableManagement";
 import Navbar from "@/components/Navbar";
 import PackageSelection from "@/pages/payment/PackageSelection";
 import PaymentConfirm from "@/pages/payment/PaymentConfirm";
@@ -21,6 +22,24 @@ import PaymentCheckout from "@/pages/payment/PaymentCheckout";
 import PaymentSuccess from "@/pages/payment/PaymentSuccess";
 import PaymentFailed from "@/pages/payment/PaymentFailed";
 import PaymentCancel from "@/pages/payment/PaymentCancel";
+
+// Staff components
+import ManagerLayout from "@/components/branch_manager/ManagerLayout";
+import ManagerDashboard from "@/pages/manager/ManagerDashboard";
+import ManagerAreaManagement from "@/pages/manager/ManagerAreaManagement";
+import ManagerTableManagement from "@/pages/manager/ManagerTableManagement";
+
+import WaiterLayout from "@/components/waiter/WaiterLayout";
+import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
+import WaiterTableView from "@/pages/waiter/WaiterTableView";
+
+import ReceptionistLayout from "@/components/receptionist/ReceptionistLayout";
+import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
+import ReceptionistTableView from "@/pages/receptionist/ReceptionistTableView";
+
+import ComingSoon from "@/components/ComingSoon";
+
+// Shared table view component - REMOVED, using individual components now
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -39,11 +58,7 @@ const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Staff trying to access owner routes → send them back to their dashboard
   if (staffInfo && !user) {
-    const role = staffInfo.role;
-    if (role === 'WAITER') return <Navigate to="/dashboard/waitter" replace />;
-    if (role === 'BRANCH_MANAGER') return <Navigate to="/dashboard/manager" replace />;
-    if (role === 'RECEPTIONIST') return <Navigate to="/dashboard/receptionist" replace />;
-    return <Navigate to="/staff-login" replace />;
+    return <Navigate to="/staff/dashboard" replace />;
   }
 
   if (!user) {
@@ -177,22 +192,61 @@ const AppRoutes = () => {
         </OwnerRoute>
       } />
 
-      {/* Staff dashboard routes - must be before /dashboard/:id/* */}
+      {/* Branch Manager routes */}
+      <Route path="/manager/*" element={
+        <StaffRoute>
+          <ManagerLayout />
+        </StaffRoute>
+      }>
+        <Route path="dashboard" element={<ManagerDashboard />} />
+        <Route path="areas" element={<ManagerAreaManagement />} />
+        <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
+        <Route path="tables" element={<ManagerTableManagement />} />
+        <Route path="orders" element={<ComingSoon title="Order Management" description="Manage customer orders and track order status." />} />
+        <Route path="staff" element={<ComingSoon title="Staff Management" description="Manage staff accounts and permissions." />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Waiter routes */}
+      <Route path="/waiter/*" element={
+        <StaffRoute>
+          <WaiterLayout />
+        </StaffRoute>
+      }>
+        <Route path="dashboard" element={<WaiterDashboard />} />
+        <Route path="tables" element={<WaiterTableView />} />
+        <Route path="orders" element={<ComingSoon title="Order Management" description="Take and manage customer orders." />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Receptionist routes */}
+      <Route path="/receptionist/*" element={
+        <StaffRoute>
+          <ReceptionistLayout />
+        </StaffRoute>
+      }>
+        <Route path="dashboard" element={<ReceptionistDashboard />} />
+        <Route path="tables" element={<ReceptionistTableView />} />
+        <Route path="reservations" element={<ComingSoon title="Reservations" description="Manage table reservations and bookings." />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Legacy staff dashboard routes - redirect to new structure */}
       <Route path="/dashboard/waitter" element={
         <StaffRoute>
-          <NotFound />
+          <Navigate to="/waiter/dashboard" replace />
         </StaffRoute>
       } />
 
       <Route path="/dashboard/manager/*" element={
         <StaffRoute>
-          <ManagerDashboard />
+          <Navigate to="/manager/dashboard" replace />
         </StaffRoute>
       } />
 
       <Route path="/dashboard/receptionist" element={
         <StaffRoute>
-          <NotFound />
+          <Navigate to="/receptionist/dashboard" replace />
         </StaffRoute>
       } />
 
@@ -213,6 +267,18 @@ const AppRoutes = () => {
         <Route path="users" element={<UserManagement />} />
         <Route index element={<Navigate to="statistics" replace />} />
       </Route>
+
+      <Route path="/dashboard/:id/branches/:branchId/areas" element={
+        <ProtectedRoute>
+          <AreaManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dashboard/:id/areas/:areaId/tables" element={
+        <ProtectedRoute>
+          <TableManagement />
+        </ProtectedRoute>
+      } />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
