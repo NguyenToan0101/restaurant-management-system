@@ -9,6 +9,7 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
+import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
@@ -183,9 +184,9 @@ const AppRoutes = () => {
         </StaffRoute>
       } />
 
-      <Route path="/dashboard/manager" element={
+      <Route path="/dashboard/manager/*" element={
         <StaffRoute>
-          <NotFound />
+          <ManagerDashboard />
         </StaffRoute>
       } />
 
