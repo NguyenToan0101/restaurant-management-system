@@ -52,6 +52,10 @@ public class StaffAccountService {
 
 
     public StaffAccountDTO createStaffAccount(CreateStaffAccountRequest createStaffAccountRequest) {
+        if (staffAccountRepository.existsByUsername(createStaffAccountRequest.getUsername())) {
+            throw new AppException(ErrorCode.STAFFACCOUNT_USERNAME_EXISTED);
+        }
+
         StaffAccount staffAccount = staffAccountMapper.createStaffAccount(createStaffAccountRequest);
         Role role = roleRepository.findByName(createStaffAccountRequest.getRole().getName()).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOTEXISTED));
         Branch branch = branchRepository.findById(createStaffAccountRequest.getBranchId()).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
