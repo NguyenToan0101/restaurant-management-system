@@ -12,13 +12,17 @@ import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import Navbar from "@/components/Navbar";
+import HomePage from "@/pages/customer/HomePage";
+import TableSelectionPage from "@/pages/customer/TableSelectionPage";
+import MenuPage from "@/pages/customer/MenuPage";
+import CheckoutPage from "@/pages/customer/CheckoutPage";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/login" replace />;
-  // }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   return <>{children}</>;
 };
@@ -109,7 +113,26 @@ const AppRoutes = () => {
         <Route path="users" element={<UserManagement />} />
         <Route index element={<Navigate to="statistics" replace />} />
       </Route>
-
+      <Route path="/home" element={
+        <PublicRoute>
+          <HomePage/>
+        </PublicRoute>
+      } />
+      <Route path="/reservations" element={
+        <PublicRoute>
+          <TableSelectionPage/>
+        </PublicRoute>
+      } />
+      <Route path="/menu" element={
+        <PublicRoute>
+          <MenuPage/>
+        </PublicRoute>
+      } />
+      <Route path="/checkout" element={
+        <PublicRoute>
+          <CheckoutPage/>
+        </PublicRoute>
+      } />
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
