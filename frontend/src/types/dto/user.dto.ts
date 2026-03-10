@@ -1,3 +1,5 @@
+import type { StaffRoleName } from './staff.dto';
+
 export interface RoleDTO {
   name: string;
   description: string;
@@ -17,10 +19,11 @@ export interface AuthenticationResponse {
   user: UserDTO;
 }
 
+
 export interface StaffInfo {
   staffAccountId: string;
   username: string;
-  role: string;
+  role: StaffRoleName;
   branchId: string;
 }
 

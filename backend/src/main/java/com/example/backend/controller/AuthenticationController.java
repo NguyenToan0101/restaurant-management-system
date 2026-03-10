@@ -175,7 +175,7 @@ public class AuthenticationController {
 
     @GetMapping("/me")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<com.example.backend.dto.response.UserResponse>> getCurrentUser() {
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getCurrentUser() {
         log.info("Get current user request received");
 
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
@@ -188,15 +188,17 @@ public class AuthenticationController {
         }
 
         Object principal = authentication.getPrincipal();
-        com.example.backend.dto.response.UserResponse userDTO;
+        com.example.backend.dto.response.UserResponse userDTO = null;
+        StaffAuthResponse.StaffInfo staffInfo = null;
 
         if (principal instanceof com.example.backend.entities.StaffAccount staff) {
             // Staff account — data đã được load từ DB trong JwtAuthenticationFilter
-            userDTO = new com.example.backend.dto.response.UserResponse(
+            staffInfo = new StaffAuthResponse.StaffInfo(
                     staff.getStaffAccountId(),
                     staff.getUsername(),
-                    staff.getUsername(),
-                    staff.getRole().getName().name());
+                    staff.getRole().getName().name(),
+                    staff.getBranch().getBranchId()
+            );
         } else if (principal instanceof com.example.backend.entities.User userFromContext) {
             // Regular user — reload từ DB để đảm bảo role được load trong transaction
             com.example.backend.entities.User user = userRepository
@@ -213,10 +215,15 @@ public class AuthenticationController {
                     com.example.backend.exception.ErrorCode.UNAUTHENTICATED);
         }
 
-        ApiResponse<com.example.backend.dto.response.UserResponse> response = new ApiResponse<>();
+        // Tạo một map hoặc object chung để trả về
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        if (userDTO != null) result.put("user", userDTO);
+        if (staffInfo != null) result.put("staffInfo", staffInfo);
+
+        ApiResponse<java.util.Map<String, Object>> response = new ApiResponse<>();
         response.setCode(200);
         response.setMessage("User retrieved successfully");
-        response.setResult(userDTO);
+        response.setResult(result);
 
         log.info("Current user retrieved successfully");
         return ResponseEntity.ok(response);

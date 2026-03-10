@@ -58,7 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 Object userTypeClaim = jwt.getJWTClaimsSet().getClaim("userType");
                 if (userTypeClaim != null && "STAFF".equals(userTypeClaim.toString())) {
-                    com.example.backend.entities.StaffAccount staff = staffAccountRepository.findById(userId).orElse(null);
+                    com.example.backend.entities.StaffAccount staff = staffAccountRepository.findByIdWithRole(userId).orElse(null);
                     if (staff != null) {
                         String role = jwt.getJWTClaimsSet().getClaim("role").toString();
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -69,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 } else {
-                    User user = userRepository.findById(userId).orElse(null);
+                    User user = userRepository.findByIdWithRole(userId).orElse(null);
 
                     if (user != null) {
                         String role = jwt.getJWTClaimsSet().getClaim("role").toString();

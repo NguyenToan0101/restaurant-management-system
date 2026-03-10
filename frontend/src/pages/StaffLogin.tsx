@@ -6,14 +6,24 @@ import { Label } from "@/components/ui/label";
 import { UtensilsCrossed, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useStaffLogin } from "@/hooks/queries/useAuthQueries";
 import { useAuthStore } from "@/stores/authStore";
+import { useToast } from "@/hooks/use-toast";
 
 const StaffLogin = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const staffLoginMutation = useStaffLogin();
+
+  const handleForgotPassword = () => {
+    toast({
+      title: "Quên mật khẩu?",
+      description: "Vui lòng liên hệ Branch Manager hoặc Owner của bạn để được đặt lại mật khẩu.",
+      duration: 5000,
+    });
+  };
 
   useEffect(() => {
     // Only redirect if already authenticated before attempting login
@@ -66,7 +76,7 @@ const StaffLogin = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
-                <button type="button" className="text-xs text-primary hover:underline">Forgot password?</button>
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline">Forgot password?</button>
               </div>
               <div className="relative">
                 <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 rounded-lg pr-10 bg-background/50 border-border/50 focus-visible:ring-violet-500/20 focus-visible:border-violet-500/50" />
