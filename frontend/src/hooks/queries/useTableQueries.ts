@@ -56,8 +56,8 @@ export const useCreateTable = () => {
             queryClient.setQueryData<AreaTableDTO[]>(
                 ['tables', 'area', newTable.areaId],
                 (old) => {
-                    if (!old) return [{ ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.AVAILABLE }];
-                    return [...old, { ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.AVAILABLE }];
+                    if (!old) return [{ ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.FREE }];
+                    return [...old, { ...newTable, areaTableId: 'temp-' + Date.now(), status: TableStatus.FREE }];
                 }
             );
 
@@ -213,7 +213,7 @@ export const useMarkTableOutOfOrder = () => {
             queryClient.setQueriesData<AreaTableDTO[]>({ queryKey: ['tables'] }, (old) => {
                 if (!old) return old;
                 return old.map(table =>
-                    table.areaTableId === id ? { ...table, status: TableStatus.OUT_OF_ORDER } : table
+                    table.areaTableId === id ? { ...table, status: TableStatus.INACTIVE } : table
                 );
             });
 
@@ -257,7 +257,7 @@ export const useMarkTableAvailable = () => {
             queryClient.setQueriesData<AreaTableDTO[]>({ queryKey: ['tables'] }, (old) => {
                 if (!old) return old;
                 return old.map(table =>
-                    table.areaTableId === id ? { ...table, status: TableStatus.AVAILABLE } : table
+                    table.areaTableId === id ? { ...table, status: TableStatus.FREE } : table
                 );
             });
 

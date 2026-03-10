@@ -1,10 +1,7 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -19,11 +16,18 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Plus, Pencil, Loader2, Table as TableIcon, CheckCircle, XCircle, Trash2,
-    Users, AlertTriangle, QrCode,
+    Plus, Pencil, Loader2, CheckCircle, XCircle, Trash2,
+    Users, AlertTriangle, QrCode, ChevronLeft, Armchair,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
@@ -35,13 +39,20 @@ import {
     useMarkTableAvailable,
     useMarkTableOutOfOrder,
 } from "@/hooks/queries/useTableQueries";
-import { useArea } from "@/hooks/queries/useAreaQueries";
+import { useArea, useAreasByBranch } from "@/hooks/queries/useAreaQueries";
+import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
 import type { AreaTableDTO } from "@/types/dto";
-import { TableStatus } from "@/types/dto";
+import { TableStatus, EntityStatus } from "@/types/dto";
 
 const TableManagement = () => {
-    const { areaId } = useParams<{ areaId: string }>();
+    const { id: restaurantId, areaId } = useParams<{ id: string; areaId: string }>();
+    const navigate = useNavigate();
     const { data: area } = useArea(areaId || '');
+    const { data: branches = [] } = useBranchesByRestaurant(restaurantId || '');
+    const currentBranchId = area?.branchId;
+    const { data: allAreas = [] } = useAreasByBranch(currentBranchId || '');
+    const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
+
     const { data: tables = [], isLoading } = useTablesByArea(areaId || '');
     const createTable = useCreateTable();
     const updateTable = useUpdateTable();
@@ -115,77 +126,150 @@ const TableManagement = () => {
     };
 
     const handleMarkAvailableAll = async () => {
-        const nonAvailableTables = tables.filter(t => t.status !== TableStatus.AVAILABLE);
+        const nonAvailableTables = tables.filter(t => t.status !== TableStatus.FREE);
         for (const table of nonAvailableTables) {
             await markAvailable.mutateAsync(table.areaTableId!);
         }
     };
 
     const handleMarkOutOfOrderAll = async () => {
-        const availableTables = tables.filter(t => t.status === TableStatus.AVAILABLE);
+        const availableTables = tables.filter(t => t.status === TableStatus.FREE);
         for (const table of availableTables) {
             await markOutOfOrder.mutateAsync(table.areaTableId!);
         }
     };
 
-    const availableTables = tables.filter(t => t.status === TableStatus.AVAILABLE);
+    const availableTables = tables.filter(t => t.status === TableStatus.FREE);
     const occupiedTables = tables.filter(t => t.status === TableStatus.OCCUPIED);
-    const outOfOrderTables = tables.filter(t => t.status === TableStatus.OUT_OF_ORDER);
+    const outOfOrderTables = tables.filter(t => t.status === TableStatus.INACTIVE);
 
     if (!areaId) {
         return (
-            <div className="p-6 lg:p-8">
-                <Card className="glass-card border-border/60">
-                    <CardContent className="p-6 text-center text-muted-foreground">
-                        Please select an area first
-                    </CardContent>
-                </Card>
-            </div>
+            <DashboardLayout>
+                <div className="p-6 lg:p-8">
+                    <Card className="glass-card border-border/60">
+                        <CardContent className="p-6 text-center text-muted-foreground">
+                            Please select an area first
+                        </CardContent>
+                    </Card>
+                </div>
+            </DashboardLayout>
         );
     }
 
     return (
         <DashboardLayout>
-            <div className="p-6 lg:p-8">
-                {/* Area Info */}
-                {area && (
-                    <Card className="glass-card border-border/60 mb-6">
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                                    <TableIcon className="w-6 h-6 text-primary" />
-                                </div>
+            <div className="p-6 lg:p-8 space-y-6">
+                {/* Header with Area Selector */}
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/dashboard/${restaurantId}/areas`)}
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                        <div>
+                            <h1 className="text-2xl font-display">Table Layout</h1>
+                            <p className="text-sm text-muted-foreground">Manage your restaurant tables</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {activeAreas.length > 0 && (
+                            <Select
+                                value={areaId}
+                                onValueChange={(value) => navigate(`/dashboard/${restaurantId}/areas/${value}/tables`)}
+                            >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Select area" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {activeAreas.map((a) => (
+                                        <SelectItem key={a.areaId} value={a.areaId!}>
+                                            {a.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                        <Button onClick={openCreate} className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Add Table
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="glass-card border-border/60">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
                                 <div>
-                                    <h2 className="text-xl font-display">{area.name}</h2>
-                                    <p className="text-sm text-muted-foreground">{tables.length} tables total</p>
+                                    <p className="text-xs text-muted-foreground">Total Tables</p>
+                                    <p className="text-2xl font-bold">{tables.length}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <Armchair className="w-6 h-6 text-primary" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
-                )}
+                    <Card className="glass-card border-border/60">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Available</p>
+                                    <p className="text-2xl font-bold text-teal">{availableTables.length}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-teal/10 flex items-center justify-center">
+                                    <CheckCircle className="w-6 h-6 text-teal" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="glass-card border-border/60">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Occupied</p>
+                                    <p className="text-2xl font-bold text-orange-500">{occupiedTables.length}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
+                                    <Users className="w-6 h-6 text-orange-500" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="glass-card border-border/60">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Out of Order</p>
+                                    <p className="text-2xl font-bold text-destructive">{outOfOrderTables.length}</p>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                                    <AlertTriangle className="w-6 h-6 text-destructive" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
+                {/* Tables Grid */}
                 <Card className="glass-card border-border/60">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <TableIcon className="w-4 h-4 text-primary" />
-                                Table Management
-                            </CardTitle>
-                            <Button size="sm" onClick={openCreate}>
-                                <Plus className="w-4 h-4 mr-1" />
-                                Add Table
-                            </Button>
-                        </div>
-                    </CardHeader>
                     <CardContent className="p-0">
                         {isLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                             </div>
                         ) : (
-                            <Tabs defaultValue="available" className="w-full">
-                                <div className="px-6 pt-2 flex items-center justify-between border-b">
+                            <Tabs defaultValue="all" className="w-full">
+                                <div className="px-6 pt-4 flex items-center justify-between border-b">
                                     <TabsList>
+                                        <TabsTrigger value="all" className="gap-2">
+                                            All ({tables.length})
+                                        </TabsTrigger>
                                         <TabsTrigger value="available" className="gap-2">
                                             <CheckCircle className="w-3.5 h-3.5" />
                                             Available ({availableTables.length})
@@ -198,11 +282,18 @@ const TableManagement = () => {
                                             <AlertTriangle className="w-3.5 h-3.5" />
                                             Out of Order ({outOfOrderTables.length})
                                         </TabsTrigger>
-                                        <TabsTrigger value="all" className="gap-2">
-                                            All ({tables.length})
-                                        </TabsTrigger>
                                     </TabsList>
                                 </div>
+
+                                <TabsContent value="all" className="m-0">
+                                    <TableGrid
+                                        tables={tables}
+                                        onEdit={openEdit}
+                                        onDelete={openDelete}
+                                        onViewQr={openQr}
+                                        onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
+                                    />
+                                </TabsContent>
 
                                 <TabsContent value="available" className="m-0">
                                     <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
@@ -216,7 +307,7 @@ const TableManagement = () => {
                                             Mark All Out of Order
                                         </Button>
                                     </div>
-                                    <TableList
+                                    <TableGrid
                                         tables={availableTables}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
@@ -226,7 +317,7 @@ const TableManagement = () => {
                                 </TabsContent>
 
                                 <TabsContent value="occupied" className="m-0">
-                                    <TableList
+                                    <TableGrid
                                         tables={occupiedTables}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
@@ -247,18 +338,8 @@ const TableManagement = () => {
                                             Mark All Available
                                         </Button>
                                     </div>
-                                    <TableList
+                                    <TableGrid
                                         tables={outOfOrderTables}
-                                        onEdit={openEdit}
-                                        onDelete={openDelete}
-                                        onViewQr={openQr}
-                                        onSetStatus={(table, status) => setTableStatus.mutateAsync({ id: table.areaTableId!, status })}
-                                    />
-                                </TabsContent>
-
-                                <TabsContent value="all" className="m-0">
-                                    <TableList
-                                        tables={tables}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
                                         onViewQr={openQr}
@@ -392,11 +473,11 @@ const TableManagement = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </DashboardLayout >
+        </DashboardLayout>
     );
 };
 
-interface TableListProps {
+interface TableGridProps {
     tables: AreaTableDTO[];
     onEdit: (table: AreaTableDTO) => void;
     onDelete: (table: AreaTableDTO) => void;
@@ -404,71 +485,174 @@ interface TableListProps {
     onSetStatus: (table: AreaTableDTO, status: TableStatus) => void;
 }
 
-const TableList = ({ tables, onEdit, onDelete, onViewQr, onSetStatus }: TableListProps) => {
+const TableGrid = ({ tables, onEdit, onDelete, onViewQr, onSetStatus }: TableGridProps) => {
+    if (tables.length === 0) {
+        return (
+            <div className="p-12 text-center text-muted-foreground">
+                <Armchair className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                <p className="text-lg font-medium mb-1">No tables found</p>
+                <p className="text-sm">Click "Add Table" to create your first table</p>
+            </div>
+        );
+    }
+
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead className="pl-6">Table Tag</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>QR Code</TableHead>
-                    <TableHead className="text-right pr-6">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {tables.map((table) => (
-                    <TableRow key={table.areaTableId}>
-                        <TableCell className="pl-6 font-medium text-sm">{table.tag}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1.5">
-                                <Users className="w-3.5 h-3.5" />
-                                {table.capacity}
-                            </div>
-                        </TableCell>
-                        <TableCell>
-                            <select
-                                value={table.status}
-                                onChange={(e) => onSetStatus(table, e.target.value as TableStatus)}
-                                className="text-xs px-2 py-1 rounded border bg-background"
-                            >
-                                <option value={TableStatus.AVAILABLE}>Available</option>
-                                <option value={TableStatus.OCCUPIED}>Occupied</option>
-                                <option value={TableStatus.OUT_OF_ORDER}>Out of Order</option>
-                            </select>
-                        </TableCell>
-                        <TableCell>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1.5"
-                                onClick={() => onViewQr(table)}
-                            >
-                                <QrCode className="w-3.5 h-3.5" />
-                                View
-                            </Button>
-                        </TableCell>
-                        <TableCell className="text-right pr-6">
-                            <div className="flex items-center justify-end gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(table)}>
-                                    <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(table)}>
-                                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                </Button>
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                ))}
-                {tables.length === 0 && (
-                    <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            No tables found. Click "Add Table" to create one.
-                        </TableCell>
-                    </TableRow>
-                )}
-            </TableBody>
-        </Table>
+        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {tables.map((table) => (
+                <TableCard
+                    key={table.areaTableId}
+                    table={table}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onViewQr={onViewQr}
+                    onSetStatus={onSetStatus}
+                />
+            ))}
+        </div>
+    );
+};
+
+interface TableCardProps {
+    table: AreaTableDTO;
+    onEdit: (table: AreaTableDTO) => void;
+    onDelete: (table: AreaTableDTO) => void;
+    onViewQr: (table: AreaTableDTO) => void;
+    onSetStatus: (table: AreaTableDTO, status: TableStatus) => void;
+}
+
+const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus }: TableCardProps) => {
+    const getStatusStyles = () => {
+        switch (table.status) {
+            case TableStatus.FREE:
+                return {
+                    card: 'bg-gradient-to-br from-teal/5 to-teal/10 border-teal/20 hover:border-teal/40 hover:shadow-teal/20',
+                    icon: 'bg-teal/10 text-teal',
+                    badge: 'bg-teal/20 text-teal',
+                };
+            case TableStatus.OCCUPIED:
+                return {
+                    card: 'bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20 hover:border-orange-500/40 hover:shadow-orange-500/20',
+                    icon: 'bg-orange-500/10 text-orange-500',
+                    badge: 'bg-orange-500/20 text-orange-500',
+                };
+            case TableStatus.INACTIVE:
+                return {
+                    card: 'bg-gradient-to-br from-destructive/5 to-destructive/10 border-destructive/20 hover:border-destructive/40 hover:shadow-destructive/20',
+                    icon: 'bg-destructive/10 text-destructive',
+                    badge: 'bg-destructive/20 text-destructive',
+                };
+            default:
+                return {
+                    card: 'bg-muted/50 border-border/60',
+                    icon: 'bg-muted text-muted-foreground',
+                    badge: 'bg-muted text-muted-foreground',
+                };
+        }
+    };
+
+    const getStatusIcon = () => {
+        switch (table.status) {
+            case TableStatus.FREE:
+                return <CheckCircle className="w-4 h-4" />;
+            case TableStatus.OCCUPIED:
+                return <Users className="w-4 h-4" />;
+            case TableStatus.INACTIVE:
+                return <AlertTriangle className="w-4 h-4" />;
+            default:
+                return <XCircle className="w-4 h-4" />;
+        }
+    };
+
+    const getStatusText = () => {
+        switch (table.status) {
+            case TableStatus.FREE:
+                return 'Available';
+            case TableStatus.OCCUPIED:
+                return 'Occupied';
+            case TableStatus.INACTIVE:
+                return 'Out of Order';
+            default:
+                return 'Unknown';
+        }
+    };
+
+    const styles = getStatusStyles();
+
+    return (
+        <Card className={`${styles.card} transition-all duration-300 cursor-pointer group relative border-2 hover:shadow-lg`}>
+            <CardContent className="p-4">
+                <div className="flex flex-col items-center gap-3">
+                    {/* Table Visual */}
+                    <div className={`w-20 h-20 rounded-2xl ${styles.icon} flex items-center justify-center transition-transform group-hover:scale-110 duration-300`}>
+                        <Armchair className="w-10 h-10" />
+                    </div>
+
+                    {/* Table Info */}
+                    <div className="text-center w-full">
+                        <h3 className="font-bold text-xl mb-1">{table.tag}</h3>
+                        <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
+                            <Users className="w-4 h-4" />
+                            <span>{table.capacity} seats</span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${styles.badge}`}>
+                            {getStatusIcon()}
+                            <span>{getStatusText()}</span>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions - Show on hover */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-7 w-7 shadow-lg"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(table);
+                            }}
+                        >
+                            <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-7 w-7 shadow-lg"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onViewQr(table);
+                            }}
+                        >
+                            <QrCode className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-7 w-7 shadow-lg"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(table);
+                            }}
+                        >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                    </div>
+
+                    {/* Status Selector */}
+                    <select
+                        value={table.status}
+                        onChange={(e) => onSetStatus(table, e.target.value as TableStatus)}
+                        className="w-full text-xs px-2 py-1.5 rounded-lg border bg-background/50 backdrop-blur-sm cursor-pointer hover:bg-background transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <option value={TableStatus.FREE}>✓ Available</option>
+                        <option value={TableStatus.OCCUPIED}>👥 Occupied</option>
+                        <option value={TableStatus.INACTIVE}>⚠ Out of Order</option>
+                    </select>
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 

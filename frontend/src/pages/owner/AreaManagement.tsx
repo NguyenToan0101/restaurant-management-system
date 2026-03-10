@@ -2,9 +2,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -176,7 +173,7 @@ const AreaManagement = () => {
                                             Deactivate All
                                         </Button>
                                     </div>
-                                    <AreaTable
+                                    <AreaGrid
                                         areas={activeAreas}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
@@ -201,7 +198,7 @@ const AreaManagement = () => {
                                             Activate All
                                         </Button>
                                     </div>
-                                    <AreaTable
+                                    <AreaGrid
                                         areas={inactiveAreas}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
@@ -215,7 +212,7 @@ const AreaManagement = () => {
                                 </TabsContent>
 
                                 <TabsContent value="all" className="m-0">
-                                    <AreaTable
+                                    <AreaGrid
                                         areas={areas}
                                         onEdit={openEdit}
                                         onDelete={openDelete}
@@ -316,41 +313,33 @@ interface AreaTableProps {
     onViewTables: (areaId: string) => void;
 }
 
-const AreaTable = ({ areas, onEdit, onDelete, onToggleStatus, onViewTables }: AreaTableProps) => {
+const AreaGrid = ({ areas, onEdit, onDelete, onToggleStatus, onViewTables }: AreaTableProps) => {
+    if (areas.length === 0) {
+        return (
+            <div className="p-12 text-center text-muted-foreground">
+                <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No areas found. Click "Add Area" to create one.</p>
+            </div>
+        );
+    }
+
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead className="pl-6">Area Name</TableHead>
-                    <TableHead>Tables</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right pr-6">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {areas.map((area) => (
-                    <AreaRow
-                        key={area.areaId}
-                        area={area}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        onToggleStatus={onToggleStatus}
-                        onViewTables={onViewTables}
-                    />
-                ))}
-                {areas.length === 0 && (
-                    <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                            No areas found. Click "Add Area" to create one.
-                        </TableCell>
-                    </TableRow>
-                )}
-            </TableBody>
-        </Table>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {areas.map((area) => (
+                <AreaCard
+                    key={area.areaId}
+                    area={area}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onToggleStatus={onToggleStatus}
+                    onViewTables={onViewTables}
+                />
+            ))}
+        </div>
     );
 };
 
-interface AreaRowProps {
+interface AreaCardProps {
     area: AreaDTO;
     onEdit: (area: AreaDTO) => void;
     onDelete: (area: AreaDTO) => void;
@@ -358,53 +347,97 @@ interface AreaRowProps {
     onViewTables: (areaId: string) => void;
 }
 
-const AreaRow = ({ area, onEdit, onDelete, onToggleStatus, onViewTables }: AreaRowProps) => {
+const AreaCard = ({ area, onEdit, onDelete, onToggleStatus, onViewTables }: AreaCardProps) => {
     const { data: tables = [] } = useTablesByArea(area.areaId || '');
+    const isActive = area.status === EntityStatus.ACTIVE;
 
     return (
-        <TableRow>
-            <TableCell className="pl-6 font-medium text-sm">{area.name}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1.5"
-                    onClick={() => onViewTables(area.areaId!)}
-                >
-                    <TableIcon className="w-3.5 h-3.5" />
-                    {tables.length} tables
-                </Button>
-            </TableCell>
-            <TableCell>
-                <div className="flex items-center gap-2">
+        <Card
+            className={`glass-card border-2 transition-all duration-300 cursor-pointer group hover:shadow-lg ${isActive
+                ? 'border-border/60 hover:border-primary/50 hover:shadow-primary/10'
+                : 'border-border/30 opacity-60 hover:opacity-80'
+                }`}
+            onClick={() => onViewTables(area.areaId!)}
+        >
+            <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 ${isActive ? 'bg-gradient-to-br from-primary/20 to-primary/10' : 'bg-muted'
+                            }`}>
+                            <MapPin className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base truncate">{area.name}</h3>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <TableIcon className="w-3 h-3" />
+                                {tables.length} tables
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(area);
+                            }}
+                        >
+                            <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(area);
+                            }}
+                        >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+                <div className="flex items-center justify-between pt-3 border-t border-border/50">
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7"
-                        onClick={() => onToggleStatus(area)}
+                        className="h-8 text-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleStatus(area);
+                        }}
                     >
-                        {area.status === EntityStatus.ACTIVE ? (
-                            <CheckCircle className="w-3.5 h-3.5 text-teal mr-1.5" />
+                        {isActive ? (
+                            <>
+                                <CheckCircle className="w-3.5 h-3.5 text-teal mr-1.5" />
+                                Active
+                            </>
                         ) : (
-                            <XCircle className="w-3.5 h-3.5 text-muted-foreground mr-1.5" />
+                            <>
+                                <XCircle className="w-3.5 h-3.5 text-muted-foreground mr-1.5" />
+                                Inactive
+                            </>
                         )}
-                        <span className="text-xs font-medium">
-                            {area.status === EntityStatus.ACTIVE ? 'Active' : 'Inactive'}
-                        </span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs group-hover:bg-primary/10 transition-colors"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewTables(area.areaId!);
+                        }}
+                    >
+                        View Tables
+                        <TableIcon className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                 </div>
-            </TableCell>
-            <TableCell className="text-right pr-6">
-                <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(area)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(area)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                </div>
-            </TableCell>
-        </TableRow>
+            </CardContent>
+        </Card>
     );
 };
 

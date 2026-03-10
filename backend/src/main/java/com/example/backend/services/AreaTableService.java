@@ -108,40 +108,53 @@ public class AreaTableService {
 
     @Transactional
     public AreaTableDTO create(AreaTableDTO dto) {
-        if (dto.getAreaId() == null) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
+        try {
+            if (dto.getAreaId() == null) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+
+            // Validate capacity
+            if (dto.getCapacity() == null || dto.getCapacity() <= 0) {
+                throw new AppException(ErrorCode.INVALID_CAPACITY);
+            }
+
+            checkAreaAccess(dto.getAreaId());
+
+            Area area = areaRepository.findById(dto.getAreaId())
+                    .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
+
+            // Check if table tag already exists in this area
+            if (areaTableRepository.existsByArea_AreaIdAndTag(dto.getAreaId(), dto.getTag())) {
+                throw new AppException(ErrorCode.TABLE_TAG_EXISTED);
+            }
+
+            AreaTable table = areaTableMapper.toEntity(dto);
+            table.setArea(area);
+            table.setStatus(TableStatus.FREE);
+
+            // Save first to get the ID
+            AreaTable saved = areaTableRepository.save(table);
+
+            // Generate QR code with the table ID
+            try {
+                String qrCode = qrCodeService.generateTableQrCode(saved.getAreaTableId());
+                saved.setQr(qrCode);
+                // Save again with QR code
+                saved = areaTableRepository.save(saved);
+            } catch (Exception e) {
+                // If QR generation fails, log but don't fail the entire operation
+                System.err.println("Failed to generate QR code: " + e.getMessage());
+                e.printStackTrace();
+            }
+
+            return areaTableMapper.toDto(saved);
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("Error creating table: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to create table", e);
         }
-
-        // Validate capacity
-        if (dto.getCapacity() == null || dto.getCapacity() <= 0) {
-            throw new AppException(ErrorCode.INVALID_CAPACITY);
-        }
-
-        checkAreaAccess(dto.getAreaId());
-
-        Area area = areaRepository.findById(dto.getAreaId())
-                .orElseThrow(() -> new AppException(ErrorCode.AREA_NOT_FOUND));
-
-        // Check if table tag already exists in this area
-        if (areaTableRepository.existsByArea_AreaIdAndTag(dto.getAreaId(), dto.getTag())) {
-            throw new AppException(ErrorCode.TABLE_TAG_EXISTED);
-        }
-
-        AreaTable table = areaTableMapper.toEntity(dto);
-        table.setArea(area);
-        table.setStatus(TableStatus.ACTIVE);
-
-        // Save first to get the ID
-        AreaTable saved = areaTableRepository.save(table);
-
-        // Generate QR code with the table ID
-        String qrCode = qrCodeService.generateTableQrCode(saved.getAreaTableId());
-        saved.setQr(qrCode);
-
-        // Save again with QR code
-        saved = areaTableRepository.save(saved);
-
-        return areaTableMapper.toDto(saved);
     }
 
     @Transactional
@@ -198,7 +211,7 @@ public class AreaTableService {
 
     @Transactional
     public AreaTableDTO markAvailable(UUID id) {
-        return setStatus(id, TableStatus.ACTIVE);
+        return setStatus(id, TableStatus.FREE);
     }
 
     public AreaTableDTO getByQrCode(String qrCode) {

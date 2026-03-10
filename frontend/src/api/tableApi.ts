@@ -1,82 +1,65 @@
-import axios from 'axios';
-import type { AreaTableDTO } from '@/types/dto';
-import { TableStatus } from '@/types/dto';
+import axiosClient from './axiosClient';
+import type { ApiResponse, AreaTableDTO, TableStatus } from '@/types/dto';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+class TableApi {
+    async getAll(): Promise<AreaTableDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>('/tables');
+        return response.data.result;
     }
-    return config;
-});
 
-export const tableApi = {
-    getAll: async (): Promise<AreaTableDTO[]> => {
-        const response = await api.get('/api/tables');
+    async getById(id: string): Promise<AreaTableDTO> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO>>(`/tables/${id}`);
         return response.data.result;
-    },
+    }
 
-    getById: async (id: string): Promise<AreaTableDTO> => {
-        const response = await api.get(`/api/tables/${id}`);
+    async getByArea(areaId: string): Promise<AreaTableDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/tables/area/${areaId}`);
         return response.data.result;
-    },
+    }
 
-    getByArea: async (areaId: string): Promise<AreaTableDTO[]> => {
-        const response = await api.get(`/api/tables/area/${areaId}`);
+    async getByBranch(branchId: string): Promise<AreaTableDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/tables/branch/${branchId}`);
         return response.data.result;
-    },
+    }
 
-    getByBranch: async (branchId: string): Promise<AreaTableDTO[]> => {
-        const response = await api.get(`/api/tables/branch/${branchId}`);
+    async getByAreaAndStatus(areaId: string, status: TableStatus): Promise<AreaTableDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/tables/area/${areaId}/status/${status}`);
         return response.data.result;
-    },
+    }
 
-    getByAreaAndStatus: async (areaId: string, status: TableStatus): Promise<AreaTableDTO[]> => {
-        const response = await api.get(`/api/tables/area/${areaId}/status/${status}`);
+    async create(data: AreaTableDTO): Promise<AreaTableDTO> {
+        const response = await axiosClient.post<ApiResponse<AreaTableDTO>>('/tables', data);
         return response.data.result;
-    },
+    }
 
-    create: async (data: AreaTableDTO): Promise<AreaTableDTO> => {
-        const response = await api.post('/api/tables', data);
+    async update(id: string, data: Partial<AreaTableDTO>): Promise<AreaTableDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/tables/${id}`, data);
         return response.data.result;
-    },
+    }
 
-    update: async (id: string, data: Partial<AreaTableDTO>): Promise<AreaTableDTO> => {
-        const response = await api.put(`/api/tables/${id}`, data);
+    async delete(id: string): Promise<void> {
+        await axiosClient.delete(`/tables/${id}`);
+    }
+
+    async setStatus(id: string, status: TableStatus): Promise<AreaTableDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/tables/${id}/status?status=${status}`);
         return response.data.result;
-    },
+    }
 
-    delete: async (id: string): Promise<void> => {
-        await api.delete(`/api/tables/${id}`);
-    },
-
-    setStatus: async (id: string, status: TableStatus): Promise<AreaTableDTO> => {
-        const response = await api.put(`/api/tables/${id}/status?status=${status}`);
+    async markOutOfOrder(id: string): Promise<AreaTableDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/tables/${id}/out-of-order`);
         return response.data.result;
-    },
+    }
 
-    markOutOfOrder: async (id: string): Promise<AreaTableDTO> => {
-        const response = await api.put(`/api/tables/${id}/out-of-order`);
+    async markAvailable(id: string): Promise<AreaTableDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/tables/${id}/available`);
         return response.data.result;
-    },
+    }
 
-    markAvailable: async (id: string): Promise<AreaTableDTO> => {
-        const response = await api.put(`/api/tables/${id}/available`);
+    async getByQrCode(qrCode: string): Promise<AreaTableDTO> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO>>(`/tables/qr?qrCode=${encodeURIComponent(qrCode)}`);
         return response.data.result;
-    },
+    }
+}
 
-    getByQrCode: async (qrCode: string): Promise<AreaTableDTO> => {
-        const response = await api.get(`/api/tables/qr?qrCode=${encodeURIComponent(qrCode)}`);
-        return response.data.result;
-    },
-};
+export const tableApi = new TableApi();
