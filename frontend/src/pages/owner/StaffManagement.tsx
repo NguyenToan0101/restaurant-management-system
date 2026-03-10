@@ -39,6 +39,8 @@ import {
   Users,
   Eye,
   EyeOff,
+  Search,
+  KeyRound,
 } from "lucide-react";
 import {
   Tabs,
@@ -52,6 +54,7 @@ import {
   useCreateStaffAccount,
   useUpdateStaffAccount,
   useToggleStaffStatus,
+  useResetStaffPassword,
 } from "@/hooks/queries/useStaffQueries";
 import type {
   BranchDTO,
@@ -60,11 +63,11 @@ import type {
 } from "@/types/dto";
 
 const roleColors: Record<StaffRoleName, string> = {
-  WAITER: "bg-teal/15 text-teal border-teal/30",
-  RECEPTIONIST: "bg-amber/15 text-amber border-amber/30",
-  ADMIN: "bg-primary/15 text-primary border-primary/30",
-  RESTAURANT_OWNER: "bg-primary/15 text-primary border-primary/30",
-  BRANCH_MANAGER: "bg-primary/15 text-primary border-primary/30",
+  WAITER: "bg-[#0b2926] text-[#2dd4bf] border-[#0f3d38]",
+  RECEPTIONIST: "bg-[#291a0b] text-[#fbbf24] border-[#3d260f]",
+  ADMIN: "bg-[#0b1733] text-[#60a5fa] border-[#0f224d]",
+  RESTAURANT_OWNER: "bg-[#0b1733] text-[#60a5fa] border-[#0f224d]",
+  BRANCH_MANAGER: "bg-[#0b1733] text-[#60a5fa] border-[#0f224d]",
 };
 
 const roleLabel: Record<StaffRoleName, string> = {
@@ -94,6 +97,20 @@ const StaffManagement = () => {
   const [formRole, setFormRole] = useState<StaffRoleName>("WAITER");
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
+  const [staffToToggle, setStaffToToggle] = useState<StaffAccountDTO | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<"activate" | "deactivate">("activate");
+
+  // Reset password state
+  const [resetPwdOpen, setResetPwdOpen] = useState(false);
+  const [staffToReset, setStaffToReset] = useState<StaffAccountDTO | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdResetError, setPwdResetError] = useState("");
   
   const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$/;
 
@@ -115,11 +132,36 @@ const StaffManagement = () => {
     isLoading: isLoadingStaff,
   } = useStaffByBranch(selectedBranchId || undefined);
 
-  const staff: StaffAccountDTO[] = staffPage?.items || [];
+  const staff: StaffAccountDTO[] = staffPage?.content || [];
 
   const createStaff = useCreateStaffAccount();
   const updateStaff = useUpdateStaffAccount();
   const toggleStatus = useToggleStaffStatus();
+  const resetPassword = useResetStaffPassword();
+
+  const openResetPassword = (s: StaffAccountDTO) => {
+    setStaffToReset(s);
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPwd(false);
+    setPwdResetError("");
+    setResetPwdOpen(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!staffToReset) return;
+    if (newPassword !== confirmPassword) {
+      setPwdResetError("Passwords do not match");
+      return;
+    }
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      setPwdResetError("At least 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char");
+      return;
+    }
+    setPwdResetError("");
+    await resetPassword.mutateAsync({ staffAccountId: staffToReset.id, newPassword });
+    setResetPwdOpen(false);
+  };
 
   const selectedBranch: BranchDTO | undefined = branches.find(
     (b) => b.branchId === selectedBranchId,
@@ -176,20 +218,45 @@ const StaffManagement = () => {
     setDialogOpen(false);
   };
 
-  const toggleActive = (staffId: string) => {
-    toggleStatus.mutate(staffId);
+  const toggleActive = (staff: StaffAccountDTO) => {
+    setStaffToToggle(staff);
+    setToggleConfirmOpen(true);
+  };
+
+  const handleConfirmToggle = () => {
+    if (staffToToggle) {
+      toggleStatus.mutate(staffToToggle.id, {
+        onSuccess: () => {
+          setToggleConfirmOpen(false);
+          setStaffToToggle(null);
+        }
+      });
+    }
   };
 
   const allBranchStaff = staff;
-  const activeStaff = allBranchStaff.filter((s) => s.isActive);
-  const inactiveStaff = allBranchStaff.filter((s) => !s.isActive);
+  const filteredStaff = allBranchStaff.filter(s => {
+    const matchSearch = s.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchRole = roleFilter === "ALL" || s.role?.name === roleFilter;
+    return matchSearch && matchRole;
+  });
+  const activeStaff = filteredStaff.filter((s) => s.isActive);
+  const inactiveStaff = filteredStaff.filter((s) => !s.isActive);
 
   const handleDeactivateAll = () => {
-    activeStaff.forEach((s) => toggleStatus.mutate(s.id));
+    setBulkAction("deactivate");
+    setBulkConfirmOpen(true);
   };
 
   const handleActivateAll = () => {
-    inactiveStaff.forEach((s) => toggleStatus.mutate(s.id));
+    setBulkAction("activate");
+    setBulkConfirmOpen(true);
+  };
+
+  const handleConfirmBulk = async () => {
+    const list = bulkAction === "activate" ? inactiveStaff : activeStaff;
+    await Promise.all(list.map(s => toggleStatus.mutateAsync(s.id)));
+    setBulkConfirmOpen(false);
   };
 
   // Branch list view
@@ -212,7 +279,7 @@ const StaffManagement = () => {
             {branches.map((branch) => (
               <Card
                 key={branch.branchId}
-                className="glass-card border-border/60 cursor-pointer hover:border-primary/40 transition-colors"
+                className="bg-card dark:bg-[#1a1c24] border border-border dark:border-gray-800 cursor-pointer hover:border-primary/40 dark:hover:border-primary/40 transition-colors text-card-foreground dark:text-gray-200 shadow-sm"
                 onClick={() => setSelectedBranchId(branch.branchId!)}
               >
                 <CardContent className="p-4">
@@ -282,98 +349,137 @@ const StaffManagement = () => {
           </div>
         </div>
 
-        <Card className="glass-card border-border/60">
-          <CardHeader className="pb-3">
+        <Card className="bg-card dark:bg-[#1a1c24] border border-border dark:border-0 text-card-foreground dark:text-white shadow-sm dark:shadow-md rounded-2xl min-h-[400px] flex flex-col mt-4">
+          <CardHeader className="pb-3 border-b border-border dark:border-gray-800">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <UserCircle className="w-4 h-4 text-primary" />
-                Staff Management
+              <CardTitle className="flex items-center gap-2 text-base text-foreground dark:text-gray-200">
+                <UserCircle className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+                Staff Accounts
               </CardTitle>
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="w-4 h-4 mr-1" />
+              <Button size="sm" className="h-8 gap-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg px-4" onClick={openCreate}>
+                <Plus className="w-4 h-4" />
                 Add Staff
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 flex-1">
             {isLoadingStaff ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : (
               <Tabs defaultValue="active" className="w-full">
-                <div className="px-6 pt-2 flex items-center justify-between border-b">
-                  <TabsList>
-                    <TabsTrigger value="active" className="gap-2">
+                <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border dark:border-gray-800">
+                  <TabsList className="w-max bg-secondary dark:bg-[#14161f] border border-border dark:border-gray-800 p-1 h-10 rounded-xl">
+                    <TabsTrigger value="active" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
                       Active ({activeStaff.length})
                     </TabsTrigger>
-                    <TabsTrigger value="inactive" className="gap-2">
+                    <TabsTrigger value="inactive" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
                       Inactive ({inactiveStaff.length})
                     </TabsTrigger>
                   </TabsList>
+                  
+                  <div className="flex flex-wrap items-center gap-3">
+                    <TabsContent value="active" className="m-0">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-10 px-5 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 text-red-600 dark:text-red-500 dark:hover:bg-red-500/20 border-0 rounded-lg text-sm font-medium"
+                        onClick={handleDeactivateAll}
+                        disabled={activeStaff.length === 0 || toggleStatus.isPending}
+                      >
+                        Deactivate All
+                      </Button>
+                    </TabsContent>
+                    <TabsContent value="inactive" className="m-0">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-teal/10 dark:hover:bg-teal/20 dark:text-teal h-10 px-5 border-0 rounded-lg text-sm font-medium"
+                        onClick={handleActivateAll}
+                        disabled={inactiveStaff.length === 0 || toggleStatus.isPending}
+                      >
+                        Activate All
+                      </Button>
+                    </TabsContent>
+
+                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                      <SelectTrigger className="w-[140px] h-10 bg-background dark:bg-[#1a1c24] border-border dark:border-gray-800 text-foreground dark:text-gray-300 rounded-lg text-sm">
+                        <SelectValue placeholder="All Roles" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background dark:bg-[#1a1c24] border-border dark:border-gray-800 text-foreground dark:text-gray-300">
+                        <SelectItem value="ALL">All Roles</SelectItem>
+                        <SelectItem value="WAITER">Waiter</SelectItem>
+                        <SelectItem value="RECEPTIONIST">Receptionist</SelectItem>
+                        <SelectItem value="BRANCH_MANAGER">Branch Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <div className="relative flex-1 min-w-[200px] max-w-[280px]">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-gray-500" />
+                      <Input
+                        className="pl-10 h-10 bg-background dark:bg-[#14161f] border-border dark:border-gray-800 text-foreground dark:text-gray-200 placeholder:text-muted-foreground dark:placeholder:text-gray-500 rounded-lg focus-visible:ring-1 focus-visible:ring-ring dark:focus-visible:ring-gray-700 text-sm"
+                        placeholder="Search by username..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <TabsContent value="active" className="m-0">
-                  <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleDeactivateAll}
-                      disabled={
-                        activeStaff.length === 0 || toggleStatus.isPending
-                      }
-                    >
-                      Deactivate All
-                    </Button>
-                  </div>
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="pl-6">Username</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-right pr-6">
-                          Actions
-                        </TableHead>
+                      <TableRow className="border-b border-border dark:border-gray-800 hover:bg-transparent">
+                        <TableHead className="pl-6 w-[25%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Username</TableHead>
+                        <TableHead className="w-[30%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Role</TableHead>
+                        <TableHead className="w-[30%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Status</TableHead>
+                        <TableHead className="text-right pr-6 w-[15%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {activeStaff.map((s) => {
-                        const roleName = (s.role?.name ||
-                          "WAITER") as StaffRoleName;
+                        const roleName = (s.role?.name || "WAITER") as StaffRoleName;
                         return (
-                          <TableRow key={s.id}>
-                            <TableCell className="pl-6 font-medium text-sm">
+                          <TableRow key={s.id} className="border-b border-border dark:border-gray-800 hover:bg-muted/50 dark:hover:bg-[#20222a] border-t-0">
+                            <TableCell className="pl-6 font-medium text-[13px] text-foreground dark:text-gray-200">
                               {s.username}
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={roleColors[roleName]}
-                              >
+                              <Badge variant="outline" className={`border w-max px-3 py-1 text-[13px] font-medium ${roleColors[roleName]}`}>
                                 {roleLabel[roleName]}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-2">
+                            <TableCell>
+                              <div className="flex items-center gap-2">
                                 <Switch
                                   checked
-                                  onCheckedChange={() => toggleActive(s.id)}
+                                  onCheckedChange={() => toggleActive(s)}
+                                  className="scale-90"
                                 />
-                                <span className="text-xs font-medium text-teal">
+                                <span className="text-[12px] font-medium text-teal-600 dark:text-teal">
                                   Active
                                 </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right pr-6">
-                              <div className="flex items-center justify-end">
+                              <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-muted-foreground hover:text-amber-500 dark:text-gray-400 dark:hover:text-amber-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openResetPassword(s)}
+                                  title="Reset password"
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
                                   onClick={() => openEdit(s)}
                                 >
-                                  <Pencil className="w-3.5 h-3.5" />
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -382,11 +488,8 @@ const StaffManagement = () => {
                       })}
                       {activeStaff.length === 0 && (
                         <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="text-center text-muted-foreground py-8"
-                          >
-                            No active staff accounts.
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                            No active staff accounts matching your search.
                           </TableCell>
                         </TableRow>
                       )}
@@ -395,66 +498,58 @@ const StaffManagement = () => {
                 </TabsContent>
 
                 <TabsContent value="inactive" className="m-0">
-                  <div className="px-6 py-3 border-b bg-muted/30 flex justify-end">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleActivateAll}
-                      disabled={
-                        inactiveStaff.length === 0 || toggleStatus.isPending
-                      }
-                    >
-                      Activate All
-                    </Button>
-                  </div>
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="pl-6">Username</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-right pr-6">
-                          Actions
-                        </TableHead>
+                      <TableRow className="border-b border-border dark:border-gray-800 hover:bg-transparent">
+                        <TableHead className="pl-6 w-[25%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Username</TableHead>
+                        <TableHead className="w-[30%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Role</TableHead>
+                        <TableHead className="w-[30%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Status</TableHead>
+                        <TableHead className="text-right pr-6 w-[15%] text-muted-foreground dark:text-gray-400 font-medium h-12 text-[13px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {inactiveStaff.map((s) => {
-                        const roleName = (s.role?.name ||
-                          "WAITER") as StaffRoleName;
+                        const roleName = (s.role?.name || "WAITER") as StaffRoleName;
                         return (
-                          <TableRow key={s.id}>
-                            <TableCell className="pl-6 font-medium text-sm">
+                          <TableRow key={s.id} className="border-b border-border dark:border-gray-800 hover:bg-muted/50 dark:hover:bg-[#20222a] border-t-0">
+                            <TableCell className="pl-6 font-medium text-[13px] text-foreground dark:text-gray-200">
                               {s.username}
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={roleColors[roleName]}
-                              >
+                              <Badge variant="outline" className={`border w-max px-3 py-1 text-[13px] font-medium ${roleColors[roleName]}`}>
                                 {roleLabel[roleName]}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-2">
+                            <TableCell>
+                              <div className="flex items-center gap-2">
                                 <Switch
                                   checked={false}
-                                  onCheckedChange={() => toggleActive(s.id)}
+                                  onCheckedChange={() => toggleActive(s)}
+                                  className="scale-90"
                                 />
-                                <span className="text-xs font-medium text-muted-foreground">
+                                <span className="text-[12px] font-medium text-muted-foreground">
                                   Inactive
                                 </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right pr-6">
-                              <div className="flex items-center justify-end">
+                              <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 text-muted-foreground hover:text-amber-500 dark:text-gray-400 dark:hover:text-amber-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openResetPassword(s)}
+                                  title="Reset password"
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
                                   onClick={() => openEdit(s)}
                                 >
-                                  <Pencil className="w-3.5 h-3.5" />
+                                  <Pencil className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -463,11 +558,8 @@ const StaffManagement = () => {
                       })}
                       {inactiveStaff.length === 0 && (
                         <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="text-center text-muted-foreground py-8"
-                          >
-                            No inactive staff accounts.
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                            No inactive staff accounts matching your search.
                           </TableCell>
                         </TableRow>
                       )}
@@ -582,6 +674,108 @@ const StaffManagement = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={toggleConfirmOpen} onOpenChange={setToggleConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Status Change</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {staffToToggle?.isActive ? "deactivate" : "activate"} user <strong>{staffToToggle?.username}</strong>?
+              {!staffToToggle?.isActive && " They will be able to log in again."}
+              {staffToToggle?.isActive && " They will no longer be able to log in."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setToggleConfirmOpen(false)}>Cancel</Button>
+            <Button
+              variant={staffToToggle?.isActive ? "destructive" : "default"}
+              onClick={handleConfirmToggle}
+              disabled={toggleStatus.isPending}
+            >
+              {toggleStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {staffToToggle?.isActive ? "Deactivate" : "Activate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Action</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {bulkAction} all {bulkAction === "activate" ? "inactive" : "active"} staff members?
+              This will affect {bulkAction === "activate" ? inactiveStaff.length : activeStaff.length} accounts.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkConfirmOpen(false)}>Cancel</Button>
+            <Button
+              variant={bulkAction === "deactivate" ? "destructive" : "default"}
+              onClick={handleConfirmBulk}
+              disabled={toggleStatus.isPending}
+            >
+              {toggleStatus.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {bulkAction === "deactivate" ? "Deactivate All" : "Activate All"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPwdOpen} onOpenChange={setResetPwdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{staffToReset?.username}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="owner-new-password">New Password *</Label>
+              <Input
+                id="owner-new-password"
+                type={showNewPwd ? "text" : "password"}
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => { setNewPassword(e.target.value); setPwdResetError(""); }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner-confirm-password">Confirm Password *</Label>
+              <div className="relative">
+                <Input
+                  id="owner-confirm-password"
+                  type={showNewPwd ? "text" : "password"}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setPwdResetError(""); }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowNewPwd(!showNewPwd)}
+                >
+                  {showNewPwd ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                </Button>
+              </div>
+            </div>
+            {pwdResetError && <p className="text-sm text-destructive">{pwdResetError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPwdOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={!newPassword || !confirmPassword || resetPassword.isPending}
+            >
+              {resetPassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

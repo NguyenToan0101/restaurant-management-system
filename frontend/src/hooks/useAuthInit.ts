@@ -16,17 +16,23 @@ export const useAuthInit = () => {
       try {
         // Luôn gọi /auth/me khi app load để verify session hiện tại
         // Backend sẽ đọc từ HttpOnly cookie (access_token) nếu không có Authorization header
-        const user = await authApi.getCurrentUser();
+        const result = await authApi.getCurrentUser();
 
-        if (user) {
-          setAuthData({
-            // Không lưu JWT vào store - được quản lý qua HttpOnly cookie
-            // Để null giúp axios interceptor không gửi Authorization header
-            // và backend sẽ tự đọc token từ cookie
-            accessToken: null,
-            refreshToken: null,
-            user: user,
-          });
+        if (result && (result.user || result.staffInfo)) {
+          if (result.user) {
+            setAuthData({
+              accessToken: null,
+              refreshToken: null,
+              user: result.user,
+            });
+          }
+          if (result.staffInfo) {
+            useAuthStore.getState().setStaffAuthData({
+              accessToken: null,
+              refreshToken: null,
+              staffInfo: result.staffInfo,
+            });
+          }
         } else {
           // Không có session hợp lệ
           clearAuthData();

@@ -28,6 +28,10 @@ import ManagerLayout from "@/components/branch_manager/ManagerLayout";
 import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import ManagerAreaManagement from "@/pages/manager/ManagerAreaManagement";
 import ManagerTableManagement from "@/pages/manager/ManagerTableManagement";
+import BranchInfo from "@/pages/manager/BranchInfo";
+import ManagerBills from "@/pages/manager/ManagerBills";
+import ManagerPromotions from "@/pages/manager/ManagerPromotions";
+import ManagerStaff from "@/pages/manager/ManagerStaff";
 
 import WaiterLayout from "@/components/waiter/WaiterLayout";
 import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
@@ -38,8 +42,16 @@ import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
 import ReceptionistTableView from "@/pages/receptionist/ReceptionistTableView";
 
 import ComingSoon from "@/components/ComingSoon";
-
-// Shared table view component - REMOVED, using individual components now
+import { StaffRoleName } from "@/types/dto";
+// Helper: map staff role → dashboard path
+const getStaffDashboard = (role: string): string => {
+  switch (role) {
+    case "BRANCH_MANAGER": return "/manager/dashboard";
+    case "RECEPTIONIST": return "/receptionist/dashboard";
+    case "WAITER": return "/waiter/dashboard";
+    default: return "/staff-login";
+  }
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -58,7 +70,7 @@ const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Staff trying to access owner routes → send them back to their dashboard
   if (staffInfo && !user) {
-    return <Navigate to="/staff/dashboard" replace />;
+    return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
   }
 
   if (!user) {
@@ -95,12 +107,38 @@ const StaffRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+// Guard for specific staff roles
+const StaffRoleRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: StaffRoleName[] }) => {
+  const staffInfo = useAuthStore((state) => state.staffInfo);
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+  if (!staffInfo) {
+    return <Navigate to="/staff-login" replace />;
   }
+
+  if (!staffInfo.role || !allowedRoles.includes(staffInfo.role)) {
+    return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = useAuthStore((state) => state.user);
+  const staffInfo = useAuthStore((state) => state.staffInfo);
+
+  if (staffInfo && !user) return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
+  if (user) return <Navigate to="/" replace />;
+
+  return <>{children}</>;
+};
+
+// Guard trang chủ: staff không được ở landing page
+const HomeRoute = ({ children }: { children: React.ReactNode }) => {
+  const staffInfo = useAuthStore((state) => state.staffInfo);
+  const user = useAuthStore((state) => state.user);
+
+  if (staffInfo && !user) return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
 
   return <>{children}</>;
 };
@@ -110,10 +148,10 @@ const AppRoutes = () => {
     <Routes>
       {/* Public routes */}
       <Route path="/" element={
-        <>
+        <HomeRoute>
           <Navbar />
           <Index />
-        </>
+        </HomeRoute>
       } />
 
       <Route path="/login" element={
@@ -194,24 +232,28 @@ const AppRoutes = () => {
 
       {/* Branch Manager routes */}
       <Route path="/manager/*" element={
-        <StaffRoute>
+        <StaffRoleRoute allowedRoles={["BRANCH_MANAGER"]}>
           <ManagerLayout />
-        </StaffRoute>
+        </StaffRoleRoute>
       }>
         <Route path="dashboard" element={<ManagerDashboard />} />
+        <Route path="branch" element={<BranchInfo />} />
         <Route path="areas" element={<ManagerAreaManagement />} />
         <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
         <Route path="tables" element={<ManagerTableManagement />} />
         <Route path="orders" element={<ComingSoon title="Order Management" description="Manage customer orders and track order status." />} />
-        <Route path="staff" element={<ComingSoon title="Staff Management" description="Manage staff accounts and permissions." />} />
+        <Route path="menu" element={<ComingSoon title="Menu Management" description="Manage branch menu and items." />} />
+        <Route path="bills" element={<ManagerBills />} />
+        <Route path="promotions" element={<ManagerPromotions />} />
+        <Route path="staff" element={<ManagerStaff />} />
         <Route index element={<Navigate to="dashboard" replace />} />
       </Route>
 
       {/* Waiter routes */}
       <Route path="/waiter/*" element={
-        <StaffRoute>
+        <StaffRoleRoute allowedRoles={["WAITER"]}>
           <WaiterLayout />
-        </StaffRoute>
+        </StaffRoleRoute>
       }>
         <Route path="dashboard" element={<WaiterDashboard />} />
         <Route path="tables" element={<WaiterTableView />} />
@@ -221,9 +263,9 @@ const AppRoutes = () => {
 
       {/* Receptionist routes */}
       <Route path="/receptionist/*" element={
-        <StaffRoute>
+        <StaffRoleRoute allowedRoles={["RECEPTIONIST"]}>
           <ReceptionistLayout />
-        </StaffRoute>
+        </StaffRoleRoute>
       }>
         <Route path="dashboard" element={<ReceptionistDashboard />} />
         <Route path="tables" element={<ReceptionistTableView />} />

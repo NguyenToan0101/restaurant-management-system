@@ -151,4 +151,11 @@ public class StaffAccountService {
         // Chuyển đổi Entity sang DTO và trả về
         return staffAccountMapper.toStaffAccountDTO(staffAccount);
     }
-}
+
+    public void resetStaffPassword(UUID staffAccountId, String newPassword) {
+        StaffAccount staffAccount = staffAccountRepository.findById(staffAccountId)
+                .orElseThrow(() -> new AppException(ErrorCode.STAFFACCOUNT_NOTEXISTED));
+        staffAccount.setPassword(passwordEncoder.encode(newPassword));
+        staffAccountRepository.save(staffAccount);
+    }
+}
