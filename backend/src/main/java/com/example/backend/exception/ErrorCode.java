@@ -60,6 +60,7 @@ public enum ErrorCode {
     // Staff & Role errors
     STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),
     STAFFACCOUNT_DELETED(4103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
+    STAFFACCOUNT_USERNAME_EXISTED(4104, "Username already exists", HttpStatus.BAD_REQUEST),
     // Package errors (3200-3299)
     PACKAGE_NOTEXISTED(3200, "Package not found", HttpStatus.NOT_FOUND),
     PACKAGE_NAME_EXISTED(3201, "Package name already exists", HttpStatus.BAD_REQUEST),

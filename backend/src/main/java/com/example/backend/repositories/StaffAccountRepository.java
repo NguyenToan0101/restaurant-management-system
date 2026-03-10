@@ -19,6 +19,7 @@ import com.example.backend.entities.RoleName;
 public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID> {
 
     Optional<StaffAccount> findByUsername(String username);
+    boolean existsByUsername(String username);
     
     // Lấy nhân viên theo chi nhánh, loại bỏ vai trò Manager (cho Branch Manager)
     Page<StaffAccount> findByBranchAndRole_NameNot(Branch branch, RoleName roleName, Pageable pageable);
