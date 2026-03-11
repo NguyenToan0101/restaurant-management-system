@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
 import {
   useStaffByBranch,
@@ -91,6 +99,9 @@ const StaffManagement = () => {
   const [editingStaff, setEditingStaff] = useState<StaffAccountDTO | null>(
     null,
   );
+  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
+  const size = 10;
 
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -98,6 +109,15 @@ const StaffManagement = () => {
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
   const [staffToToggle, setStaffToToggle] = useState<StaffAccountDTO | null>(null);
@@ -130,7 +150,14 @@ const StaffManagement = () => {
   const {
     data: staffPage,
     isLoading: isLoadingStaff,
-  } = useStaffByBranch(selectedBranchId || undefined);
+  } = useStaffByBranch(
+    selectedBranchId || undefined, 
+    page, 
+    size, 
+    debouncedSearchQuery || undefined, 
+    roleFilter === "ALL" ? undefined : roleFilter, 
+    activeTab === "active" // pass true for active tab, false for inactive
+  );
 
   const staff: StaffAccountDTO[] = staffPage?.content || [];
 
@@ -234,14 +261,14 @@ const StaffManagement = () => {
     }
   };
 
-  const allBranchStaff = staff;
-  const filteredStaff = allBranchStaff.filter(s => {
-    const matchSearch = s.username.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchRole = roleFilter === "ALL" || s.role?.name === roleFilter;
-    return matchSearch && matchRole;
-  });
-  const activeStaff = filteredStaff.filter((s) => s.isActive);
-  const inactiveStaff = filteredStaff.filter((s) => !s.isActive);
+  const filteredStaff = staff; // Backend already filters by status, keyword, and role
+  const activeStaff = activeTab === "active" ? filteredStaff : [];
+  const inactiveStaff = activeTab === "inactive" ? filteredStaff : [];
+
+  // Reset page when search, filters, or tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery, roleFilter, activeTab]);
 
   const handleDeactivateAll = () => {
     setBulkAction("deactivate");
@@ -368,14 +395,14 @@ const StaffManagement = () => {
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : (
-              <Tabs defaultValue="active" className="w-full">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "active" | "inactive")} className="w-full">
                 <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border dark:border-gray-800">
                   <TabsList className="w-max bg-secondary dark:bg-[#14161f] border border-border dark:border-gray-800 p-1 h-10 rounded-xl">
                     <TabsTrigger value="active" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
-                      Active ({activeStaff.length})
+                      Active
                     </TabsTrigger>
                     <TabsTrigger value="inactive" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
-                      Inactive ({inactiveStaff.length})
+                      Inactive
                     </TabsTrigger>
                   </TabsList>
                   
@@ -568,8 +595,43 @@ const StaffManagement = () => {
                 </TabsContent>
               </Tabs>
             )}
-          </CardContent>
-        </Card>
+
+          {/* Pagination */}
+          {!isLoadingStaff && staffPage && staffPage.totalPages > 1 && (
+            <div className="py-4 border-t border-border dark:border-gray-800">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: staffPage.totalPages }).map((_, i) => (
+                    <PaginationItem key={i + 1}>
+                      <PaginationLink 
+                        isActive={page === i + 1}
+                        onClick={() => setPage(i + 1)}
+                        className="cursor-pointer"
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setPage(p => Math.min(staffPage.totalPages, p + 1))}
+                      className={page === staffPage.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       </div>
 
       {/* Create/Edit Staff Dialog */}
