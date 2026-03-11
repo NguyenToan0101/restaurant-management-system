@@ -52,13 +52,14 @@ public class StaffAccountService {
 
 
     public StaffAccountDTO createStaffAccount(CreateStaffAccountRequest createStaffAccountRequest) {
-        if (staffAccountRepository.existsByUsername(createStaffAccountRequest.getUsername())) {
+        Branch branch = branchRepository.findById(createStaffAccountRequest.getBranchId()).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+
+        if (staffAccountRepository.existsByUsernameAndBranch_Restaurant_RestaurantId(createStaffAccountRequest.getUsername(), branch.getRestaurant().getRestaurantId())) {
             throw new AppException(ErrorCode.STAFFACCOUNT_USERNAME_EXISTED);
         }
 
         StaffAccount staffAccount = staffAccountMapper.createStaffAccount(createStaffAccountRequest);
         Role role = roleRepository.findByName(createStaffAccountRequest.getRole().getName()).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOTEXISTED));
-        Branch branch = branchRepository.findById(createStaffAccountRequest.getBranchId()).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
 
         staffAccount.setRole(role);
         staffAccount.setBranch(branch);
@@ -75,6 +76,13 @@ public class StaffAccountService {
                 .orElseThrow(() -> new AppException(ErrorCode.STAFFACCOUNT_NOTEXISTED));
         Role role = roleRepository.findByName(staffAccountDTO.getRole().getName())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOTEXISTED));
+
+        Branch branch = staffAccount.getBranch();
+
+        if (!staffAccount.getUsername().equals(staffAccountDTO.getUsername()) &&
+            staffAccountRepository.existsByUsernameAndBranch_Restaurant_RestaurantId(staffAccountDTO.getUsername(), branch.getRestaurant().getRestaurantId())) {
+            throw new AppException(ErrorCode.STAFFACCOUNT_USERNAME_EXISTED);
+        }
 
         staffAccount.setRole(role);
         staffAccount.setUsername(staffAccountDTO.getUsername());

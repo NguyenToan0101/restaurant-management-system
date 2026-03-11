@@ -29,8 +29,8 @@ class AuthApi {
     return result;
   }
 
-  async staffLogin(username: string, password: string): Promise<StaffAuthResponse> {
-    const request: StaffLoginRequest = { username, password };
+  async staffLogin(restaurantId: string, username: string, password: string): Promise<StaffAuthResponse> {
+    const request: StaffLoginRequest = { restaurantId, username, password };
     const response = await axiosClient.post<ApiResponse<StaffAuthResponse>>('/auth/staff-login', request);
 
     const result = response.data.result;
