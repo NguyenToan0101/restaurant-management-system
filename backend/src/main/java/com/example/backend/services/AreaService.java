@@ -78,13 +78,13 @@ public class AreaService {
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
 
         if (principal instanceof User) {
-            // Restaurant Owner - NO ACCESS to create/update/delete
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+            User user = (User) principal;
+            if (!branch.getRestaurant().getUser().getUserId().equals(user.getUserId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
         } else if (principal instanceof StaffAccount) {
-            // Only Branch Manager can create/update/delete
             StaffAccount staff = (StaffAccount) principal;
             
-            // Fetch staff with role to avoid LazyInitializationException
             StaffAccount staffWithRole = staffAccountRepository.findByIdWithRole(staff.getStaffAccountId())
                     .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED));
             

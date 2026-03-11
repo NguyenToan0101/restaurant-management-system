@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/authStore";
+import { useNavigate } from "react-router-dom";
 import {
     UtensilsCrossed,
     Table,
@@ -9,6 +10,7 @@ import {
 
 const WaiterDashboard = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
+    const navigate = useNavigate();
 
     const getWelcomeMessage = () => {
         const time = new Date().getHours();
@@ -110,7 +112,7 @@ const WaiterDashboard = () => {
                             <Card
                                 key={action.title}
                                 className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 border-border/60"
-                                onClick={() => window.location.href = action.href}
+                                onClick={() => navigate(action.href)}
                             >
                                 <CardContent className="p-4">
                                     <div className="flex items-center gap-3">

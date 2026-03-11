@@ -11,3 +11,4 @@ export * from './customization.dto';
 export * from './menu-item.dto';
 export * from './package.dto';
 export * from './subscription.dto';
+export * from './order.dto';

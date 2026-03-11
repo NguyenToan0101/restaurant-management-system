@@ -102,15 +102,13 @@ export const useUpdateRestaurant = () => {
             // Snapshot the previous value
             const previousRestaurants = queryClient.getQueriesData({ queryKey: ['restaurants'] });
 
-            // Optimistically update all restaurant queries
             queryClient.setQueriesData<RestaurantDTO[]>({ queryKey: ['restaurants'] }, (old) => {
-                if (!old) return old;
+                if (!old || !Array.isArray(old)) return old;
                 return old.map(restaurant =>
                     restaurant.restaurantId === id ? { ...restaurant, ...data } : restaurant
                 );
             });
 
-            // Update single restaurant query
             queryClient.setQueryData<RestaurantDTO>(['restaurants', id], (old) => {
                 if (!old) return old;
                 return { ...old, ...data };
@@ -155,9 +153,8 @@ export const useDeleteRestaurant = () => {
             // Snapshot the previous value
             const previousRestaurants = queryClient.getQueriesData({ queryKey: ['restaurants'] });
 
-            // Optimistically remove the restaurant from all queries
             queryClient.setQueriesData<RestaurantDTO[]>({ queryKey: ['restaurants'] }, (old) => {
-                if (!old) return old;
+                if (!old || !Array.isArray(old)) return old;
                 return old.filter(restaurant => restaurant.restaurantId !== id);
             });
 

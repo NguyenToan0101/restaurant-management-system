@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -13,36 +17,162 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    CheckCircle, XCircle, Users, AlertTriangle, Armchair, Loader2, QrCode,
+    Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+    CheckCircle, XCircle, Users, Armchair, Loader2,
+    CreditCard, DollarSign, Minus, Plus, Trash2, Receipt, X, Printer, Search,
+    UtensilsCrossed, Settings2,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
-import { useTablesByArea } from "@/hooks/queries/useTableQueries";
+import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
 import { useAuthStore } from "@/stores/authStore";
-import type { AreaTableDTO } from "@/types/dto";
-import { TableStatus, EntityStatus } from "@/types/dto";
+import { useCartStore } from "@/stores/cartStore";
+import {
+    useActiveOrderByTable, useUpdateOrderItem, useRemoveOrderItem,
+    useConfirmPayment, useWaiterSetTableStatus,
+} from "@/hooks/queries/useWaiterQueries";
+import type { AreaTableDTO, OrderDTO, BillDTO } from "@/types/dto";
+import { TableStatus, EntityStatus, PaymentMethod } from "@/types/dto";
+import InvoiceView from "@/components/waiter/InvoiceView";
+import { useReactToPrint } from "react-to-print";
 
 const WaiterTableView = () => {
+    const navigate = useNavigate();
     const staffInfo = useAuthStore((state) => state.staffInfo);
     const branchId = staffInfo?.branchId;
+    const cart = useCartStore();
 
     const { data: allAreas = [] } = useAreasByBranch(branchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
+    const { data: allTables = [], isLoading } = useTablesByBranch(branchId || '');
 
-    const [selectedAreaId, setSelectedAreaId] = useState<string>(
-        activeAreas.length > 0 ? activeAreas[0].areaId! : ''
-    );
-    const [qrDialogOpen, setQrDialogOpen] = useState(false);
-    const [viewingQr, setViewingQr] = useState<AreaTableDTO | null>(null);
+    const [selectedTable, setSelectedTable] = useState<AreaTableDTO | null>(null);
+    const [tableDialogOpen, setTableDialogOpen] = useState(false);
+    const [orderPanelOpen, setOrderPanelOpen] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+    const [promotionCode, setPromotionCode] = useState("");
+    const [paymentNote, setPaymentNote] = useState("");
+    const [showInvoice, setShowInvoice] = useState(false);
+    const [lastBill, setLastBill] = useState<BillDTO | null>(null);
+    const [lastOrder, setLastOrder] = useState<OrderDTO | null>(null);
+    const [autoPrint, setAutoPrint] = useState(true);
 
-    const { data: tables = [], isLoading } = useTablesByArea(selectedAreaId);
+    const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
-    const availableTables = tables.filter(t => t.status === TableStatus.FREE);
-    const occupiedTables = tables.filter(t => t.status === TableStatus.OCCUPIED);
-    const outOfOrderTables = tables.filter(t => t.status === TableStatus.INACTIVE);
+    const [searchQ, setSearchQ] = useState("");
+    const [filterArea, setFilterArea] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("all");
 
-    const openQrCode = (table: AreaTableDTO) => {
-        setViewingQr(table);
-        setQrDialogOpen(true);
+    const confirmPaymentMutation = useConfirmPayment();
+    const updateOrderItemMutation = useUpdateOrderItem();
+    const removeOrderItemMutation = useRemoveOrderItem();
+    const setTableStatusMutation = useWaiterSetTableStatus();
+
+    const invoiceRef = useRef<HTMLDivElement>(null);
+    const [pendingAutoPrint, setPendingAutoPrint] = useState(false);
+
+    const handlePrint = useReactToPrint({
+        contentRef: invoiceRef,
+        documentTitle: `Invoice-${lastBill?.billId?.slice(0, 8) || 'receipt'}`,
+    });
+
+    useEffect(() => {
+        if (pendingAutoPrint && showInvoice && lastBill && invoiceRef.current) {
+            const timer = setTimeout(() => {
+                handlePrint();
+                setPendingAutoPrint(false);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [pendingAutoPrint, showInvoice, lastBill, handlePrint]);
+
+    const filtered = useMemo(() => {
+        let tables = allTables;
+        if (filterArea !== "all") {
+            tables = tables.filter(t => t.areaId === filterArea);
+        }
+        if (filterStatus !== "all") {
+            tables = tables.filter(t => t.status === filterStatus);
+        }
+        if (searchQ.trim()) {
+            const q = searchQ.toLowerCase();
+            tables = tables.filter(t =>
+                t.tag.toLowerCase().includes(q) ||
+                (t.areaName && t.areaName.toLowerCase().includes(q))
+            );
+        }
+        return tables;
+    }, [allTables, filterArea, filterStatus, searchQ]);
+
+    const tablesByArea = useMemo(() => {
+        if (filterArea !== "all") {
+            const area = activeAreas.find(a => a.areaId === filterArea);
+            if (!area) return [];
+            return [{ area, tables: filtered.filter(t => t.areaId === area.areaId) }];
+        }
+        return activeAreas.map(area => ({
+            area,
+            tables: filtered.filter(t => t.areaId === area.areaId),
+        })).filter(g => g.tables.length > 0);
+    }, [activeAreas, filtered, filterArea]);
+
+    const totalTables = allTables.length;
+    const freeTables = allTables.filter(t => t.status === TableStatus.FREE).length;
+    const occupiedTables = allTables.filter(t => t.status === TableStatus.OCCUPIED).length;
+
+    const handleTableClick = (table: AreaTableDTO) => {
+        setSelectedTable(table);
+        if (table.status === TableStatus.OCCUPIED) {
+            setOrderPanelOpen(true);
+            setTableDialogOpen(true);
+        } else {
+            setStatusDialogOpen(true);
+        }
+    };
+
+    const handleConfirmPayment = async (activeOrder: OrderDTO) => {
+        if (!selectedTable || !branchId) return;
+
+        try {
+            const bill = await confirmPaymentMutation.mutateAsync({
+                orderId: activeOrder.orderId,
+                branchId,
+                paymentMethod,
+                note: paymentNote,
+                promotionCode,
+            });
+            setLastBill(bill);
+            setLastOrder(bill.order || activeOrder);
+            setTableDialogOpen(false);
+            setOrderPanelOpen(false);
+            setPaymentMethod(PaymentMethod.CASH);
+            setPromotionCode("");
+            setPaymentNote("");
+            setShowInvoice(true);
+            if (autoPrint) {
+                setPendingAutoPrint(true);
+            }
+        } catch { /* handled by mutation */ }
+    };
+
+    const handleStatusChange = async (status: TableStatus) => {
+        if (!selectedTable?.areaTableId) return;
+        try {
+            await setTableStatusMutation.mutateAsync({ id: selectedTable.areaTableId, status });
+            setStatusDialogOpen(false);
+            setTableDialogOpen(false);
+            setOrderPanelOpen(false);
+            setSelectedTable(null);
+        } catch { /* handled by mutation */ }
+    };
+
+    const handleGoToOrder = (table: AreaTableDTO) => {
+        if (!table.areaTableId) return;
+        cart.setSelectedTable(table.areaTableId, table.tag);
+        setStatusDialogOpen(false);
+        setSelectedTable(null);
+        navigate("/waiter/orders");
     };
 
     if (!branchId) {
@@ -59,41 +189,21 @@ const WaiterTableView = () => {
 
     return (
         <div className="p-6 lg:p-8 space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-display">Table Status</h1>
-                    <p className="text-sm text-muted-foreground">View table availability and QR codes</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {activeAreas.length > 0 && (
-                        <Select
-                            value={selectedAreaId}
-                            onValueChange={setSelectedAreaId}
-                        >
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Select area" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {activeAreas.map((area) => (
-                                    <SelectItem key={area.areaId} value={area.areaId!}>
-                                        {area.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
+                    <h1 className="text-2xl font-display">Tables Overview</h1>
+                    <p className="text-sm text-muted-foreground">Manage tables and process payments</p>
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="glass-card border-border/60">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Tables</p>
-                                <p className="text-2xl font-bold">{tables.length}</p>
+                                <p className="text-2xl font-bold">{totalTables}</p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                                 <Armchair className="w-6 h-6 text-primary" />
@@ -106,7 +216,7 @@ const WaiterTableView = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground">Available</p>
-                                <p className="text-2xl font-bold text-teal">{availableTables.length}</p>
+                                <p className="text-2xl font-bold text-teal">{freeTables}</p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-teal/10 flex items-center justify-center">
                                 <CheckCircle className="w-6 h-6 text-teal" />
@@ -119,7 +229,7 @@ const WaiterTableView = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground">Occupied</p>
-                                <p className="text-2xl font-bold text-orange-500">{occupiedTables.length}</p>
+                                <p className="text-2xl font-bold text-orange-500">{occupiedTables}</p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
                                 <Users className="w-6 h-6 text-orange-500" />
@@ -127,142 +237,216 @@ const WaiterTableView = () => {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="glass-card border-border/60">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-muted-foreground">Out of Order</p>
-                                <p className="text-2xl font-bold text-destructive">{outOfOrderTables.length}</p>
-                            </div>
-                            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                                <AlertTriangle className="w-6 h-6 text-destructive" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by table name..."
+                        value={searchQ}
+                        onChange={(e) => setSearchQ(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
+                <Select value={filterArea} onValueChange={setFilterArea}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="All Areas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Areas</SelectItem>
+                        {activeAreas.map(a => (
+                            <SelectItem key={a.areaId} value={a.areaId!}>{a.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-[160px]">
+                        <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value={TableStatus.FREE}>Available</SelectItem>
+                        <SelectItem value={TableStatus.OCCUPIED}>Occupied</SelectItem>
+                        <SelectItem value={TableStatus.INACTIVE}>Out of Order</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Tables Grid */}
-            <Card className="glass-card border-border/60">
-                <CardContent className="p-0">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            ) : tablesByArea.length === 0 ? (
+                <Card className="glass-card border-border/60">
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                        <Armchair className="w-12 h-12 text-muted-foreground/40 mb-3" />
+                        <p className="text-muted-foreground font-medium">No tables found</p>
+                        <p className="text-xs text-muted-foreground">Try adjusting your filters</p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="space-y-8">
+                    {tablesByArea.map(({ area, tables }) => (
+                        <div key={area.areaId}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <h2 className="text-lg font-semibold">{area.name}</h2>
+                                <Badge variant="secondary" className="text-xs">
+                                    {tables.length} tables
+                                </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                {tables.map((table) => (
+                                    <TableCard
+                                        key={table.areaTableId}
+                                        table={table}
+                                        onClick={() => handleTableClick(table)}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    ) : (
-                        <Tabs defaultValue="all" className="w-full">
-                            <div className="px-6 pt-4 flex items-center justify-between border-b">
-                                <TabsList>
-                                    <TabsTrigger value="all" className="gap-2">
-                                        All ({tables.length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="available" className="gap-2">
-                                        <CheckCircle className="w-3.5 h-3.5" />
-                                        Available ({availableTables.length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="occupied" className="gap-2">
-                                        <Users className="w-3.5 h-3.5" />
-                                        Occupied ({occupiedTables.length})
-                                    </TabsTrigger>
-                                    <TabsTrigger value="out-of-order" className="gap-2">
-                                        <AlertTriangle className="w-3.5 h-3.5" />
-                                        Out of Order ({outOfOrderTables.length})
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
+                    ))}
+                </div>
+            )}
 
-                            <TabsContent value="all" className="m-0">
-                                <TableGrid tables={tables} onViewQr={openQrCode} />
-                            </TabsContent>
+            {/* Status Change Dialog (for non-occupied tables) */}
+            {selectedTable && (
+                <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+                    setStatusDialogOpen(open);
+                    if (!open) setSelectedTable(null);
+                }}>
+                    <DialogContent className="max-w-sm">
+                        <DialogHeader>
+                            <DialogTitle>Table {selectedTable.tag}</DialogTitle>
+                            <DialogDescription>
+                                {selectedTable.areaName && `Area: ${selectedTable.areaName} · `}
+                                Capacity: {selectedTable.capacity} seats
+                            </DialogDescription>
+                        </DialogHeader>
 
-                            <TabsContent value="available" className="m-0">
-                                <TableGrid tables={availableTables} onViewQr={openQrCode} />
-                            </TabsContent>
-
-                            <TabsContent value="occupied" className="m-0">
-                                <TableGrid tables={occupiedTables} onViewQr={openQrCode} />
-                            </TabsContent>
-
-                            <TabsContent value="out-of-order" className="m-0">
-                                <TableGrid tables={outOfOrderTables} onViewQr={openQrCode} />
-                            </TabsContent>
-                        </Tabs>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* QR Code Dialog */}
-            <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>QR Code - {viewingQr?.tag}</DialogTitle>
-                        <DialogDescription>
-                            Scan this QR code to access the menu for this table
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center gap-4 py-4">
-                        {viewingQr?.qr ? (
-                            <div className="p-4 bg-white rounded-lg border">
-                                <img
-                                    src={viewingQr.qr}
-                                    alt={`QR Code for ${viewingQr.tag}`}
-                                    className="w-64 h-64"
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center text-muted-foreground py-8">
-                                No QR code available
-                            </div>
+                        {selectedTable.status === TableStatus.FREE && (
+                            <Button
+                                className="w-full"
+                                onClick={() => handleGoToOrder(selectedTable)}
+                            >
+                                <UtensilsCrossed className="w-4 h-4 mr-2" />
+                                Add Order for This Table
+                            </Button>
                         )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-        </div>
-    );
-};
 
-interface TableGridProps {
-    tables: AreaTableDTO[];
-    onViewQr: (table: AreaTableDTO) => void;
-}
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium mb-3">Set table status:</p>
+                            <div className="grid grid-cols-1 gap-2">
+                                <Button
+                                    variant={selectedTable.status === TableStatus.FREE ? "default" : "outline"}
+                                    className="justify-start gap-2"
+                                    onClick={() => handleStatusChange(TableStatus.FREE)}
+                                    disabled={setTableStatusMutation.isPending}
+                                >
+                                    <CheckCircle className="w-4 h-4 text-teal" />
+                                    Available
+                                </Button>
+                                <Button
+                                    variant={selectedTable.status === TableStatus.OCCUPIED ? "default" : "outline"}
+                                    className="justify-start gap-2"
+                                    onClick={() => handleStatusChange(TableStatus.OCCUPIED)}
+                                    disabled={setTableStatusMutation.isPending}
+                                >
+                                    <Users className="w-4 h-4 text-orange-500" />
+                                    Occupied
+                                </Button>
+                                <Button
+                                    variant={selectedTable.status === TableStatus.INACTIVE ? "default" : "outline"}
+                                    className="justify-start gap-2"
+                                    onClick={() => handleStatusChange(TableStatus.INACTIVE)}
+                                    disabled={setTableStatusMutation.isPending}
+                                >
+                                    <XCircle className="w-4 h-4 text-destructive" />
+                                    Out of Order
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
 
-const TableGrid = ({ tables, onViewQr }: TableGridProps) => {
-    if (tables.length === 0) {
-        return (
-            <div className="p-12 text-center text-muted-foreground">
-                <Armchair className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                <p className="text-lg font-medium mb-1">No tables found</p>
-                <p className="text-sm">No tables available in this category</p>
-            </div>
-        );
-    }
+            {/* Table Detail Dialog (for occupied tables) */}
+            {selectedTable && (
+                <TableDetailDialog
+                    open={tableDialogOpen}
+                    onOpenChange={(open) => {
+                        setTableDialogOpen(open);
+                        if (!open) {
+                            setOrderPanelOpen(false);
+                            setSelectedTable(null);
+                        }
+                    }}
+                    table={selectedTable}
+                    orderPanelOpen={orderPanelOpen}
+                    setOrderPanelOpen={setOrderPanelOpen}
+                    paymentMethod={paymentMethod}
+                    setPaymentMethod={setPaymentMethod}
+                    promotionCode={promotionCode}
+                    setPromotionCode={setPromotionCode}
+                    paymentNote={paymentNote}
+                    setPaymentNote={setPaymentNote}
+                    autoPrint={autoPrint}
+                    setAutoPrint={setAutoPrint}
+                    onConfirmPayment={handleConfirmPayment}
+                    isConfirming={confirmPaymentMutation.isPending}
+                    updateOrderItem={updateOrderItemMutation}
+                    removeOrderItem={removeOrderItemMutation}
+                    onStatusChange={handleStatusChange}
+                    isStatusChanging={setTableStatusMutation.isPending}
+                />
+            )}
 
-    return (
-        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {tables.map((table) => (
-                <TableCard key={table.areaTableId} table={table} onViewQr={onViewQr} />
-            ))}
+            {/* Invoice Dialog */}
+            {showInvoice && lastBill && lastOrder && (
+                <Dialog open={showInvoice} onOpenChange={setShowInvoice}>
+                    <DialogContent className="max-w-lg max-h-[90vh] overflow-auto">
+                        <DialogHeader>
+                            <DialogTitle>Invoice</DialogTitle>
+                            <DialogDescription>Payment receipt</DialogDescription>
+                        </DialogHeader>
+                        <div ref={invoiceRef}>
+                            <InvoiceView bill={lastBill} order={lastOrder} />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowInvoice(false)}>
+                                Close
+                            </Button>
+                            <Button onClick={() => handlePrint()}>
+                                <Printer className="w-4 h-4 mr-2" />
+                                Print
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };
 
 interface TableCardProps {
     table: AreaTableDTO;
-    onViewQr: (table: AreaTableDTO) => void;
+    onClick: () => void;
 }
 
-const TableCard = ({ table, onViewQr }: TableCardProps) => {
-    const getStatusStyles = () => {
+const TableCard = ({ table, onClick }: TableCardProps) => {
+    const getStyles = () => {
         switch (table.status) {
             case TableStatus.FREE:
                 return {
-                    card: 'bg-gradient-to-br from-teal/5 to-teal/10 border-teal/20',
+                    card: 'bg-gradient-to-br from-teal/5 to-teal/10 border-teal/20 hover:border-teal/40',
                     icon: 'bg-teal/10 text-teal',
                     badge: 'bg-teal/20 text-teal',
                 };
             case TableStatus.OCCUPIED:
                 return {
-                    card: 'bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20',
+                    card: 'bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20 hover:border-orange-500/40',
                     icon: 'bg-orange-500/10 text-orange-500',
                     badge: 'bg-orange-500/20 text-orange-500',
                 };
@@ -281,71 +465,386 @@ const TableCard = ({ table, onViewQr }: TableCardProps) => {
         }
     };
 
-    const getStatusIcon = () => {
-        switch (table.status) {
-            case TableStatus.FREE:
-                return <CheckCircle className="w-4 h-4" />;
-            case TableStatus.OCCUPIED:
-                return <Users className="w-4 h-4" />;
-            case TableStatus.INACTIVE:
-                return <AlertTriangle className="w-4 h-4" />;
-            default:
-                return <XCircle className="w-4 h-4" />;
-        }
-    };
-
-    const getStatusText = () => {
-        switch (table.status) {
-            case TableStatus.FREE:
-                return 'Available';
-            case TableStatus.OCCUPIED:
-                return 'Occupied';
-            case TableStatus.INACTIVE:
-                return 'Out of Order';
-            default:
-                return 'Unknown';
-        }
-    };
-
-    const styles = getStatusStyles();
+    const styles = getStyles();
+    const statusText = table.status === TableStatus.FREE ? 'Available'
+        : table.status === TableStatus.OCCUPIED ? 'Occupied'
+        : table.status === TableStatus.INACTIVE ? 'Out of Order' : 'Unknown';
 
     return (
-        <Card className={`${styles.card} transition-all duration-300 border-2 hover:shadow-lg`}>
+        <Card
+            className={`${styles.card} transition-all duration-300 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02]`}
+            onClick={onClick}
+        >
             <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-3">
-                    {/* Table Visual */}
-                    <div className={`w-20 h-20 rounded-2xl ${styles.icon} flex items-center justify-center`}>
-                        <Armchair className="w-10 h-10" />
+                <div className="flex flex-col items-center gap-2">
+                    <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
+                        <Armchair className="w-8 h-8" />
                     </div>
-
-                    {/* Table Info */}
-                    <div className="text-center w-full">
-                        <h3 className="font-bold text-xl mb-1">{table.tag}</h3>
-                        <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
-                            <Users className="w-4 h-4" />
-                            <span>{table.capacity} seats</span>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${styles.badge} mb-2`}>
-                            {getStatusIcon()}
-                            <span>{getStatusText()}</span>
-                        </div>
-
-                        {/* QR Code Button */}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => onViewQr(table)}
-                        >
-                            <QrCode className="w-3.5 h-3.5 mr-1.5" />
-                            View QR
-                        </Button>
+                    <h3 className="font-bold text-lg">{table.tag}</h3>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{table.capacity} seats</span>
                     </div>
+                    <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
+                        {statusText}
+                    </Badge>
                 </div>
             </CardContent>
         </Card>
+    );
+};
+
+interface TableDetailDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    table: AreaTableDTO;
+    orderPanelOpen: boolean;
+    setOrderPanelOpen: (open: boolean) => void;
+    paymentMethod: PaymentMethod;
+    setPaymentMethod: (m: PaymentMethod) => void;
+    promotionCode: string;
+    setPromotionCode: (code: string) => void;
+    paymentNote: string;
+    setPaymentNote: (note: string) => void;
+    autoPrint: boolean;
+    setAutoPrint: (v: boolean) => void;
+    onConfirmPayment: (order: OrderDTO) => void;
+    isConfirming: boolean;
+    updateOrderItem: ReturnType<typeof useUpdateOrderItem>;
+    removeOrderItem: ReturnType<typeof useRemoveOrderItem>;
+    onStatusChange: (status: TableStatus) => void;
+    isStatusChanging: boolean;
+}
+
+const TableDetailDialog = ({
+    open, onOpenChange, table, orderPanelOpen, setOrderPanelOpen,
+    paymentMethod, setPaymentMethod, promotionCode, setPromotionCode,
+    paymentNote, setPaymentNote, autoPrint, setAutoPrint,
+    onConfirmPayment, isConfirming, updateOrderItem, removeOrderItem,
+    onStatusChange, isStatusChanging,
+}: TableDetailDialogProps) => {
+    const { data: activeOrder, isLoading, refetch } = useActiveOrderByTable(table.areaTableId || '');
+
+    const statusColor = table.status === TableStatus.FREE ? 'text-teal'
+        : table.status === TableStatus.OCCUPIED ? 'text-orange-500'
+        : 'text-destructive';
+
+    const statusText = table.status === TableStatus.FREE ? 'Available'
+        : table.status === TableStatus.OCCUPIED ? 'Occupied'
+        : 'Out of Order';
+
+    const allItems = activeOrder?.orderLines?.flatMap(line =>
+        line.orderItems.map(item => ({ ...item, orderLineStatus: line.orderLineStatus }))
+    ) || [];
+
+    const subtotal = allItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+    const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
+    const handleQuantityChange = async (orderItemId: string, newQty: number, note: string | null) => {
+        setUpdatingItemId(orderItemId);
+        try {
+            if (newQty <= 0) {
+                await removeOrderItem.mutateAsync(orderItemId);
+            } else {
+                await updateOrderItem.mutateAsync({
+                    orderItemId,
+                    request: { quantity: newQty, note: note || '' },
+                });
+            }
+            await refetch();
+        } catch { /* handled by mutation onError */ }
+        finally { setUpdatingItemId(null); }
+    };
+
+    const handleRemoveItem = async (orderItemId: string) => {
+        setUpdatingItemId(orderItemId);
+        try {
+            await removeOrderItem.mutateAsync(orderItemId);
+            await refetch();
+        } catch { /* handled by mutation onError */ }
+        finally { setUpdatingItemId(null); }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className={`${orderPanelOpen ? 'max-w-5xl' : 'max-w-md'} max-h-[90vh] p-0 flex flex-col overflow-hidden`}>
+                <div className="flex flex-1 min-h-0">
+                    {/* Left Panel */}
+                    <div className={`${orderPanelOpen ? 'w-1/2 border-r' : 'w-full'} p-6 space-y-4 overflow-y-auto`}>
+                        <DialogHeader>
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <DialogTitle className="text-xl">Table {table.tag}</DialogTitle>
+                                    <DialogDescription>
+                                        {table.areaName && `${table.areaName} · `}{table.capacity} seats
+                                    </DialogDescription>
+                                </div>
+
+                                {/* Compact status change popover */}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+                                            <Settings2 className="w-3.5 h-3.5" />
+                                            <Badge variant="secondary" className={`${statusColor} text-xs px-1.5`}>
+                                                {statusText}
+                                            </Badge>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-2" align="end">
+                                        <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Change status</p>
+                                        <div className="space-y-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full justify-start gap-2 h-8"
+                                                onClick={() => onStatusChange(TableStatus.FREE)}
+                                                disabled={isStatusChanging || table.status === TableStatus.FREE}
+                                            >
+                                                <CheckCircle className="w-3.5 h-3.5 text-teal" />
+                                                Available
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full justify-start gap-2 h-8"
+                                                onClick={() => onStatusChange(TableStatus.OCCUPIED)}
+                                                disabled={isStatusChanging || table.status === TableStatus.OCCUPIED}
+                                            >
+                                                <Users className="w-3.5 h-3.5 text-orange-500" />
+                                                Occupied
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full justify-start gap-2 h-8"
+                                                onClick={() => onStatusChange(TableStatus.INACTIVE)}
+                                                disabled={isStatusChanging || table.status === TableStatus.INACTIVE}
+                                            >
+                                                <XCircle className="w-3.5 h-3.5 text-destructive" />
+                                                Out of Order
+                                            </Button>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </DialogHeader>
+
+                        {/* Payment Section (only for occupied with active order) */}
+                        {table.status === TableStatus.OCCUPIED && activeOrder && (
+                            <div className="space-y-3 pt-2 border-t">
+                                <h4 className="font-semibold text-sm">Payment</h4>
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Payment Method</label>
+                                    <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                                        <SelectTrigger className="mt-1">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value={PaymentMethod.CASH}>
+                                                <div className="flex items-center gap-2">
+                                                    <DollarSign className="w-4 h-4" />
+                                                    Cash
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value={PaymentMethod.CARD}>
+                                                <div className="flex items-center gap-2">
+                                                    <CreditCard className="w-4 h-4" />
+                                                    Card
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value={PaymentMethod.ONLINE}>
+                                                <div className="flex items-center gap-2">
+                                                    <Receipt className="w-4 h-4" />
+                                                    Online
+                                                </div>
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Promotion Code</label>
+                                    <Input
+                                        className="mt-1"
+                                        placeholder="Enter promotion code"
+                                        value={promotionCode}
+                                        onChange={(e) => setPromotionCode(e.target.value)}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Note</label>
+                                    <Textarea
+                                        className="mt-1"
+                                        placeholder="Add a note..."
+                                        value={paymentNote}
+                                        onChange={(e) => setPaymentNote(e.target.value)}
+                                        rows={2}
+                                    />
+                                </div>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <Checkbox checked={autoPrint} onCheckedChange={(v) => setAutoPrint(!!v)} />
+                                    <span className="text-sm">Print receipt after payment</span>
+                                </label>
+
+                                <div className="pt-2 space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span>Subtotal</span>
+                                        <span className="font-medium">${subtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-base font-bold border-t pt-2">
+                                        <span>Total</span>
+                                        <span>${subtotal.toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 pt-2">
+                                    {!orderPanelOpen && (
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => setOrderPanelOpen(true)}
+                                        >
+                                            <Receipt className="w-4 h-4 mr-2" />
+                                            View Order
+                                        </Button>
+                                    )}
+                                    <Button
+                                        className="flex-1"
+                                        onClick={() => onConfirmPayment(activeOrder)}
+                                        disabled={isConfirming}
+                                    >
+                                        {isConfirming ? (
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                        )}
+                                        Confirm Payment
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {table.status === TableStatus.OCCUPIED && isLoading && (
+                            <div className="flex justify-center py-4">
+                                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                            </div>
+                        )}
+
+                        {table.status === TableStatus.OCCUPIED && !isLoading && !activeOrder && (
+                            <p className="text-sm text-muted-foreground text-center py-4">No active order for this table</p>
+                        )}
+                    </div>
+
+                    {/* Right Panel - Order Items */}
+                    {orderPanelOpen && activeOrder && (
+                        <div className="w-1/2 flex flex-col min-h-0 bg-muted/30">
+                            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+                                <h3 className="font-semibold">Order Items</h3>
+                                <Button variant="ghost" size="icon" onClick={() => setOrderPanelOpen(false)}>
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                                {allItems.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-8">No items in this order</p>
+                                ) : (
+                                    allItems.map((item) => {
+                                        const isUpdating = updatingItemId === item.orderItemId;
+                                        return (
+                                            <Card key={item.orderItemId} className="border-border/60">
+                                                <CardContent className="p-3">
+                                                    <div className="flex gap-3">
+                                                        {item.menuItemImageUrl && (
+                                                            <img
+                                                                src={item.menuItemImageUrl}
+                                                                alt={item.menuItemName}
+                                                                className="w-14 h-14 rounded-lg object-cover shrink-0"
+                                                            />
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <h4 className="font-medium text-sm truncate">{item.menuItemName}</h4>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-destructive shrink-0"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        handleRemoveItem(item.orderItemId);
+                                                                    }}
+                                                                    disabled={isUpdating}
+                                                                >
+                                                                    {isUpdating ? (
+                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                            {item.customizations?.length > 0 && (
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {item.customizations.map(c => c.customizationName).join(', ')}
+                                                                </p>
+                                                            )}
+                                                            {item.note && (
+                                                                <p className="text-xs text-muted-foreground italic">Note: {item.note}</p>
+                                                            )}
+                                                            <div className="flex items-center justify-between mt-2">
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="icon"
+                                                                        className="h-7 w-7"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            handleQuantityChange(item.orderItemId, item.quantity - 1, item.note);
+                                                                        }}
+                                                                        disabled={isUpdating}
+                                                                    >
+                                                                        <Minus className="w-3 h-3" />
+                                                                    </Button>
+                                                                    <span className="w-8 text-center text-sm font-medium">
+                                                                        {isUpdating ? (
+                                                                            <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" />
+                                                                        ) : (
+                                                                            item.quantity
+                                                                        )}
+                                                                    </span>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="icon"
+                                                                        className="h-7 w-7"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            handleQuantityChange(item.orderItemId, item.quantity + 1, item.note);
+                                                                        }}
+                                                                        disabled={isUpdating}
+                                                                    >
+                                                                        <Plus className="w-3 h-3" />
+                                                                    </Button>
+                                                                </div>
+                                                                <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 };
 

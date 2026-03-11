@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, Star, Search, ImageIcon, Filter, X, Loader2,
+  Plus, Pencil, Trash2, Star, Search, ImageIcon, X, Loader2,
 } from "lucide-react";
 import { useMenuItemQueries } from "@/hooks/queries/useMenuItemQueries";
 import { useCategoryQueries } from "@/hooks/queries/useCategoryQueries";
@@ -44,7 +44,7 @@ const MenuItemManagement = () => {
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBestSeller, setFilterBestSeller] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  
 
   const openCreate = () => {
     setEditing(null);
@@ -170,14 +170,9 @@ const MenuItemManagement = () => {
           <h1 className="text-2xl font-display">Menu Items</h1>
           <p className="text-sm text-muted-foreground">{menuItems.length} items total · {menuItems.filter((i) => i.isActive).length} active</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="w-4 h-4 mr-1" /> Filters
-          </Button>
-          <Button onClick={openCreate} disabled={canCreate === false}>
-            <Plus className="w-4 h-4 mr-1" /> Add Item
-          </Button>
-        </div>
+        <Button onClick={openCreate} disabled={canCreate === false}>
+          <Plus className="w-4 h-4 mr-1" /> Add Item
+        </Button>
       </div>
 
       {/* Limit Info */}
@@ -222,7 +217,7 @@ const MenuItemManagement = () => {
       )}
 
       {/* Filters */}
-      <div className={`flex flex-wrap gap-3 mb-6 ${showFilters ? '' : 'hidden'}`}>
+      <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search by name..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-9" />
