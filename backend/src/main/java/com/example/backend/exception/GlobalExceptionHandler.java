@@ -132,13 +132,14 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
-    // @ExceptionHandler(Exception.class)
-    // public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-    //     ApiResponse<Void> response = new ApiResponse<>();
-    //     response.setCode(ErrorCode.UNEXPECTED_EXCEPTION.getCode());
-    //     response.setMessage(ErrorCode.UNEXPECTED_EXCEPTION.getMessage());
-    //     return ResponseEntity
-    //             .status(HttpStatus.INTERNAL_SERVER_ERROR)
-    //             .body(response);
-    // }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ErrorCode.UNEXPECTED_EXCEPTION.getCode());
+        response.setMessage(ex.getMessage() != null ? ex.getMessage() : ErrorCode.UNEXPECTED_EXCEPTION.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
+    }
 }

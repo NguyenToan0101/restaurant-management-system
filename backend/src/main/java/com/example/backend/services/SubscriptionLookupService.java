@@ -18,7 +18,7 @@ public class SubscriptionLookupService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = AppException.class)
     public Package getActivePackageByRestaurant(UUID restaurantId) {
         return subscriptionRepository.findActivePackageByRestaurantId(restaurantId)
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_NOT_ACTIVE));

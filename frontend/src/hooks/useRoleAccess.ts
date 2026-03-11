@@ -16,9 +16,8 @@ export const useRoleAccess = () => {
     // Check if current user is Receptionist
     const isReceptionist = !!staffInfo && staffInfo.role === 'RECEPTIONIST';
 
-    // ONLY Branch Manager can manage areas and tables (create/update/delete)
-    const canManageAreas = isBranchManager;
-    const canManageTables = isBranchManager;
+    const canManageAreas = isRestaurantOwner || isBranchManager;
+    const canManageTables = isRestaurantOwner || isBranchManager;
 
     // All authenticated users can view areas and tables
     const canViewAreas = !!user || !!staffInfo;

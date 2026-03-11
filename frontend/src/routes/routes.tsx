@@ -36,6 +36,8 @@ import ManagerStaff from "@/pages/manager/ManagerStaff";
 import WaiterLayout from "@/components/waiter/WaiterLayout";
 import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
 import WaiterTableView from "@/pages/waiter/WaiterTableView";
+import WaiterOrderPage from "@/pages/waiter/WaiterOrderPage";
+import WaiterHistory from "@/pages/waiter/WaiterHistory";
 
 import ReceptionistLayout from "@/components/receptionist/ReceptionistLayout";
 import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
@@ -257,7 +259,8 @@ const AppRoutes = () => {
       }>
         <Route path="dashboard" element={<WaiterDashboard />} />
         <Route path="tables" element={<WaiterTableView />} />
-        <Route path="orders" element={<ComingSoon title="Order Management" description="Take and manage customer orders." />} />
+        <Route path="orders" element={<WaiterOrderPage />} />
+        <Route path="history" element={<WaiterHistory />} />
         <Route index element={<Navigate to="dashboard" replace />} />
       </Route>
 
