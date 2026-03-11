@@ -21,13 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ImageIcon, X } from "lucide-react";
+import { ImageIcon, X, Settings2 } from "lucide-react";
 import type { MenuItemDTO, CategoryDTO, CustomizationDTO } from "@/types/dto";
 
 interface MenuItemFormDialogProps {
@@ -66,8 +60,8 @@ export function MenuItemFormDialog({
   const [fCatId, setFCatId] = useState("");
   const [fBestSeller, setFBestSeller] = useState(false);
   const [fActive, setFActive] = useState(true);
+  const [selectedCustIds, setSelectedCustIds] = useState<Set<string>>(new Set());
 
-  // Get customizations from selected category
   const categoryCustomizations = useMemo(() => {
     if (!fCatId) return [];
     const selectedCategory = categories.find((c) => c.id === fCatId);
@@ -87,6 +81,7 @@ export function MenuItemFormDialog({
       setFCatId(menuItem.categoryId);
       setFBestSeller(menuItem.isBestSeller);
       setFActive(menuItem.isActive);
+      setSelectedCustIds(new Set(menuItem.customizations || []));
     } else {
       setFName("");
       setFDesc("");
@@ -96,6 +91,7 @@ export function MenuItemFormDialog({
       setFCatId("");
       setFBestSeller(false);
       setFActive(true);
+      setSelectedCustIds(new Set());
     }
   }, [menuItem, open]);
 
@@ -117,6 +113,18 @@ export function MenuItemFormDialog({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const toggleCustomization = (id: string) => {
+    setSelectedCustIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (!fName.trim() || !fCatId) return;
     const price = parseFloat(fPrice) || 0;
@@ -127,7 +135,7 @@ export function MenuItemFormDialog({
       price,
       categoryId: fCatId,
       isBestSeller: fBestSeller,
-      customizationIds: categoryCustomizations.map((c) => c.id),
+      customizationIds: Array.from(selectedCustIds),
       imageFile: fImageFile || undefined,
     });
   };
@@ -237,44 +245,55 @@ export function MenuItemFormDialog({
                 />
                 <span className="text-sm">Best Seller</span>
               </label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-help">
-                      <Switch checked={fActive} onCheckedChange={setFActive} />
-                      <span className="text-sm">
-                        {fActive ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    align="center"
-                    className="max-w-[220px] whitespace-normal break-words text-xs"
-                  >
-                    If enabled, this item will include all category customizations.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="flex items-center gap-2">
+                <Switch checked={fActive} onCheckedChange={setFActive} />
+                <span className="text-sm">
+                  {fActive ? "Active" : "Inactive"}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Customizations from Category */}
+          {/* Customizations - filtered by selected category */}
           {fCatId && categoryCustomizations.length > 0 && (
             <div className="space-y-3 border-t pt-4">
-              <Label className="text-base font-semibold">Customizations</Label>
-              <p className="text-xs text-muted-foreground">
-                Inherited from category. These customizations will be available for this item.
-              </p>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {categoryCustomizations.map((c) => (
-                    <Badge key={c.id} variant="secondary" className="text-xs">
-                      {c.name} {c.price > 0 && `+$${c.price.toFixed(2)}`}
-                    </Badge>
-                  ))}
-                </div>
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-primary" />
+                <Label className="text-base font-semibold">Customizations</Label>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Select which customizations are available for this item.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {categoryCustomizations.map((c) => (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedCustIds.has(c.id)
+                        ? "border-primary/50 bg-primary/5"
+                        : "border-border/60 hover:bg-muted/30"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={selectedCustIds.has(c.id)}
+                      onCheckedChange={() => toggleCustomization(c.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">{c.name}</span>
+                    </div>
+                    {c.price > 0 && (
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        +${c.price.toFixed(2)}
+                      </Badge>
+                    )}
+                  </label>
+                ))}
+              </div>
+              {selectedCustIds.size > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedCustIds.size} customization{selectedCustIds.size > 1 ? 's' : ''} selected
+                </p>
+              )}
             </div>
           )}
 
@@ -283,6 +302,15 @@ export function MenuItemFormDialog({
               <Label className="text-base font-semibold">Customizations</Label>
               <p className="text-xs text-muted-foreground italic">
                 No customizations available for this category.
+              </p>
+            </div>
+          )}
+
+          {!fCatId && (
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">Customizations</Label>
+              <p className="text-xs text-muted-foreground italic">
+                Select a category first to see available customizations.
               </p>
             </div>
           )}

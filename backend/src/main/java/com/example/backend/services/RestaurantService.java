@@ -110,16 +110,15 @@ public class RestaurantService {
         return restaurantRepository.save(restaurant);
     }
 
+    @Transactional
     public RestaurantDTO update(UUID id, RestaurantDTO dto) {
         Restaurant exist = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
 
-        exist.setName(dto.getName());
-        exist.setEmail(dto.getEmail());
-        exist.setRestaurantPhone(dto.getRestaurantPhone());
-        exist.setStatus(dto.isStatus());
-        exist.setPublicUrl(dto.getPublicUrl());
-        exist.setDescription(dto.getDescription());
+        if (dto.getName() != null) exist.setName(dto.getName());
+        if (dto.getEmail() != null) exist.setEmail(dto.getEmail());
+        if (dto.getRestaurantPhone() != null) exist.setRestaurantPhone(dto.getRestaurantPhone());
+        if (dto.getDescription() != null) exist.setDescription(dto.getDescription());
 
         Restaurant saved = restaurantRepository.save(exist);
         return restaurantMapper.toRestaurantDto(saved);

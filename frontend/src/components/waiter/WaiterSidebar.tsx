@@ -17,6 +17,7 @@ import {
     UtensilsCrossed,
     Table,
     ShoppingCart,
+    History,
     LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,12 @@ const WaiterSidebar = () => {
             icon: ShoppingCart,
             url: "/waiter/orders",
             isActive: location.pathname.startsWith("/waiter/orders"),
+        },
+        {
+            title: "History",
+            icon: History,
+            url: "/waiter/history",
+            isActive: location.pathname.startsWith("/waiter/history"),
         },
     ];
 
