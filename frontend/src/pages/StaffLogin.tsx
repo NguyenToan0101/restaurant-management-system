@@ -3,12 +3,29 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UtensilsCrossed, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { UtensilsCrossed, Eye, EyeOff, ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
 import { useStaffLogin } from "@/hooks/queries/useAuthQueries";
+import { useRestaurants } from "@/hooks/queries/useRestaurantQueries";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const StaffLogin = () => {
+  const [restaurantId, setRestaurantId] = useState("");
+  const [openRestaurantCombobox, setOpenRestaurantCombobox] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +33,7 @@ const StaffLogin = () => {
   const { toast } = useToast();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const staffLoginMutation = useStaffLogin();
+  const { data: restaurants, isLoading: isRestaurantsLoading } = useRestaurants();
 
   const handleForgotPassword = () => {
     toast({
@@ -48,7 +66,15 @@ const StaffLogin = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    staffLoginMutation.mutate({ username, password });
+    if (!restaurantId) {
+      toast({
+        title: "Lỗi đăng nhập",
+        description: "Vui lòng chọn nhà hàng.",
+        variant: "destructive",
+      });
+      return;
+    }
+    staffLoginMutation.mutate({ restaurantId, username, password });
   };
 
   return (
@@ -69,6 +95,54 @@ const StaffLogin = () => {
           <p className="text-muted-foreground mb-8 text-sm">Sign in with your staff account</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2 flex flex-col">
+              <Label htmlFor="restaurantId" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Restaurant</Label>
+              <Popover open={openRestaurantCombobox} onOpenChange={setOpenRestaurantCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openRestaurantCombobox}
+                    className="w-full justify-between h-11 rounded-lg bg-background/50 border-border/50 hover:bg-background/80"
+                  >
+                    <span className="truncate">
+                      {restaurantId && restaurants
+                        ? restaurants.find((restaurant) => restaurant.restaurantId === restaurantId)?.name
+                        : "Select a restaurant..."}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search restaurant..." />
+                    <CommandList>
+                      <CommandEmpty>No restaurant found.</CommandEmpty>
+                      <CommandGroup>
+                        {restaurants?.map((restaurant) => (
+                          <CommandItem
+                            key={restaurant.restaurantId}
+                            value={restaurant.name}
+                            onSelect={() => {
+                              setRestaurantId(restaurant.restaurantId === restaurantId ? "" : restaurant.restaurantId);
+                              setOpenRestaurantCombobox(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                restaurantId === restaurant.restaurantId ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {restaurant.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Username</Label>
               <Input id="username" type="text" placeholder="e.g. staff_user" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 rounded-lg bg-background/50 border-border/50 focus-visible:ring-violet-500/20 focus-visible:border-violet-500/50" />

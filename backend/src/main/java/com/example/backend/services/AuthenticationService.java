@@ -68,7 +68,7 @@ public class AuthenticationService {
     public StaffAuthResponse staffLogin(StaffLoginRequest request, String clientIp, String userAgent) {
         log.info("Staff login attempt for username: {}", request.getUsername());
         
-        StaffAccount staff = staffAccountRepository.findByUsername(request.getUsername())
+        StaffAccount staff = staffAccountRepository.findByUsernameAndBranch_Restaurant_RestaurantId(request.getUsername(), request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
         
         if (!passwordEncoder.matches(request.getPassword(), staff.getPassword())) {

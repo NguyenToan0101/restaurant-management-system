@@ -20,8 +20,9 @@ import com.example.backend.entities.RoleName;
 @Repository
 public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID> {
 
-    Optional<StaffAccount> findByUsername(String username);
-    boolean existsByUsername(String username);
+    Optional<StaffAccount> findByUsernameAndBranch_Restaurant_RestaurantId(String username, UUID restaurantId);
+
+    boolean existsByUsernameAndBranch_Restaurant_RestaurantId(String username, UUID restaurantId);
     
     // Find staff with role eagerly loaded to avoid LazyInitializationException
     @Query("SELECT s FROM StaffAccount s JOIN FETCH s.role WHERE s.staffAccountId = :staffId")

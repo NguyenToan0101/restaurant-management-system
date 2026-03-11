@@ -4,6 +4,7 @@ export interface LoginRequest {
 }
 
 export interface StaffLoginRequest {
+  restaurantId: string;
   username: string;
   password: string;
 }

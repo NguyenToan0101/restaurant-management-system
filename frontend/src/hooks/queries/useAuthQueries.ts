@@ -43,8 +43,8 @@ export const useStaffLogin = () => {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: ({ username, password }: { username: string; password: string }) =>
-      authApi.staffLogin(username, password),
+    mutationFn: ({ restaurantId, username, password }: { restaurantId: string; username: string; password: string }) =>
+      authApi.staffLogin(restaurantId, username, password),
     onSuccess: (data) => {
       toast.success('Staff login successful!', {
         description: `Welcome back, ${data.staffInfo.username}`,
