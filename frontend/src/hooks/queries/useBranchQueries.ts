@@ -142,6 +142,33 @@ export const useUpdateBranch = () => {
     });
 };
 
+export const useUpdateBranchContactInfo = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: Partial<BranchDTO> }) =>
+            branchApi.updateContactInfo(id, data),
+        onSuccess: (updatedBranch) => {
+            queryClient.invalidateQueries({ queryKey: ['branches'] });
+            queryClient.invalidateQueries({ queryKey: ['branches', updatedBranch.branchId] });
+            if (updatedBranch.restaurantId) {
+                queryClient.invalidateQueries({ queryKey: ['branches', 'restaurant', updatedBranch.restaurantId] });
+            }
+            toast({
+                title: 'Success',
+                description: 'Contact information updated successfully',
+            });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Error',
+                description: error.response?.data?.message || 'Failed to update contact information',
+                variant: 'destructive',
+            });
+        },
+    });
+};
+
 export const useDeleteBranch = () => {
     const queryClient = useQueryClient();
 

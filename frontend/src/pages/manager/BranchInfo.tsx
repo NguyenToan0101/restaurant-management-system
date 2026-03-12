@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Phone, Mail, MapPin, Store, Save, Loader2 } from "lucide-react";
-import { useBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
+import { useBranch, useUpdateBranchContactInfo } from "@/hooks/queries/useBranchQueries";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function BranchInfo() {
@@ -20,7 +20,7 @@ export default function BranchInfo() {
   const branchId = staffInfo?.branchId;
 
   const { data: branch, isLoading } = useBranch(branchId ?? "");
-  const updateBranch = useUpdateBranch();
+  const updateContactInfo = useUpdateBranchContactInfo();
 
   const [phone, setPhone] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -36,10 +36,9 @@ export default function BranchInfo() {
 
   const handleSave = async () => {
     if (!branchId || !branch) return;
-    await updateBranch.mutateAsync({
+    await updateContactInfo.mutateAsync({
       id: branchId,
       data: {
-        ...branch,
         branchPhone: phone,
         mail: email,
       },
@@ -118,7 +117,7 @@ export default function BranchInfo() {
                 <Button
                   className="flex items-center gap-2"
                   onClick={() => setConfirmOpen(true)}
-                  disabled={updateBranch.isPending}
+                  disabled={updateContactInfo.isPending}
                 >
                   <Save className="w-4 h-4" />
                   Save Changes
@@ -141,9 +140,9 @@ export default function BranchInfo() {
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={updateBranch.isPending}>
-              {updateBranch.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {updateBranch.isPending ? "Saving..." : "Save"}
+            <Button onClick={handleSave} disabled={updateContactInfo.isPending}>
+              {updateContactInfo.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {updateContactInfo.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
