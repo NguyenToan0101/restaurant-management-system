@@ -181,6 +181,25 @@ public class MenuItemService {
         item.setUpdatedAt(Instant.now());
 
         MenuItem updated = menuItemRepository.save(item);
+        
+        if (active) {
+            Set<Branch> branches = item.getRestaurant().getBranches();
+            if (branches != null && !branches.isEmpty()) {
+                for (Branch branch : branches) {
+                    Optional<BranchMenuItem> existingMapping = branchMenuItemRepository
+                            .findByBranch_BranchIdAndMenuItem_MenuItemId(branch.getBranchId(), menuItemId);
+                    
+                    if (existingMapping.isEmpty()) {
+                        BranchMenuItem bmi = new BranchMenuItem();
+                        bmi.setBranch(branch);
+                        bmi.setMenuItem(updated);
+                        bmi.setAvailable(true);
+                        branchMenuItemRepository.save(bmi);
+                    }
+                }
+            }
+        }
+        
         return menuItemMapper.toMenuItemDTO(updated);
     }
 

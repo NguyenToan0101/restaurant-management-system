@@ -28,5 +28,6 @@ export interface PackageFeatureDTO {
   billingPeriod: number;
   available: boolean;
   features: FeatureValueDTO[];
+  activeSubscriptionCount?: number;
 }
 

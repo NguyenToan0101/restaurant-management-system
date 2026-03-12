@@ -109,4 +109,15 @@ public class StaffAccountController {
         ApiResponse<Void> apiResponse = new ApiResponse<>();
         return apiResponse;
     }
-}
+
+    // Chuyển nhân viên sang chi nhánh khác (chỉ Owner)
+    @PatchMapping("/{staffAccountId}/transfer")
+    public ApiResponse<StaffAccountDTO> transferStaffToBranch(
+            @PathVariable UUID staffAccountId,
+            @RequestBody java.util.Map<String, String> body) {
+        UUID newBranchId = UUID.fromString(body.get("newBranchId"));
+        ApiResponse<StaffAccountDTO> apiResponse = new ApiResponse<>();
+        apiResponse.setResult(staffAccountService.transferStaffToBranch(staffAccountId, newBranchId));
+        return apiResponse;
+    }
+}

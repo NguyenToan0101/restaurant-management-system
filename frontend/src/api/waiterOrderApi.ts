@@ -75,13 +75,20 @@ class WaiterOrderApi {
   }
 
   async getMenuForBranch(branchId: string): Promise<WaiterMenuItemDTO[]> {
-    const response = await axiosClient.get<ApiResponse<WaiterMenuItemDTO[]>>(`/waiter/menu/branch/${branchId}`);
-    return response.data.result;
+    const response = await axiosClient.get<ApiResponse<WaiterMenuItemDTO[]>>(`/branch-menu-items/branch/${branchId}`);
+    return response.data.result.filter((item: any) => item.available);
   }
 
   async getCategoriesForBranch(branchId: string): Promise<WaiterCategoryDTO[]> {
-    const response = await axiosClient.get<ApiResponse<WaiterCategoryDTO[]>>(`/waiter/menu/branch/${branchId}/categories`);
-    return response.data.result;
+    const response = await axiosClient.get<ApiResponse<WaiterMenuItemDTO[]>>(`/branch-menu-items/branch/${branchId}`);
+    const items = response.data.result;
+    const categoryMap = new Map<string, string>();
+    items.forEach((item: any) => {
+      if (item.categoryId && item.categoryName) {
+        categoryMap.set(item.categoryId, item.categoryName);
+      }
+    });
+    return Array.from(categoryMap.entries()).map(([categoryId, name]) => ({ categoryId, name }));
   }
 
   async setTableStatus(tableId: string, status: TableStatus): Promise<AreaTableDTO> {

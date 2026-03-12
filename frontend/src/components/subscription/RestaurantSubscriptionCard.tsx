@@ -17,9 +17,10 @@ import {
   Clock,
   AlertCircle,
   Check,
-  Eye
+  Eye,
+  Timer
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -99,6 +100,35 @@ export const RestaurantSubscriptionCard = ({ data, onRenew, onUpgrade, onCancel 
     return labels[purpose as keyof typeof labels] || purpose;
   };
 
+  const calculateDaysLeft = () => {
+    if (!data.currentSubscription || data.currentSubscription.status !== 'ACTIVE') {
+      return null;
+    }
+    const endDate = new Date(data.currentSubscription.endDate);
+    const today = new Date();
+    const daysLeft = differenceInDays(endDate, today);
+    return daysLeft;
+  };
+
+  const getDaysLeftBadge = () => {
+    const daysLeft = calculateDaysLeft();
+    if (daysLeft === null) return null;
+
+    let badgeClass = "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+    if (daysLeft <= 7) {
+      badgeClass = "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+    } else if (daysLeft <= 14) {
+      badgeClass = "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+    }
+
+    return (
+      <Badge className={badgeClass}>
+        <Timer className="w-3 h-3 mr-1" />
+        {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+      </Badge>
+    );
+  };
+
   const handleRenew = async () => {
     setIsProcessing(true);
     try {
@@ -168,8 +198,9 @@ export const RestaurantSubscriptionCard = ({ data, onRenew, onUpgrade, onCancel 
                 <CardTitle>{data.restaurantName}</CardTitle>
                 <CardDescription className="mt-1">
                   {data.currentSubscription ? (
-                    <span className="flex items-center gap-2 mt-1">
+                    <span className="flex items-center gap-2 mt-1 flex-wrap">
                       {getStatusBadge(data.currentSubscription.status)}
+                      {getDaysLeftBadge()}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">No active subscription</span>

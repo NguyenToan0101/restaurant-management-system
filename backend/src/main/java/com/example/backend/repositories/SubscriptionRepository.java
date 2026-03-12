@@ -55,4 +55,23 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     // Statistics queries
     @Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = 'ACTIVE'")
     Long countActiveSubscriptions();
+
+    // Check if package has active subscriptions
+    @Query("SELECT COUNT(s) > 0 FROM Subscription s WHERE s.aPackage.packageId = :packageId AND s.status = 'ACTIVE'")
+    boolean existsActiveSubscriptionsByPackageId(UUID packageId);
+
+    // Count active subscriptions for a package
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.aPackage.packageId = :packageId AND s.status = 'ACTIVE'")
+    Long countActiveSubscriptionsByPackageId(UUID packageId);
+
+    // Get active subscription distribution by package (for Package Distribution stats)
+    @Query("""
+        SELECT p.name, COUNT(s)
+        FROM Subscription s
+        JOIN s.aPackage p
+        WHERE s.status = 'ACTIVE'
+        GROUP BY p.packageId, p.name
+        ORDER BY p.name
+        """)
+    List<Object[]> findActiveSubscriptionDistribution();
 }

@@ -56,7 +56,7 @@ public class Branch {
     @Column(name = "is_active")
     private boolean isActive;
 
-    @Column(name = "mail", nullable = false, unique = true)
+    @Column(name = "mail", nullable = false)
     private String mail;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "branch")

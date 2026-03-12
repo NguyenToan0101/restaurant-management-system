@@ -88,6 +88,14 @@ class StaffAccountApi {
   async resetPassword(staffAccountId: string, newPassword: string): Promise<void> {
     await axiosClient.patch(`/staff/${staffAccountId}/password`, { newPassword });
   }
+
+  async transferToBranch(staffAccountId: string, newBranchId: string): Promise<StaffAccountDTO> {
+    const response = await axiosClient.patch<ApiResponse<StaffAccountBackendDTO>>(
+      `/staff/${staffAccountId}/transfer`,
+      { newBranchId }
+    );
+    return mapStaffAccountFromBackend(response.data.result);
+  }
 }
 
 export const staffAccountApi = new StaffAccountApi();

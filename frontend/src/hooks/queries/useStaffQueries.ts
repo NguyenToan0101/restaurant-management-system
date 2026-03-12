@@ -213,3 +213,27 @@ export const useResetStaffPassword = () => {
     },
   });
 };
+
+export const useTransferStaffToBranch = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ staffAccountId, newBranchId }: { staffAccountId: string; newBranchId: string }) =>
+      staffAccountApi.transferToBranch(staffAccountId, newBranchId),
+    onSuccess: (data) => {
+      // Invalidate both old and new branch queries
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['manager-staff'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-statistics'] });
+      toast({ title: 'Staff transferred successfully' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to transfer staff',
+        description: error?.response?.data?.message || 'An error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+};
