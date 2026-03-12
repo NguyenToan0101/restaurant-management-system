@@ -15,11 +15,14 @@ public class PackageService {
 
     private final PackageRepository packageRepository;
     private final PackageFeatureService packageFeatureService;
+    private final com.example.backend.repositories.SubscriptionRepository subscriptionRepository;
 
     public PackageService(PackageRepository packageRepository,
-                          PackageFeatureService packageFeatureService) {
+                          PackageFeatureService packageFeatureService,
+                          com.example.backend.repositories.SubscriptionRepository subscriptionRepository) {
         this.packageRepository = packageRepository;
         this.packageFeatureService = packageFeatureService;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Transactional
@@ -69,6 +72,13 @@ public class PackageService {
     public void deactivatePackage(UUID packageId) {
         Package pkg = packageRepository.findById(packageId)
                 .orElseThrow(() -> new AppException(ErrorCode.PACKAGE_NOTEXISTED));
+        
+        // Check if package has active subscriptions
+        boolean hasActiveSubscriptions = subscriptionRepository.existsActiveSubscriptionsByPackageId(packageId);
+        if (hasActiveSubscriptions) {
+            throw new AppException(ErrorCode.PACKAGE_HAS_ACTIVE_SUBSCRIPTIONS);
+        }
+        
         pkg.setAvailable(false);
         packageRepository.save(pkg);
     }

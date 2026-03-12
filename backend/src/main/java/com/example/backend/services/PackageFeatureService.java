@@ -26,15 +26,18 @@ public class PackageFeatureService {
     private final PackageRepository packageRepository;
     private final FeatureService featureService;
     private final FeatureValueMapper featureValueMapper;
+    private final com.example.backend.repositories.SubscriptionRepository subscriptionRepository;
 
     public PackageFeatureService(PackageFeatureRepository packageFeatureRepository,
                                  PackageRepository packageRepository,
                                  FeatureService featureService,
-                                 FeatureValueMapper featureValueMapper) {
+                                 FeatureValueMapper featureValueMapper,
+                                 com.example.backend.repositories.SubscriptionRepository subscriptionRepository) {
         this.packageFeatureRepository = packageFeatureRepository;
         this.packageRepository = packageRepository;
         this.featureService = featureService;
         this.featureValueMapper = featureValueMapper;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -116,6 +119,10 @@ public class PackageFeatureService {
         dto.setAvailable(pkg.isAvailable());
         dto.setBillingPeriod(pkg.getBillingPeriod());
         dto.setFeatures(features);
+        
+        // Add active subscription count
+        Long activeCount = subscriptionRepository.countActiveSubscriptionsByPackageId(pkg.getPackageId());
+        dto.setActiveSubscriptionCount(activeCount);
 
         return dto;
     }

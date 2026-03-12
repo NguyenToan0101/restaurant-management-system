@@ -47,7 +47,7 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
             SubscriptionPaymentStatus status, Instant time
     );
 
-    // Statistics queries
+    // Statistics queries - Payment stats by date range
     @Query("""
         SELECT 
             p.name,

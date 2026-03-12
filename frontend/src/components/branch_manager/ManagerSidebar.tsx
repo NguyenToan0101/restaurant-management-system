@@ -68,7 +68,7 @@ export default function ManagerSidebar() {
                 <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-base font-bold tracking-tight text-foreground truncate">
+                <span className="text-base font-bold tracking-tight text-sidebar-foreground truncate">
                   BentoX
                 </span>
                 <span className="text-xs text-muted-foreground truncate">
@@ -86,7 +86,7 @@ export default function ManagerSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 mt-2">
+      <SidebarContent className="px-2 mt-2 scrollbar-hide">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -133,7 +133,7 @@ export default function ManagerSidebar() {
                 {staffInfo?.username?.charAt(0).toUpperCase() || "M"}
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-semibold text-foreground truncate">
+                <span className="text-sm font-semibold text-sidebar-foreground truncate">
                   {staffInfo?.username || "Manager"}
                 </span>
                 <span className="text-[10px] font-bold bg-teal-500/20 text-teal-400 px-2 py-0.5 rounded-full w-fit mt-1">
@@ -145,7 +145,7 @@ export default function ManagerSidebar() {
             {/* Sign Out Button */}
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-3 px-3 py-2.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors w-full text-left bg-muted/30"
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 text-sidebar-foreground/70 hover:text-red-400 rounded-lg transition-colors w-full text-left border border-sidebar-border/50"
             >
               <LogOut className="w-5 h-5 shrink-0" />
               <span className="text-sm font-semibold truncate">Sign Out</span>
@@ -158,7 +158,7 @@ export default function ManagerSidebar() {
             </div>
             <button
               onClick={handleSignOut}
-              className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors flex items-center justify-center bg-muted/30"
+              className="p-2 hover:bg-red-500/10 text-sidebar-foreground/70 hover:text-red-400 rounded-lg transition-colors flex items-center justify-center border border-sidebar-border/50"
               title="Sign Out"
             >
               <LogOut className="w-5 h-5 shrink-0" />

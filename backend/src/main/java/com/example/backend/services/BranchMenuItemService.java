@@ -2,20 +2,14 @@ package com.example.backend.services;
 
 import com.example.backend.dto.BranchMenuItemDTO;
 import com.example.backend.dto.GuestBranchMenuItemDTO;
-import com.example.backend.entities.BranchMenuItem;
-import com.example.backend.entities.MenuItem;
-import com.example.backend.entities.EntityStatus;
+import com.example.backend.entities.*;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.BranchMenuItemMapper;
-import com.example.backend.repositories.BranchMenuItemRepository;
-import com.example.backend.repositories.BranchRepository;
-import com.example.backend.repositories.MenuItemRepository;
+import com.example.backend.repositories.*;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,19 +20,22 @@ public class BranchMenuItemService {
     private final BranchRepository branchRepository;
     private final MediaService mediaService;
     private final BranchMenuItemMapper branchMenuItemMapper;
+    private final OrderItemRepository orderItemRepository;
 
     public BranchMenuItemService(
             BranchMenuItemRepository branchMenuItemRepository,
             MenuItemRepository menuItemRepository,
             BranchRepository branchRepository,
             MediaService mediaService,
-            BranchMenuItemMapper branchMenuItemMapper
+            BranchMenuItemMapper branchMenuItemMapper,
+            OrderItemRepository orderItemRepository
     ) {
         this.branchMenuItemRepository = branchMenuItemRepository;
         this.menuItemRepository = menuItemRepository;
         this.branchRepository = branchRepository;
         this.mediaService = mediaService;
         this.branchMenuItemMapper = branchMenuItemMapper;
+        this.orderItemRepository = orderItemRepository;
     }
 
     public List<BranchMenuItemDTO> getMenuItemsByBranch(UUID branchId) {
@@ -69,7 +66,22 @@ public class BranchMenuItemService {
             dto.setHasCustomization(menuItem.isHasCustomization());
             dto.setRestaurantId(menuItem.getRestaurant().getRestaurantId());
             dto.setCategoryId(menuItem.getCategory().getCategoryId());
+            dto.setCategoryName(menuItem.getCategory().getName());
             dto.setImageUrl(imageMap.get(menuItem.getMenuItemId()));
+
+            List<BranchMenuItemDTO.CustomizationInfo> customizationInfos = new ArrayList<>();
+            if (menuItem.getCustomizations() != null) {
+                for (Customization c : menuItem.getCustomizations()) {
+                    if (c.getStatus() == EntityStatus.ACTIVE) {
+                        customizationInfos.add(new BranchMenuItemDTO.CustomizationInfo(
+                                c.getCustomizationId().toString(),
+                                c.getName(),
+                                c.getPrice()
+                        ));
+                    }
+                }
+            }
+            dto.setCustomizations(customizationInfos);
 
             if (mapping != null) {
                 dto.setAvailable(mapping.isAvailable());
@@ -84,6 +96,21 @@ public class BranchMenuItemService {
     }
 
     public void updateAvailabilityByBranchAndMenuItem(UUID branchId, UUID menuItemId, boolean available) {
+        // Check if trying to mark as unavailable
+        if (!available) {
+            // Check if menu item is in any active orders
+            boolean isInActiveOrder = orderItemRepository.existsActiveOrderItemByMenuItemId(
+                menuItemId,
+                EntityStatus.ACTIVE,
+                Arrays.asList(OrderLineStatus.PENDING, OrderLineStatus.PREPARING),
+                OrderStatus.EATING
+            );
+            
+            if (isInActiveOrder) {
+                throw new AppException(ErrorCode.MENUITEM_IN_ACTIVE_ORDER);
+            }
+        }
+        
         BranchMenuItem entity = branchMenuItemRepository
                 .findByBranch_BranchIdAndMenuItem_MenuItemId(branchId, menuItemId)
                 .orElseGet(() -> {
