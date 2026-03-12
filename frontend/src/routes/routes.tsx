@@ -221,26 +221,50 @@ const AppRoutes = () => {
         <Route path="users" element={<UserManagement />} />
         <Route index element={<Navigate to="statistics" replace />} />
       </Route>
+
       <Route path="/home" element={
-        <PublicRoute>
+        
           <HomePage/>
-        </PublicRoute>
+        
       } />
       <Route path="/reservations" element={
-        <PublicRoute>
+        
           <TableSelectionPage/>
-        </PublicRoute>
+       
       } />
       <Route path="/menu" element={
-        <PublicRoute>
+        
           <MenuPage/>
-        </PublicRoute>
+        
       } />
       <Route path="/checkout" element={
-        <PublicRoute>
+        
           <CheckoutPage/>
-        </PublicRoute>
+        
       } />
+
+      {/* Dynamic slug-based customer routes */}
+      <Route path="/:slug/home" element={
+      
+          <HomePage/>
+       
+      } />
+      <Route path="/:slug/menu" element={
+        
+          <MenuPage/>
+        
+      } />
+      <Route path="/:slug/reservations" element={
+       
+          <TableSelectionPage/>
+        
+      } />
+      <Route path="/:slug/checkout" element={
+        
+          <CheckoutPage/>
+       
+      } />
+
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

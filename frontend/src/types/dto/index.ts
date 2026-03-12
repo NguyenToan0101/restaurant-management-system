@@ -9,3 +9,6 @@ export * from './customization.dto';
 export * from './menu-item.dto';
 export * from './package.dto';
 export * from './subscription.dto';
+export * from './area.dto';
+export * from './area-table.dto';
+export * from './reservation.dto';
