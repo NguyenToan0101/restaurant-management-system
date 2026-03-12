@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/staff-refresh",
                                 "/api/auth/logout",
+                                "/api/restaurants",
                                 "/api/users/signup",
                                 "/api/users/mail",
                                 "/api/users/mail/otp",

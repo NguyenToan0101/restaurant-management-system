@@ -1,14 +1,16 @@
-export interface AreaDTO {
-  areaId: string;
-  branchId: string;
-  name: string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
+export enum EntityStatus {
+    ACTIVE = 'ACTIVE',
+    INACTIVE = 'INACTIVE',
+    DELETED = 'DELETED'
 }
 
-export interface AreaCreateRequest {
-  branchId: string;
-  name: string;
-  description?: string;
+export interface AreaDTO {
+    areaId?: string;
+    branchId: string;
+    branchName?: string;
+    name: string;
+    status?: EntityStatus;
+    createdAt?: string;
+    updatedAt?: string;
+    tableCount?: number;
 }

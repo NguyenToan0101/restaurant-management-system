@@ -25,8 +25,34 @@ class StaffAccountApi {
 
     return {
       ...backendPage,
-      items: backendPage.items.map(mapStaffAccountFromBackend),
+      content: backendPage.content.map(mapStaffAccountFromBackend),
     };
+  }
+
+  async getManagerStaffPaginated(
+    branchId: string,
+    page: number,
+    size: number
+  ): Promise<PageResponse<StaffAccountDTO>> {
+    const response = await axiosClient.get<
+      ApiResponse<PageResponse<StaffAccountBackendDTO>>
+    >('/staff/manager/paginated', {
+      params: { branchId, page, size },
+    });
+
+    const backendPage = response.data.result;
+
+    return {
+      ...backendPage,
+      content: backendPage.content.map(mapStaffAccountFromBackend),
+    };
+  }
+
+  async getStaffStatistics(branchId: string): Promise<{ waiters: number, receptionists: number }> {
+    const response = await axiosClient.get<ApiResponse<{ waiters: number, receptionists: number }>>(
+      `/staff/manager/statistic/${branchId}`
+    );
+    return response.data.result;
   }
 
   async getById(id: string): Promise<StaffAccountDTO> {
@@ -57,6 +83,10 @@ class StaffAccountApi {
       ApiResponse<StaffAccountBackendDTO>
     >(`/staff/${id}`);
     return mapStaffAccountFromBackend(response.data.result);
+  }
+
+  async resetPassword(staffAccountId: string, newPassword: string): Promise<void> {
+    await axiosClient.patch(`/staff/${staffAccountId}/password`, { newPassword });
   }
 }
 

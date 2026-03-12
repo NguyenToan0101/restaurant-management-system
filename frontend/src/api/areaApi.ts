@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, AreaDTO, AreaCreateRequest } from '@/types/dto';
+import type { ApiResponse, AreaDTO, EntityStatus } from '@/types/dto';
 
 class AreaApi {
     async getAll(): Promise<AreaDTO[]> {
@@ -16,8 +16,13 @@ class AreaApi {
         const response = await axiosClient.get<ApiResponse<AreaDTO[]>>(`/areas/branch/${branchId}`);
         return response.data.result;
     }
-    
-    async create(data: AreaCreateRequest): Promise<AreaDTO> {
+
+    async getByBranchAndStatus(branchId: string, status: EntityStatus): Promise<AreaDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaDTO[]>>(`/areas/branch/${branchId}/status/${status}`);
+        return response.data.result;
+    }
+
+    async create(data: AreaDTO): Promise<AreaDTO> {
         const response = await axiosClient.post<ApiResponse<AreaDTO>>('/areas', data);
         return response.data.result;
     }
@@ -29,6 +34,16 @@ class AreaApi {
 
     async delete(id: string): Promise<void> {
         await axiosClient.delete<ApiResponse<void>>(`/areas/${id}`);
+    }
+
+    async activate(id: string): Promise<AreaDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaDTO>>(`/areas/${id}/activate`);
+        return response.data.result;
+    }
+
+    async deactivate(id: string): Promise<AreaDTO> {
+        const response = await axiosClient.put<ApiResponse<AreaDTO>>(`/areas/${id}/deactivate`);
+        return response.data.result;
     }
 }
 

@@ -32,9 +32,7 @@ export const menuItemApi = {
     if (imageFile) {
       formData.append('imageFile', imageFile);
     }
-    const response = await axiosClient.post<ApiResponse<any>>('/menu-items/create', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await axiosClient.post<ApiResponse<any>>('/menu-items/create', formData);
     return {
       ...response,
       data: {
@@ -50,9 +48,7 @@ export const menuItemApi = {
     if (imageFile) {
       formData.append('imageFile', imageFile);
     }
-    const response = await axiosClient.put<ApiResponse<any>>(`/menu-items/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await axiosClient.put<ApiResponse<any>>(`/menu-items/${id}`, formData);
     return {
       ...response,
       data: {

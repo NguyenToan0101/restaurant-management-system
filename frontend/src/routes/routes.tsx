@@ -14,6 +14,8 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
 import UserManagement from "@/pages/admin/UserManagement";
+import AreaManagement from "@/pages/owner/AreaManagement";
+import TableManagement from "@/pages/owner/TableManagement";
 import Navbar from "@/components/Navbar";
 import PackageSelection from "@/pages/payment/PackageSelection";
 import PaymentConfirm from "@/pages/payment/PaymentConfirm";
@@ -25,6 +27,39 @@ import HomePage from "@/pages/customer/HomePage";
 import TableSelectionPage from "@/pages/customer/TableSelectionPage";
 import MenuPage from "@/pages/customer/MenuPage";
 import CheckoutPage from "@/pages/customer/CheckoutPage";
+
+// Staff components
+import ManagerLayout from "@/components/branch_manager/ManagerLayout";
+import ManagerDashboard from "@/pages/manager/ManagerDashboard";
+import ManagerAreaManagement from "@/pages/manager/ManagerAreaManagement";
+import ManagerTableManagement from "@/pages/manager/ManagerTableManagement";
+import BranchInfo from "@/pages/manager/BranchInfo";
+import ManagerBills from "@/pages/manager/ManagerBills";
+import ManagerPromotions from "@/pages/manager/ManagerPromotions";
+import ManagerStaff from "@/pages/manager/ManagerStaff";
+
+import WaiterLayout from "@/components/waiter/WaiterLayout";
+import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
+import WaiterTableView from "@/pages/waiter/WaiterTableView";
+import WaiterOrderPage from "@/pages/waiter/WaiterOrderPage";
+import WaiterHistory from "@/pages/waiter/WaiterHistory";
+
+import ReceptionistLayout from "@/components/receptionist/ReceptionistLayout";
+import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
+import ReceptionistTableView from "@/pages/receptionist/ReceptionistTableView";
+
+import ComingSoon from "@/components/ComingSoon";
+import { StaffRoleName } from "@/types/dto";
+// Helper: map staff role → dashboard path
+const getStaffDashboard = (role: string): string => {
+  switch (role) {
+    case "BRANCH_MANAGER": return "/manager/dashboard";
+    case "RECEPTIONIST": return "/receptionist/dashboard";
+    case "WAITER": return "/waiter/dashboard";
+    default: return "/staff-login";
+  }
+};
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
@@ -42,11 +77,7 @@ const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Staff trying to access owner routes → send them back to their dashboard
   if (staffInfo && !user) {
-    const role = staffInfo.role;
-    if (role === 'WAITER') return <Navigate to="/dashboard/waitter" replace />;
-    if (role === 'BRANCH_MANAGER') return <Navigate to="/dashboard/manager" replace />;
-    if (role === 'RECEPTIONIST') return <Navigate to="/dashboard/receptionist" replace />;
-    return <Navigate to="/staff-login" replace />;
+    return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
   }
 
   if (!user) {
@@ -83,12 +114,38 @@ const StaffRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+// Guard for specific staff roles
+const StaffRoleRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: StaffRoleName[] }) => {
+  const staffInfo = useAuthStore((state) => state.staffInfo);
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+  if (!staffInfo) {
+    return <Navigate to="/staff-login" replace />;
   }
+
+  if (!staffInfo.role || !allowedRoles.includes(staffInfo.role)) {
+    return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = useAuthStore((state) => state.user);
+  const staffInfo = useAuthStore((state) => state.staffInfo);
+
+  if (staffInfo && !user) return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
+  if (user) return <Navigate to="/" replace />;
+
+  return <>{children}</>;
+};
+
+// Guard trang chủ: staff không được ở landing page
+const HomeRoute = ({ children }: { children: React.ReactNode }) => {
+  const staffInfo = useAuthStore((state) => state.staffInfo);
+  const user = useAuthStore((state) => state.user);
+
+  if (staffInfo && !user) return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
 
   return <>{children}</>;
 };
@@ -98,10 +155,10 @@ const AppRoutes = () => {
     <Routes>
       {/* Public routes */}
       <Route path="/" element={
-        <>
+        <HomeRoute>
           <Navbar />
           <Index />
-        </>
+        </HomeRoute>
       } />
 
       <Route path="/login" element={
@@ -180,34 +237,73 @@ const AppRoutes = () => {
         </OwnerRoute>
       } />
 
-      {/* Staff dashboard routes - must be before /dashboard/:id/* */}
+      {/* Branch Manager routes */}
+      <Route path="/manager/*" element={
+        <StaffRoleRoute allowedRoles={["BRANCH_MANAGER"]}>
+          <ManagerLayout />
+        </StaffRoleRoute>
+      }>
+        <Route path="dashboard" element={<ManagerDashboard />} />
+        <Route path="branch" element={<BranchInfo />} />
+        <Route path="areas" element={<ManagerAreaManagement />} />
+        <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
+        <Route path="tables" element={<ManagerTableManagement />} />
+        <Route path="orders" element={<ComingSoon title="Order Management" description="Manage customer orders and track order status." />} />
+        <Route path="menu" element={<ComingSoon title="Menu Management" description="Manage branch menu and items." />} />
+        <Route path="bills" element={<ManagerBills />} />
+        <Route path="promotions" element={<ManagerPromotions />} />
+        <Route path="staff" element={<ManagerStaff />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Waiter routes */}
+      <Route path="/waiter/*" element={
+        <StaffRoleRoute allowedRoles={["WAITER"]}>
+          <WaiterLayout />
+        </StaffRoleRoute>
+      }>
+        <Route path="dashboard" element={<WaiterDashboard />} />
+        <Route path="tables" element={<WaiterTableView />} />
+        <Route path="orders" element={<WaiterOrderPage />} />
+        <Route path="history" element={<WaiterHistory />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Receptionist routes */}
+      <Route path="/receptionist/*" element={
+        <StaffRoleRoute allowedRoles={["RECEPTIONIST"]}>
+          <ReceptionistLayout />
+        </StaffRoleRoute>
+      }>
+        <Route path="dashboard" element={<ReceptionistDashboard />} />
+        <Route path="tables" element={<ReceptionistTableView />} />
+        <Route path="reservations" element={<ComingSoon title="Reservations" description="Manage table reservations and bookings." />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+      </Route>
+
+      {/* Legacy staff dashboard routes - redirect to new structure */}
       <Route path="/dashboard/waitter" element={
         <StaffRoute>
-          <NotFound />
+          <Navigate to="/waiter/dashboard" replace />
         </StaffRoute>
       } />
 
       <Route path="/dashboard/manager/*" element={
         <StaffRoute>
-          <ManagerDashboard />
+          <Navigate to="/manager/dashboard" replace />
         </StaffRoute>
       } />
 
       <Route path="/dashboard/receptionist" element={
         <StaffRoute>
-          <NotFound />
+          <Navigate to="/receptionist/dashboard" replace />
         </StaffRoute>
       } />
-    
+
       <Route path="/dashboard/:id/*" element={
         <OwnerRoute>
           <RestaurantDashboard />
         </OwnerRoute>
-      } />
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <RestaurantDashboard />
-        </ProtectedRoute>
       } />
 
       {/* Admin routes */}
@@ -221,49 +317,59 @@ const AppRoutes = () => {
         <Route path="users" element={<UserManagement />} />
         <Route index element={<Navigate to="statistics" replace />} />
       </Route>
+        <Route path="/dashboard/:id/branches/:branchId/areas" element={
+            <ProtectedRoute>
+                <AreaManagement />
+            </ProtectedRoute>
+        } />
 
-      <Route path="/home" element={
-        
-          <HomePage/>
-        
-      } />
-      <Route path="/reservations" element={
-        
-          <TableSelectionPage/>
-       
-      } />
-      <Route path="/menu" element={
-        
-          <MenuPage/>
-        
-      } />
-      <Route path="/checkout" element={
-        
-          <CheckoutPage/>
-        
-      } />
+        <Route path="/dashboard/:id/areas/:areaId/tables" element={
+            <ProtectedRoute>
+                <TableManagement />
+            </ProtectedRoute>
+        } />
+        <Route path="/home" element={
 
-      {/* Dynamic slug-based customer routes */}
-      <Route path="/:slug/home" element={
-      
-          <HomePage/>
-       
-      } />
-      <Route path="/:slug/menu" element={
-        
-          <MenuPage/>
-        
-      } />
-      <Route path="/:slug/reservations" element={
-       
-          <TableSelectionPage/>
-        
-      } />
-      <Route path="/:slug/checkout" element={
-        
-          <CheckoutPage/>
-       
-      } />
+            <HomePage/>
+
+        } />
+        <Route path="/reservations" element={
+
+            <TableSelectionPage/>
+
+        } />
+        <Route path="/menu" element={
+
+            <MenuPage/>
+
+        } />
+        <Route path="/checkout" element={
+
+            <CheckoutPage/>
+
+        } />
+
+        {/* Dynamic slug-based customer routes */}
+        <Route path="/:slug/home" element={
+
+            <HomePage/>
+
+        } />
+        <Route path="/:slug/menu" element={
+
+            <MenuPage/>
+
+        } />
+        <Route path="/:slug/reservations" element={
+
+            <TableSelectionPage/>
+
+        } />
+        <Route path="/:slug/checkout" element={
+
+            <CheckoutPage/>
+
+        } />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

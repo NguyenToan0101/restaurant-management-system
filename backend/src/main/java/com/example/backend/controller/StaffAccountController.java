@@ -89,14 +89,24 @@ public class StaffAccountController {
     }
 
     // Các API Thống kê số lượng nhân viên trong chi nhánh
-//    @GetMapping("/branch-manager/statistic/{branchId}")
-//    public ApiResponse<String> getBranchStaffStatistic(@PathVariable UUID branchId) {
-//        // Gom nhóm thống kê vào một API hoặc để lẻ như cũ tùy UI
-//        long waiters = staffAccountService.getRoleNumber(branchId, RoleName.WAITER);
-//        long receptionists = staffAccountService.getRoleNumber(branchId, RoleName.RECEPTIONIST);
-//
-//        ApiResponse<String> apiResponse = new ApiResponse<>();
-//        apiResponse.setResult(String.format("Waiters: %d, Receptionists: %d", waiters, receptionists));
-//        return apiResponse;
-//    }
-}
+    @GetMapping("/manager/statistic/{branchId}")
+    public ApiResponse<com.example.backend.dto.StaffStatisticDTO> getBranchStaffStatistic(@PathVariable UUID branchId) {
+        long waiters = staffAccountService.getRoleNumber(branchId, RoleName.WAITER);
+        long receptionists = staffAccountService.getRoleNumber(branchId, RoleName.RECEPTIONIST);
+
+        ApiResponse<com.example.backend.dto.StaffStatisticDTO> apiResponse = new ApiResponse<>();
+        apiResponse.setResult(new com.example.backend.dto.StaffStatisticDTO(waiters, receptionists));
+        return apiResponse;
+    }
+
+    // Đặt lại mật khẩu tài khoản nhân viên (dùng bởi Owner hoặc Manager)
+    @PatchMapping("/{staffAccountId}/password")
+    public ApiResponse<Void> resetStaffPassword(
+            @PathVariable UUID staffAccountId,
+            @RequestBody java.util.Map<String, String> body) {
+        String newPassword = body.get("newPassword");
+        staffAccountService.resetStaffPassword(staffAccountId, newPassword);
+        ApiResponse<Void> apiResponse = new ApiResponse<>();
+        return apiResponse;
+    }
+}

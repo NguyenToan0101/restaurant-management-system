@@ -8,6 +8,7 @@ import {
   Users,
   Tag,
   LogOut,
+  ShoppingCart
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -26,29 +27,31 @@ import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
 
 const menuItems = [
-  { title: "Overview", description: "Dashboard summary", url: "", icon: LayoutDashboard },
+  { title: "Dashboard", description: "Dashboard summary", url: "/dashboard", icon: LayoutDashboard },
   { title: "Branch Info", description: "Branch details", url: "/branch", icon: Store },
-  { title: "Tables", description: "Table management", url: "/tables", icon: Grid2X2 },
+  { title: "Area & Tables", description: "Area management", url: "/areas", icon: Grid2X2 },
+  { title: "Orders", description: "Manage orders", url: "/orders", icon: ShoppingCart },
   { title: "Menu", description: "Menu management", url: "/menu", icon: UtensilsCrossed },
   { title: "Bills", description: "View bill history", url: "/bills", icon: ReceiptText },
   { title: "Staff", description: "Staff management", url: "/staff", icon: Users },
   { title: "Promotions", description: "Manage promotions", url: "/promotions", icon: Tag },
 ];
 
-export function ManagerSidebar() {
+export default function ManagerSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const staffInfo = useAuthStore((state) => state.staffInfo);
   const logout = useLogout();
 
-  const basePath = `/dashboard/manager`;
+  const basePath = `/manager`;
 
   const isActive = (url: string) => {
     const fullPath = `${basePath}${url}`;
-    return url === ""
-      ? location.pathname === basePath || location.pathname === `${basePath}/`
-      : location.pathname.startsWith(fullPath);
+    if (url === "/areas") {
+      return location.pathname.startsWith(fullPath) || location.pathname.startsWith(`${basePath}/tables`);
+    }
+    return location.pathname.startsWith(fullPath);
   };
 
   const handleSignOut = async () => {
@@ -97,7 +100,7 @@ export function ManagerSidebar() {
                   >
                     <NavLink
                       to={`${basePath}${item.url}`}
-                      end={item.url === ""}
+                      end={item.url === "/dashboard"}
                       className="flex items-center gap-3 px-3 py-2 hover:bg-sidebar-accent/50 rounded-lg transition-all"
                       activeClassName="bg-sidebar-accent/80 text-primary border-l-[4px] border-primary"
                     >

@@ -21,9 +21,11 @@ const isRealJwt = (token: string | null): boolean =>
 axiosClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
-    // Chỉ gửi Authorization header khi token là JWT thực (không phải placeholder 'cookie')
     if (isRealJwt(token) && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },

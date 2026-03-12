@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -73,7 +74,6 @@ public class MenuItemService {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
 
-        // Check menu item limit before creating
         featureLimitCheckerService.checkLimit(
                 request.getRestaurantId(),
                 FeatureCode.LIMIT_MENU_ITEMS,
@@ -83,19 +83,18 @@ public class MenuItemService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        // Tạo MenuItem cơ bản
         MenuItem item = new MenuItem();
         item.setName(request.getName());
         item.setDescription(request.getDescription());
-        item.setPrice(request.getPrice());
+        item.setPrice(request.getPrice() != null ? request.getPrice() : BigDecimal.ZERO);
         item.setBestSeller(request.isBestSeller());
         item.setStatus(EntityStatus.ACTIVE);
         item.setRestaurant(restaurant);
-        item.setCategory(category);     
-        item.setCreatedAt(Instant.now());
+        item.setCategory(category);
 
-        if (request.getCustomizationIds() != null && !request.getCustomizationIds().isEmpty()) {
-            Set<Customization> customizations = request.getCustomizationIds().stream()
+        Set<UUID> custIds = request.getCustomizationIds();
+        if (custIds != null && !custIds.isEmpty()) {
+            Set<Customization> customizations = custIds.stream()
                     .map(id -> customizationRepository.findById(id)
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
@@ -106,6 +105,7 @@ public class MenuItemService {
         }
 
         MenuItem savedItem = menuItemRepository.save(item);
+        menuItemRepository.flush();
 
         if (imageFile != null && !imageFile.isEmpty()) {
             mediaService.saveMediaForTarget(imageFile, savedItem.getMenuItemId(), "MENU_ITEM_IMAGE");
@@ -117,12 +117,14 @@ public class MenuItemService {
                 BranchMenuItem bmi = new BranchMenuItem();
                 bmi.setBranch(branch);
                 bmi.setMenuItem(savedItem);
-                bmi.setAvailable(true); //forgot to auto save true TT
+                bmi.setAvailable(true);
                 branchMenuItemRepository.save(bmi);
             }
         }
 
-        return menuItemMapper.toMenuItemDTO(savedItem);
+        MenuItemDTO dto = menuItemMapper.toMenuItemDTO(savedItem);
+        dto.setImageUrl(mediaService.getImageUrlByTarget(savedItem.getMenuItemId(), "MENU_ITEM_IMAGE"));
+        return dto;
     }
 
     @Transactional
@@ -220,7 +222,6 @@ public class MenuItemService {
         return dto;
     }
 
-    @Transactional
     public boolean canCreateMenuItem(UUID restaurantId) {
         return featureLimitCheckerService.isUnderLimit(
                 restaurantId,
