@@ -46,6 +46,11 @@ class BranchApi {
         return response.data.result;
     }
 
+    async updateContactInfo(id: string, data: Partial<BranchDTO>): Promise<BranchDTO> {
+        const response = await axiosClient.patch<ApiResponse<BranchDTO>>(`/branches/${id}/contact-info`, data);
+        return response.data.result;
+    }
+
     async delete(id: string): Promise<void> {
         await axiosClient.delete<ApiResponse<void>>(`/branches/${id}`);
     }

@@ -1,6 +1,6 @@
 package com.example.backend.dto;
 
-import com.example.backend.entities.PaymentMethod;
+import com.example.backend.entities.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,19 +14,12 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BillDTO {
-    private UUID billId;
+public class OrderSummaryDTO {
     private UUID orderId;
-    private UUID branchId;
+    private UUID areaTableId;
     private String tableName;
     private String areaName;
-    private BigDecimal finalPrice;
-    private String note;
-    private PaymentMethod paymentMethod;
-    private Instant paidTime;
+    private OrderStatus status;
+    private BigDecimal totalPrice;
     private Instant createdAt;
-    private OrderDTO order;
-    private String restaurantName;
-    private String branchAddress;
-    private String branchPhone;
 }

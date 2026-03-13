@@ -1,67 +1,61 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     Sidebar,
     SidebarContent,
-    SidebarHeader,
+    SidebarGroup,
+    SidebarGroupContent,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarHeader,
     useSidebar,
-    SidebarGroup,
-    SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
 import {
-    UtensilsCrossed,
-    Table,
+    BarChart3,
+    Package,
     Users,
+    Shield,
     LogOut,
-    LayoutDashboard,
+    UtensilsCrossed,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
-const ReceptionistSidebar = () => {
+const adminMenuItems = [
+    {
+        title: "Statistics",
+        description: "View system stats",
+        url: "/admin/dashboard/statistics",
+        icon: BarChart3,
+    },
+    {
+        title: "Packages",
+        description: "Manage packages",
+        url: "/admin/dashboard/packages",
+        icon: Package,
+    },
+    {
+        title: "Users",
+        description: "Manage users",
+        url: "/admin/dashboard/users",
+        icon: Users,
+    },
+];
+
+export default function AdminSidebar() {
     const { state } = useSidebar();
     const collapsed = state === "collapsed";
     const location = useLocation();
     const navigate = useNavigate();
-    const staffInfo = useAuthStore((state) => state.staffInfo);
+    const user = useAuthStore((state) => state.user);
     const logout = useLogout();
 
-    const handleLogout = async () => {
-        try {
-            await logout.mutateAsync();
-            navigate("/staff-login");
-        } catch (error) {
-            console.error("Logout failed:", error);
-        }
+    const handleSignOut = async () => {
+        await logout.mutateAsync();
+        navigate("/login");
     };
-
-    const menuItems = [
-        {
-            title: "Dashboard",
-            description: "Dashboard overview",
-            icon: LayoutDashboard,
-            url: "/receptionist/dashboard",
-            isActive: location.pathname === "/receptionist/dashboard",
-        },
-        {
-            title: "Tables",
-            description: "View tables",
-            icon: Table,
-            url: "/receptionist/tables",
-            isActive: location.pathname.startsWith("/receptionist/tables"),
-        },
-        {
-            title: "Reservations",
-            description: "Manage reservations",
-            icon: Users,
-            url: "/receptionist/reservations",
-            isActive: location.pathname.startsWith("/receptionist/reservations"),
-        },
-    ];
 
     return (
         <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -70,21 +64,21 @@ const ReceptionistSidebar = () => {
                     {!collapsed ? (
                         <div className="flex items-center gap-3 px-2 w-full">
                             <div className="w-11 h-11 rounded-2xl brand-gradient flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-                                <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
+                                <Shield className="w-5 h-5 text-primary-foreground" />
                             </div>
                             <div className="flex flex-col overflow-hidden">
                                 <span className="text-base font-bold tracking-tight text-sidebar-foreground truncate">
                                     BentoX
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate">
-                                    Receptionist Portal
+                                    Admin Portal
                                 </span>
                             </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center w-full">
                             <div className="w-11 h-11 rounded-2xl brand-gradient flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-                                <UtensilsCrossed className="w-5 h-5 text-primary-foreground" />
+                                <Shield className="w-5 h-5 text-primary-foreground" />
                             </div>
                         </div>
                     )}
@@ -95,11 +89,11 @@ const ReceptionistSidebar = () => {
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {menuItems.map((item) => (
+                            {adminMenuItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={item.isActive}
+                                        isActive={location.pathname === item.url}
                                         tooltip={item.title}
                                         className="h-14 mb-1"
                                     >
@@ -108,10 +102,18 @@ const ReceptionistSidebar = () => {
                                             className="flex items-center gap-3 px-3 py-2 hover:bg-sidebar-accent/50 rounded-lg transition-all"
                                             activeClassName="bg-sidebar-accent/80 text-primary border-l-[4px] border-primary"
                                         >
-                                            <item.icon className={`w-5 h-5 shrink-0 ${item.isActive ? 'text-primary' : ''}`} />
+                                            <item.icon
+                                                className={`w-5 h-5 shrink-0 ${location.pathname === item.url ? "text-primary" : ""
+                                                    }`}
+                                            />
                                             {!collapsed && (
                                                 <div className="flex flex-col flex-1 overflow-hidden h-full justify-center">
-                                                    <span className={`text-sm truncate leading-tight ${item.isActive ? 'font-bold text-primary' : 'font-semibold'}`}>
+                                                    <span
+                                                        className={`text-sm truncate leading-tight ${location.pathname === item.url
+                                                            ? "font-bold text-primary"
+                                                            : "font-semibold"
+                                                            }`}
+                                                    >
                                                         {item.title}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
@@ -134,21 +136,21 @@ const ReceptionistSidebar = () => {
                         {/* User Info block */}
                         <div className="flex items-center gap-3 px-1 py-2">
                             <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-primary font-bold">
-                                {staffInfo?.username?.charAt(0).toUpperCase() || "R"}
+                                {user?.username?.charAt(0).toUpperCase() || "A"}
                             </div>
                             <div className="flex flex-col overflow-hidden">
                                 <span className="text-sm font-semibold text-sidebar-foreground truncate">
-                                    {staffInfo?.username || "Receptionist"}
+                                    {user?.username || "Admin"}
                                 </span>
-                                <span className="text-[10px] font-bold bg-teal-500/20 text-teal-400 px-2 py-0.5 rounded-full w-fit mt-1">
-                                    {staffInfo?.role || "RECEPTIONIST"}
+                                <span className="text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full w-fit mt-1">
+                                    ADMIN
                                 </span>
                             </div>
                         </div>
 
                         {/* Sign Out Button */}
                         <button
-                            onClick={handleLogout}
+                            onClick={handleSignOut}
                             className="flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 text-sidebar-foreground/70 hover:text-red-400 rounded-lg transition-colors w-full text-left border border-sidebar-border/50"
                         >
                             <LogOut className="w-5 h-5 shrink-0" />
@@ -158,10 +160,10 @@ const ReceptionistSidebar = () => {
                 ) : (
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-primary font-bold">
-                            {staffInfo?.username?.charAt(0).toUpperCase() || "R"}
+                            {user?.username?.charAt(0).toUpperCase() || "A"}
                         </div>
                         <button
-                            onClick={handleLogout}
+                            onClick={handleSignOut}
                             className="p-2 hover:bg-red-500/10 text-sidebar-foreground/70 hover:text-red-400 rounded-lg transition-colors flex items-center justify-center border border-sidebar-border/50"
                             title="Sign Out"
                         >
@@ -176,6 +178,4 @@ const ReceptionistSidebar = () => {
             </div>
         </Sidebar>
     );
-};
-
-export default ReceptionistSidebar;
+}

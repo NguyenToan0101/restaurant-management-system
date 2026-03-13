@@ -13,12 +13,15 @@ class StaffAccountApi {
   async getByBranchPaginated(
     branchId: string,
     page: number,
-    size: number
+    size: number,
+    keyword?: string,
+    roleFilter?: string,
+    isActive?: boolean
   ): Promise<PageResponse<StaffAccountDTO>> {
     const response = await axiosClient.get<
       ApiResponse<PageResponse<StaffAccountBackendDTO>>
     >('/staff/owner/paginated', {
-      params: { branchId, page, size },
+      params: { branchId, page, size, keyword, roleFilter, isActive },
     });
 
     const backendPage = response.data.result;
@@ -32,12 +35,15 @@ class StaffAccountApi {
   async getManagerStaffPaginated(
     branchId: string,
     page: number,
-    size: number
+    size: number,
+    keyword?: string,
+    roleFilter?: string,
+    isActive?: boolean
   ): Promise<PageResponse<StaffAccountDTO>> {
     const response = await axiosClient.get<
       ApiResponse<PageResponse<StaffAccountBackendDTO>>
     >('/staff/manager/paginated', {
-      params: { branchId, page, size },
+      params: { branchId, page, size, keyword, roleFilter, isActive },
     });
 
     const backendPage = response.data.result;
@@ -87,6 +93,14 @@ class StaffAccountApi {
 
   async resetPassword(staffAccountId: string, newPassword: string): Promise<void> {
     await axiosClient.patch(`/staff/${staffAccountId}/password`, { newPassword });
+  }
+
+  async transferToBranch(staffAccountId: string, newBranchId: string): Promise<StaffAccountDTO> {
+    const response = await axiosClient.patch<ApiResponse<StaffAccountBackendDTO>>(
+      `/staff/${staffAccountId}/transfer`,
+      { newBranchId }
+    );
+    return mapStaffAccountFromBackend(response.data.result);
   }
 }
 

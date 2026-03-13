@@ -10,3 +10,4 @@ export { areaApi } from './areaApi';
 export { tableApi } from './tableApi';
 export { reservationApi } from './reservationApi';
 export { waiterOrderApi } from './waiterOrderApi';
+export { branchMenuItemApi } from './branchMenuItemApi';

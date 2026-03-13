@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { staffAccountApi } from '@/api/staffApi';
 import type {
   PageResponse,
@@ -11,38 +11,46 @@ import { useToast } from '@/hooks/use-toast';
 export const useStaffByBranch = (
   branchId?: string,
   page = 1,
-  size = 20
+  size = 20,
+  keyword?: string,
+  roleFilter?: string,
+  isActive?: boolean
 ) => {
   return useQuery({
-    queryKey: ['staff', 'branch', branchId, page, size],
+    queryKey: ['staff', 'branch', branchId, page, size, keyword, roleFilter, isActive],
     queryFn: async () => {
       if (!branchId) {
         throw new Error('Branch ID is required');
       }
       const pageData: PageResponse<StaffAccountDTO> =
-        await staffAccountApi.getByBranchPaginated(branchId, page, size);
+        await staffAccountApi.getByBranchPaginated(branchId, page, size, keyword, roleFilter, isActive);
       return pageData;
     },
     enabled: !!branchId,
+    placeholderData: keepPreviousData,
   });
 };
 
 export const useManagerStaffByBranch = (
   branchId?: string,
   page = 1,
-  size = 20
+  size = 20,
+  keyword?: string,
+  roleFilter?: string,
+  isActive?: boolean
 ) => {
   return useQuery({
-    queryKey: ['manager-staff', 'branch', branchId, page, size],
+    queryKey: ['manager-staff', 'branch', branchId, page, size, keyword, roleFilter, isActive],
     queryFn: async () => {
       if (!branchId) {
         throw new Error('Branch ID is required');
       }
       const pageData: PageResponse<StaffAccountDTO> =
-        await staffAccountApi.getManagerStaffPaginated(branchId, page, size);
+        await staffAccountApi.getManagerStaffPaginated(branchId, page, size, keyword, roleFilter, isActive);
       return pageData;
     },
     enabled: !!branchId,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -207,6 +215,30 @@ export const useResetStaffPassword = () => {
     onError: (error: any) => {
       toast({
         title: 'Failed to reset password',
+        description: error?.response?.data?.message || 'An error occurred',
+        variant: 'destructive',
+      });
+    },
+  });
+};
+
+export const useTransferStaffToBranch = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ staffAccountId, newBranchId }: { staffAccountId: string; newBranchId: string }) =>
+      staffAccountApi.transferToBranch(staffAccountId, newBranchId),
+    onSuccess: (data) => {
+      // Invalidate both old and new branch queries
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['manager-staff'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-statistics'] });
+      toast({ title: 'Staff transferred successfully' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to transfer staff',
         description: error?.response?.data?.message || 'An error occurred',
         variant: 'destructive',
       });

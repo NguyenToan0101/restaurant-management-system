@@ -36,6 +36,9 @@ import BranchInfo from "@/pages/manager/BranchInfo";
 import ManagerBills from "@/pages/manager/ManagerBills";
 import ManagerPromotions from "@/pages/manager/ManagerPromotions";
 import ManagerStaff from "@/pages/manager/ManagerStaff";
+import ManagerMenuManagement from "@/pages/manager/ManagerMenuManagement";
+import ManagerOrders from "@/pages/manager/ManagerOrders";
+import ManagerKitchen from "@/pages/manager/ManagerKitchen";
 
 import WaiterLayout from "@/components/waiter/WaiterLayout";
 import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
@@ -247,8 +250,9 @@ const AppRoutes = () => {
         <Route path="areas" element={<ManagerAreaManagement />} />
         <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
         <Route path="tables" element={<ManagerTableManagement />} />
-        <Route path="orders" element={<ComingSoon title="Order Management" description="Manage customer orders and track order status." />} />
-        <Route path="menu" element={<ComingSoon title="Menu Management" description="Manage branch menu and items." />} />
+        <Route path="orders" element={<ManagerOrders />} />
+        <Route path="kitchen" element={<ManagerKitchen />} />
+        <Route path="menu" element={<ManagerMenuManagement />} />
         <Route path="bills" element={<ManagerBills />} />
         <Route path="promotions" element={<ManagerPromotions />} />
         <Route path="staff" element={<ManagerStaff />} />

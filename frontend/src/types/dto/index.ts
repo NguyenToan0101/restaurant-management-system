@@ -14,3 +14,4 @@ export * from './subscription.dto';
 export * from './area.dto';
 export * from './reservation.dto';
 export * from './order.dto';
+export * from './branch-menu-item.dto';

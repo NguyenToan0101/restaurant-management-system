@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ import {
   EyeOff,
   Search,
   KeyRound,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   Tabs,
@@ -48,6 +49,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
 import {
   useStaffByBranch,
@@ -55,6 +64,7 @@ import {
   useUpdateStaffAccount,
   useToggleStaffStatus,
   useResetStaffPassword,
+  useTransferStaffToBranch,
 } from "@/hooks/queries/useStaffQueries";
 import type {
   BranchDTO,
@@ -91,6 +101,9 @@ const StaffManagement = () => {
   const [editingStaff, setEditingStaff] = useState<StaffAccountDTO | null>(
     null,
   );
+  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
+  const size = 10;
 
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -98,6 +111,15 @@ const StaffManagement = () => {
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
   const [staffToToggle, setStaffToToggle] = useState<StaffAccountDTO | null>(null);
@@ -111,6 +133,11 @@ const StaffManagement = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdResetError, setPwdResetError] = useState("");
+
+  // Transfer branch state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [staffToTransfer, setStaffToTransfer] = useState<StaffAccountDTO | null>(null);
+  const [targetBranchId, setTargetBranchId] = useState<string>("");
   
   const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$/;
 
@@ -130,7 +157,14 @@ const StaffManagement = () => {
   const {
     data: staffPage,
     isLoading: isLoadingStaff,
-  } = useStaffByBranch(selectedBranchId || undefined);
+  } = useStaffByBranch(
+    selectedBranchId || undefined, 
+    page, 
+    size, 
+    debouncedSearchQuery || undefined, 
+    roleFilter === "ALL" ? undefined : roleFilter, 
+    activeTab === "active" // pass true for active tab, false for inactive
+  );
 
   const staff: StaffAccountDTO[] = staffPage?.content || [];
 
@@ -138,6 +172,7 @@ const StaffManagement = () => {
   const updateStaff = useUpdateStaffAccount();
   const toggleStatus = useToggleStaffStatus();
   const resetPassword = useResetStaffPassword();
+  const transferStaff = useTransferStaffToBranch();
 
   const openResetPassword = (s: StaffAccountDTO) => {
     setStaffToReset(s);
@@ -161,6 +196,21 @@ const StaffManagement = () => {
     setPwdResetError("");
     await resetPassword.mutateAsync({ staffAccountId: staffToReset.id, newPassword });
     setResetPwdOpen(false);
+  };
+
+  const openTransferBranch = (s: StaffAccountDTO) => {
+    setStaffToTransfer(s);
+    setTargetBranchId("");
+    setTransferOpen(true);
+  };
+
+  const handleTransferBranch = async () => {
+    if (!staffToTransfer || !targetBranchId) return;
+    await transferStaff.mutateAsync({ 
+      staffAccountId: staffToTransfer.id, 
+      newBranchId: targetBranchId 
+    });
+    setTransferOpen(false);
   };
 
   const selectedBranch: BranchDTO | undefined = branches.find(
@@ -234,14 +284,14 @@ const StaffManagement = () => {
     }
   };
 
-  const allBranchStaff = staff;
-  const filteredStaff = allBranchStaff.filter(s => {
-    const matchSearch = s.username.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchRole = roleFilter === "ALL" || s.role?.name === roleFilter;
-    return matchSearch && matchRole;
-  });
-  const activeStaff = filteredStaff.filter((s) => s.isActive);
-  const inactiveStaff = filteredStaff.filter((s) => !s.isActive);
+  const filteredStaff = staff; // Backend already filters by status, keyword, and role
+  const activeStaff = activeTab === "active" ? filteredStaff : [];
+  const inactiveStaff = activeTab === "inactive" ? filteredStaff : [];
+
+  // Reset page when search, filters, or tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery, roleFilter, activeTab]);
 
   const handleDeactivateAll = () => {
     setBulkAction("deactivate");
@@ -368,14 +418,14 @@ const StaffManagement = () => {
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : (
-              <Tabs defaultValue="active" className="w-full">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "active" | "inactive")} className="w-full">
                 <div className="px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border dark:border-gray-800">
                   <TabsList className="w-max bg-secondary dark:bg-[#14161f] border border-border dark:border-gray-800 p-1 h-10 rounded-xl">
                     <TabsTrigger value="active" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
-                      Active ({activeStaff.length})
+                      Active
                     </TabsTrigger>
                     <TabsTrigger value="inactive" className="gap-2 data-[state=active]:bg-background dark:data-[state=active]:bg-[#2a2d3d] data-[state=active]:text-foreground dark:data-[state=active]:text-white rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground dark:text-gray-400">
-                      Inactive ({inactiveStaff.length})
+                      Inactive
                     </TabsTrigger>
                   </TabsList>
                   
@@ -422,6 +472,7 @@ const StaffManagement = () => {
                         placeholder="Search by username..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        autoComplete="off"
                       />
                     </div>
                   </div>
@@ -464,6 +515,15 @@ const StaffManagement = () => {
                             </TableCell>
                             <TableCell className="text-right pr-6">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openTransferBranch(s)}
+                                  title="Transfer to another branch"
+                                >
+                                  <ArrowRightLeft className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -537,6 +597,15 @@ const StaffManagement = () => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openTransferBranch(s)}
+                                  title="Transfer to another branch"
+                                >
+                                  <ArrowRightLeft className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-8 w-8 text-muted-foreground hover:text-amber-500 dark:text-gray-400 dark:hover:text-amber-400 hover:bg-black/5 dark:hover:bg-white/10"
                                   onClick={() => openResetPassword(s)}
                                   title="Reset password"
@@ -568,8 +637,43 @@ const StaffManagement = () => {
                 </TabsContent>
               </Tabs>
             )}
-          </CardContent>
-        </Card>
+
+          {/* Pagination */}
+          {!isLoadingStaff && staffPage && staffPage.totalPages > 1 && (
+            <div className="py-4 border-t border-border dark:border-gray-800">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: staffPage.totalPages }).map((_, i) => (
+                    <PaginationItem key={i + 1}>
+                      <PaginationLink 
+                        isActive={page === i + 1}
+                        onClick={() => setPage(i + 1)}
+                        className="cursor-pointer"
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setPage(p => Math.min(staffPage.totalPages, p + 1))}
+                      className={page === staffPage.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       </div>
 
       {/* Create/Edit Staff Dialog */}
@@ -739,6 +843,7 @@ const StaffManagement = () => {
                 placeholder="Enter new password"
                 value={newPassword}
                 onChange={(e) => { setNewPassword(e.target.value); setPwdResetError(""); }}
+                autoComplete="new-password"
               />
             </div>
             <div className="space-y-2">
@@ -750,6 +855,7 @@ const StaffManagement = () => {
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPwdResetError(""); }}
+                  autoComplete="new-password"
                 />
                 <Button
                   type="button"
@@ -772,6 +878,47 @@ const StaffManagement = () => {
             >
               {resetPassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Branch Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transfer Staff to Another Branch</DialogTitle>
+            <DialogDescription>
+              Transfer <strong>{staffToTransfer?.username}</strong> to a different branch within the same restaurant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Select Target Branch</Label>
+              <Select value={targetBranchId} onValueChange={setTargetBranchId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches
+                    .filter(b => b.branchId !== staffToTransfer?.branchId)
+                    .map(branch => (
+                      <SelectItem key={branch.branchId} value={branch.branchId!}>
+                        {branch.address}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleTransferBranch}
+              disabled={!targetBranchId || transferStaff.isPending}
+            >
+              {transferStaff.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Transfer
             </Button>
           </DialogFooter>
         </DialogContent>

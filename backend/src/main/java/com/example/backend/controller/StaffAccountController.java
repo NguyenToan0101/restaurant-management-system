@@ -66,9 +66,12 @@ public class StaffAccountController {
     public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByBranchForOwner(
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size,
-            @RequestParam UUID branchId) {
+            @RequestParam UUID branchId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String roleFilter,
+            @RequestParam(required = false) Boolean isActive) {
         ApiResponse<PageResponse<StaffAccountDTO>> apiResponse = new ApiResponse<>();
-        apiResponse.setResult(staffAccountService.getStaffAccountByBranchForOwnerPaginated(page, size, branchId));
+        apiResponse.setResult(staffAccountService.getStaffAccountByBranchForOwnerPaginated(page, size, branchId, keyword, roleFilter, isActive));
         return apiResponse;
     }
 
@@ -82,9 +85,12 @@ public class StaffAccountController {
     public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByBranch(
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size,
-            @RequestParam UUID branchId) {
+            @RequestParam UUID branchId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String roleFilter,
+            @RequestParam(required = false) Boolean isActive) {
         ApiResponse<PageResponse<StaffAccountDTO>> apiResponse = new ApiResponse<>();
-        apiResponse.setResult(staffAccountService.getStaffAccountPaginated(page, size, branchId));
+        apiResponse.setResult(staffAccountService.getStaffAccountPaginated(page, size, branchId, keyword, roleFilter, isActive));
         return apiResponse;
     }
 
@@ -109,4 +115,15 @@ public class StaffAccountController {
         ApiResponse<Void> apiResponse = new ApiResponse<>();
         return apiResponse;
     }
-}
+
+    // Chuyển nhân viên sang chi nhánh khác (chỉ Owner)
+    @PatchMapping("/{staffAccountId}/transfer")
+    public ApiResponse<StaffAccountDTO> transferStaffToBranch(
+            @PathVariable UUID staffAccountId,
+            @RequestBody java.util.Map<String, String> body) {
+        UUID newBranchId = UUID.fromString(body.get("newBranchId"));
+        ApiResponse<StaffAccountDTO> apiResponse = new ApiResponse<>();
+        apiResponse.setResult(staffAccountService.transferStaffToBranch(staffAccountId, newBranchId));
+        return apiResponse;
+    }
+}

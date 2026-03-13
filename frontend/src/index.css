@@ -125,6 +125,11 @@
     font-weight: 800;
     letter-spacing: -0.03em;
   }
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+  }
   .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
@@ -307,4 +312,12 @@ input[type="number"] {
 
   --border: 350 33% 21%;
   --input: 350 33% 21%;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE, Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }

@@ -4,8 +4,10 @@ package com.example.backend.controller;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,16 +49,23 @@ public class BranchController {
     }
 
     @PostMapping("")
-    public ApiResponse<BranchDTO> create(@RequestBody BranchDTO dto) {
+    public ApiResponse<BranchDTO> create(@Valid @RequestBody BranchDTO dto) {
         ApiResponse<BranchDTO> res = new ApiResponse<>();
         res.setResult(branchService.create(dto));
         return res;
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<BranchDTO> update(@PathVariable UUID id, @RequestBody BranchDTO dto) {
+    public ApiResponse<BranchDTO> update(@PathVariable UUID id, @Valid @RequestBody BranchDTO dto) {
         ApiResponse<BranchDTO> res = new ApiResponse<>();
         res.setResult(branchService.update(id, dto));
+        return res;
+    }
+
+    @PatchMapping("/{id}/contact-info")
+    public ApiResponse<BranchDTO> updateContactInfo(@PathVariable UUID id, @RequestBody BranchDTO dto) {
+        ApiResponse<BranchDTO> res = new ApiResponse<>();
+        res.setResult(branchService.updateContactInfo(id, dto));
         return res;
     }
 

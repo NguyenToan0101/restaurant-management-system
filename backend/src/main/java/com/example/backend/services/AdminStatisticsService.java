@@ -70,23 +70,48 @@ public class AdminStatisticsService {
         LocalDate weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(6);
         
+        // Get active subscription distribution (current state of subscriptions)
+        List<Object[]> distributionResults = subscriptionRepository.findActiveSubscriptionDistribution();
+        
+        // Get payment stats for revenue and transaction details
         Instant startInstant = weekStart.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endInstant = weekEnd.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
+        List<Object[]> paymentResults = subscriptionPaymentRepository.findPackageStatsByDateRange(startInstant, endInstant);
         
-        List<Object[]> results = subscriptionPaymentRepository.findPackageStatsByDateRange(startInstant, endInstant);
+        // Create maps for payment data
+        var paymentDataMap = new java.util.HashMap<String, Object[]>();
+        for (Object[] result : paymentResults) {
+            String packageName = (String) result[0];
+            paymentDataMap.put(packageName, result);
+        }
+        
         List<PackageStatsDTO> packageStats = new ArrayList<>();
-        
         String period = weekStart.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + 
                        weekEnd.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"));
         
-        for (Object[] result : results) {
+        // Build stats based on active subscription distribution
+        for (Object[] result : distributionResults) {
             String packageName = (String) result[0];
-            Long newSubs = ((Number) result[1]).longValue();
-            Long renewals = ((Number) result[2]).longValue();
-            Long upgrades = ((Number) result[3]).longValue();
-            BigDecimal revenue = BigDecimal.valueOf(((Number) result[4]).longValue());
+            Long activeSubscriptions = ((Number) result[1]).longValue();
             
-            packageStats.add(new PackageStatsDTO(packageName, newSubs, renewals, upgrades, revenue, period));
+            // Get payment data if exists
+            Object[] paymentData = paymentDataMap.get(packageName);
+            Long newSubs = 0L;
+            Long renewals = 0L;
+            Long upgrades = 0L;
+            BigDecimal revenue = BigDecimal.ZERO;
+            
+            if (paymentData != null) {
+                newSubs = ((Number) paymentData[1]).longValue();
+                renewals = ((Number) paymentData[2]).longValue();
+                upgrades = ((Number) paymentData[3]).longValue();
+                revenue = BigDecimal.valueOf(((Number) paymentData[4]).longValue());
+            }
+            
+            PackageStatsDTO dto = new PackageStatsDTO(packageName, newSubs, renewals, upgrades, revenue, period);
+            // Override totalSubscriptions with actual active subscription count
+            dto.setTotalSubscriptions(activeSubscriptions);
+            packageStats.add(dto);
         }
         
         return packageStats;
@@ -129,20 +154,46 @@ public class AdminStatisticsService {
         Instant startInstant = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant endInstant = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
         
-        List<Object[]> results = subscriptionPaymentRepository.findPackageStatsByDateRange(startInstant, endInstant);
-        List<PackageStatsDTO> packageStats = new ArrayList<>();
+        // Get active subscription distribution (current state of subscriptions)
+        List<Object[]> distributionResults = subscriptionRepository.findActiveSubscriptionDistribution();
         
+        // Get payment stats for revenue and transaction details
+        List<Object[]> paymentResults = subscriptionPaymentRepository.findPackageStatsByDateRange(startInstant, endInstant);
+        
+        // Create maps for payment data
+        var paymentDataMap = new java.util.HashMap<String, Object[]>();
+        for (Object[] result : paymentResults) {
+            String packageName = (String) result[0];
+            paymentDataMap.put(packageName, result);
+        }
+        
+        List<PackageStatsDTO> packageStats = new ArrayList<>();
         String period = startDate.format(DateTimeFormatter.ofPattern("MMM dd")) + " - " + 
                        endDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"));
         
-        for (Object[] result : results) {
+        // Build stats based on active subscription distribution
+        for (Object[] result : distributionResults) {
             String packageName = (String) result[0];
-            Long newSubs = ((Number) result[1]).longValue();
-            Long renewals = ((Number) result[2]).longValue();
-            Long upgrades = ((Number) result[3]).longValue();
-            BigDecimal revenue = BigDecimal.valueOf(((Number) result[4]).longValue());
+            Long activeSubscriptions = ((Number) result[1]).longValue();
             
-            packageStats.add(new PackageStatsDTO(packageName, newSubs, renewals, upgrades, revenue, period));
+            // Get payment data if exists
+            Object[] paymentData = paymentDataMap.get(packageName);
+            Long newSubs = 0L;
+            Long renewals = 0L;
+            Long upgrades = 0L;
+            BigDecimal revenue = BigDecimal.ZERO;
+            
+            if (paymentData != null) {
+                newSubs = ((Number) paymentData[1]).longValue();
+                renewals = ((Number) paymentData[2]).longValue();
+                upgrades = ((Number) paymentData[3]).longValue();
+                revenue = BigDecimal.valueOf(((Number) paymentData[4]).longValue());
+            }
+            
+            PackageStatsDTO dto = new PackageStatsDTO(packageName, newSubs, renewals, upgrades, revenue, period);
+            // Override totalSubscriptions with actual active subscription count
+            dto.setTotalSubscriptions(activeSubscriptions);
+            packageStats.add(dto);
         }
         
         return packageStats;

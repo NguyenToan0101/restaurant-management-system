@@ -11,6 +11,7 @@ public class PackageFeatureDTO {
     private boolean available;
     private int billingPeriod;
     private List<FeatureValueDTO> features;
+    private Long activeSubscriptionCount;
 
 
     public UUID getPackageId() {
@@ -69,6 +70,14 @@ public class PackageFeatureDTO {
         this.features = features;
     }
 
+    public Long getActiveSubscriptionCount() {
+        return activeSubscriptionCount;
+    }
+
+    public void setActiveSubscriptionCount(Long activeSubscriptionCount) {
+        this.activeSubscriptionCount = activeSubscriptionCount;
+    }
+
 
     @Override
     public String toString() {
@@ -80,6 +89,7 @@ public class PackageFeatureDTO {
                 ", available=" + available +
                 ", billingPeriod=" + billingPeriod +
                 ", features=" + features +
+                ", activeSubscriptionCount=" + activeSubscriptionCount +
                 '}';
     }
 }

@@ -657,19 +657,6 @@ const TableCard = ({ table, onEdit, onDelete, onViewQr, onSetStatus, canManage }
                             </Button>
                         )}
                     </div>
-
-                    {/* Status Selector */}
-                    <select
-                        value={table.status}
-                        onChange={canManage ? (e) => onSetStatus(table, e.target.value as TableStatus) : undefined}
-                        disabled={!canManage}
-                        className="w-full text-xs px-2 py-1.5 rounded-lg border bg-background/50 backdrop-blur-sm cursor-pointer hover:bg-background transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <option value={TableStatus.FREE}>✓ Available</option>
-                        <option value={TableStatus.OCCUPIED}>👥 Occupied</option>
-                        <option value={TableStatus.INACTIVE}>⚠ Out of Order</option>
-                    </select>
                 </div>
             </CardContent>
         </Card>

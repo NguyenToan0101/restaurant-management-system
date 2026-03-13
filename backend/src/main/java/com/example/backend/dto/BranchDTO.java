@@ -3,6 +3,7 @@ package com.example.backend.dto;
 import java.time.LocalTime;
 import java.util.UUID;
 
+import com.example.backend.validator.Phone;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class BranchDTO {
@@ -10,6 +11,7 @@ public class BranchDTO {
     private UUID restaurantId;
     private String restaurantName;
     private String address;
+    @Phone
     private String branchPhone;
     private LocalTime openingTime;
     private LocalTime closingTime;
