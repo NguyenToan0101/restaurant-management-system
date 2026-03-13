@@ -30,7 +30,6 @@ import CheckoutPage from "@/pages/customer/CheckoutPage";
 
 // Staff components
 import ManagerLayout from "@/components/branch_manager/ManagerLayout";
-import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import ManagerAreaManagement from "@/pages/manager/ManagerAreaManagement";
 import ManagerTableManagement from "@/pages/manager/ManagerTableManagement";
 import BranchInfo from "@/pages/manager/BranchInfo";
@@ -360,6 +359,7 @@ const AppRoutes = () => {
             <MenuPage/>
 
         } />
+        <Route path="/:slug/menu/:tableId" element={<MenuPage />} />
         <Route path="/:slug/reservations" element={
 
             <TableSelectionPage/>

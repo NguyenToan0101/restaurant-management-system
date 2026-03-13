@@ -1,11 +1,17 @@
+// export enum ReservationStatus {
+//   PENDING = 'PENDING',
+//   CONFIRMED = 'CONFIRMED',
+//   CHECKED_IN = 'CHECKED_IN',
+//   COMPLETED = 'COMPLETED',
+//   CANCELLED = 'CANCELLED',
+// }
+
 export enum ReservationStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
-  CHECKED_IN = 'CHECKED_IN',
-  COMPLETED = 'COMPLETED',
+  APPROVED= 'APPROVED',
   CANCELLED = 'CANCELLED',
 }
-
 export interface ReservationDTO {
   reservationId: string;
   branchId: string;

@@ -7,5 +7,6 @@ export { subscriptionApi } from './subscriptionApi';
 export { branchApi } from './branchApi';
 export { restaurantApi } from './restaurantApi';
 export { areaApi } from './areaApi';
-export { areaTableApi } from './areaTableApi';
+export { tableApi } from './tableApi';
 export { reservationApi } from './reservationApi';
+export { waiterOrderApi } from './waiterOrderApi';

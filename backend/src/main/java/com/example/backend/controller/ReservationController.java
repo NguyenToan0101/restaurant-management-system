@@ -1,37 +1,72 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.BranchDTO;
-import com.example.backend.dto.RestaurantDTO;
-import com.example.backend.dto.response.ApiResponse;
-import com.example.backend.services.BranchService;
-import com.example.backend.services.RestaurantService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.example.backend.dto.ReservationDTO;
+import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.services.ReservationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/public")
+@RequestMapping("/api/reservations")
+@RequiredArgsConstructor
 public class ReservationController {
-    private final BranchService branchService;
-    private final RestaurantService restaurantService;
-    public ReservationController(BranchService branchService, RestaurantService restaurantService) {
-        this.branchService = branchService;
-        this.restaurantService = restaurantService;
-    }
-    @GetMapping("/restaurants/{slug}")
-    public ApiResponse<RestaurantDTO> getBySlug(@PathVariable String slug) {
-        ApiResponse<RestaurantDTO> res = new ApiResponse<>();
-        res.setResult(restaurantService.getBySlug(slug));
+
+    private final ReservationService reservationService;
+
+    @GetMapping
+    public ApiResponse<List<ReservationDTO>> getAll() {
+        ApiResponse<List<ReservationDTO>> res = new ApiResponse<>();
+        res.setResult(reservationService.getAll());
         return res;
     }
-    @GetMapping("/branches/restaurant/{restaurantId}")
-    public ApiResponse<List<BranchDTO>> getByRestaurant(@PathVariable UUID restaurantId) {
-        ApiResponse<List<BranchDTO>> res = new ApiResponse<>();
-        res.setResult(branchService.getByRestaurant(restaurantId));
+
+    @GetMapping("/{id}")
+    public ApiResponse<ReservationDTO> getById(@PathVariable UUID id) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.getById(id));
         return res;
+    }
+
+    @GetMapping("/branch/{branchId}")
+    public ApiResponse<List<ReservationDTO>> getByBranch(@PathVariable UUID branchId) {
+        ApiResponse<List<ReservationDTO>> res = new ApiResponse<>();
+        res.setResult(reservationService.getByBranch(branchId));
+        return res;
+    }
+
+    @GetMapping("/table/{tableId}")
+    public ApiResponse<List<ReservationDTO>> getByTable(@PathVariable UUID tableId) {
+        ApiResponse<List<ReservationDTO>> res = new ApiResponse<>();
+        res.setResult(reservationService.getByTable(tableId));
+        return res;
+    }
+
+    @PostMapping
+    public ApiResponse<ReservationDTO> create(@RequestBody ReservationDTO dto) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.create(dto));
+        return res;
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<ReservationDTO> update(
+            @PathVariable UUID id,
+            @RequestBody ReservationDTO dto) {
+
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.update(id, dto));
+        return res;
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable UUID id) {
+        reservationService.delete(id);
+        return new ApiResponse<>();
     }
 }

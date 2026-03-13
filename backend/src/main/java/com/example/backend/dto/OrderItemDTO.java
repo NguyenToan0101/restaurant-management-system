@@ -22,5 +22,5 @@ public class OrderItemDTO {
     private int quantity;
     private BigDecimal totalPrice;
     private String note;
-    private List<OrderItemCustomizationDTO> customizations;
+//    private List<OrderItemCustomizationDTO> customizations;
 }

@@ -4,6 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.util.UUID;
 
+import com.example.backend.entities.Area;
+import com.example.backend.entities.AreaTable;
+import com.example.backend.exception.AppException;
+import com.example.backend.exception.ErrorCode;
+import com.example.backend.repositories.AreaTableRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +22,11 @@ public class QrCodeService {
 
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
+    private final AreaTableRepository areaTableRepository;
+
+    public QrCodeService(AreaTableRepository areaTableRepository) {
+        this.areaTableRepository = areaTableRepository;
+    }
 
     /**
      * Generate QR code for a table
@@ -25,8 +35,12 @@ public class QrCodeService {
      */
     public String generateTableQrCode(UUID tableId) {
         try {
+            AreaTable table = areaTableRepository.findById(tableId)
+                    .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
+            Area area = table.getArea();
+            String slug = area.getBranch().getRestaurant().getPublicUrl();
             // Create URL for the table
-            String tableUrl = frontendBaseUrl + "/table/" + tableId.toString();
+            String tableUrl = frontendBaseUrl + "/"+ slug +"/menu/" + tableId.toString();
             
             // Generate QR Code
             QRCodeWriter qrCodeWriter = new QRCodeWriter();

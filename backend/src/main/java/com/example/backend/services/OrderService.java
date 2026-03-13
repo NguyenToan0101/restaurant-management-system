@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,6 +60,7 @@ public class OrderService {
         order.setAreaTable(table);
         order.setStatus(OrderStatus.EATING);
         order.setTotalPrice(BigDecimal.ZERO);
+        order.setCreatedAt(Instant.now());
         order = orderRepository.save(order);
 
         OrderLine orderLine = createOrderLine(order, request.getItems());
@@ -274,7 +276,7 @@ public class OrderService {
                                 .quantity(item.getQuantity())
                                 .totalPrice(item.getTotalPrice())
                                 .note(item.getNote())
-                                .customizations(custDTOs)
+//                                .customizations(custDTOs)
                                 .build());
                     }
                 }

@@ -1,11 +1,16 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { restaurantApi, branchApi, areaApi, areaTableApi, reservationApi } from '@/api'
+import { restaurantApi, branchApi, areaApi, tableApi, reservationApi } from '@/api'
+import { useToast } from '@/hooks/use-toast'
 import type { RestaurantDTO, BranchDTO, AreaDTO, AreaTableDTO } from '@/types/dto'
+import DatePicker from "react-datepicker"
+import "react-datepicker/dist/react-datepicker.css"
+import { setHours, setMinutes } from "date-fns"
 
 export default function TableSelectionPage() {
   const navigate = useNavigate()
   const { slug } = useParams<{ slug?: string }>()
+  const { toast } = useToast()
 
   const [restaurant, setRestaurant] = useState<RestaurantDTO | null>(null)
   const [branches, setBranches] = useState<BranchDTO[]>([])
@@ -24,11 +29,21 @@ export default function TableSelectionPage() {
     customerPhone: '',
     customerEmail: '',
     guestNumber: 2,
-    reservationDate: new Date().toISOString().split('T')[0],
-    reservationTime: '19:00',
+    reservationDate: new Date().toLocaleDateString('en-CA'),
+    reservationTime: '',
     specialOccasion: 'Just Dining',
     notes: ''
   })
+  const isToday =
+  reservationData.reservationDate === new Date().toISOString().split("T")[0]
+
+const now = new Date()
+
+const minTime = isToday
+  ? new Date(now.getTime() + 30 * 60000) // ít nhất 30 phút sau hiện tại
+  : setHours(setMinutes(new Date(), 0), 8)
+
+const maxTime = setHours(setMinutes(new Date(), 0), 21)
 
   // Fetch restaurant and branches
   useEffect(() => {
@@ -62,7 +77,7 @@ export default function TableSelectionPage() {
     const fetchAreas = async () => {
       if (selectedBranch) {
         try {
-          const areasData = await areaApi.getByBranch(selectedBranch.branchId || '')
+          const areasData = await areaApi.getByPublicBranch(selectedBranch.branchId || '')
           setAreas(areasData)
           if (areasData.length > 0) {
             setSelectedArea(areasData[0])
@@ -81,7 +96,7 @@ export default function TableSelectionPage() {
     const fetchTables = async () => {
       if (selectedArea) {
         try {
-          const tablesData = await areaTableApi.getByArea(selectedArea.areaId)
+          const tablesData = await tableApi.getByPublicArea(selectedArea.areaId)
           setTables(tablesData)
           setSelectedTable(null)
         } catch (err) {
@@ -93,9 +108,89 @@ export default function TableSelectionPage() {
     fetchTables()
   }, [selectedArea])
 
+  const validateReservationDetails = (): boolean => {
+    const { customerName, customerPhone, customerEmail, guestNumber, reservationDate, reservationTime } = reservationData
+    
+    if (!customerName || customerName.trim() === '') {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng nhập Họ tên',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    if (!customerPhone || customerPhone.trim() === '') {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng nhập Số điện thoại',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    if (!customerEmail || customerEmail.trim() === '') {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng nhập Email',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(customerEmail)) {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Email không hợp lệ',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    if (!reservationDate || reservationDate.trim() === '') {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng chọn Ngày đặt bàn',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    if (!reservationTime || reservationTime.trim() === '') {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng chọn Thời gian đặt bàn',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    if (!guestNumber || guestNumber < 1) {
+      toast({
+        title: 'Cảnh báo',
+        description: 'Vui lòng chọn Số lượng khách',
+        variant: 'destructive'
+      })
+      return false
+    }
+    
+    return true
+  }
+
   const handleReservationSubmit = async () => {
-    if (!selectedBranch || !selectedTable || !reservationData.customerName || !reservationData.customerPhone || !reservationData.customerEmail) {
-      alert('Please fill in all required fields')
+    if (!selectedBranch || !selectedTable) {
+      toast({
+        title: 'Error',
+        description: 'Please select branch and table',
+        variant: 'destructive',
+        duration : 4000
+      })
+      return
+    }
+    
+    if (!validateReservationDetails()) {
       return
     }
 
@@ -114,11 +209,19 @@ export default function TableSelectionPage() {
       })
 
       // Show success and redirect to menu
-      alert('Reservation confirmed! Proceeding to menu...')
+      toast({
+        title: 'Success',
+        description: 'Reservation confirmed! Please check your email to confirm infomation. ',
+        variant: 'default'
+      })
       navigateTo('/menu')
     } catch (err) {
       console.error('Error creating reservation:', err)
-      alert('Failed to create reservation. Please try again.')
+      toast({
+        title: 'Error',
+        description: 'Failed to create reservation. Please try again.',
+        variant: 'destructive'
+      })
     }
   }
 
@@ -162,7 +265,7 @@ export default function TableSelectionPage() {
             <Link to={slug ? `/${slug}/menu` : '/menu'} className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
               View Menu
             </Link>
-            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div>
+            {/* <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div> */}
           </div>
         </div>
       </header>
@@ -239,7 +342,7 @@ export default function TableSelectionPage() {
                       value={reservationData.customerPhone}
                       onChange={(e) => setReservationData({ ...reservationData, customerPhone: e.target.value })}
                       className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="Ex.0818860559"
                     />
                   </div>
                   <div>
@@ -249,14 +352,22 @@ export default function TableSelectionPage() {
                       value={reservationData.customerEmail}
                       onChange={(e) => setReservationData({ ...reservationData, customerEmail: e.target.value })}
                       className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      placeholder="you@example.com"
+                      placeholder="you@gmail.com"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-300 mb-2">Number of Guests *</label>
                     <select
                       value={reservationData.guestNumber}
-                      onChange={(e) => setReservationData({ ...reservationData, guestNumber: parseInt(e.target.value) })}
+                      onChange={(e) => {
+                        const newGuestNumber = parseInt(e.target.value)
+                        setReservationData({ ...reservationData, guestNumber: newGuestNumber })
+                        // Reset selected table if its capacity is less than new guest number
+                        if (selectedTable && selectedTable.capacity < newGuestNumber) {
+                         
+                          setSelectedTable(null)
+                        }
+                      }}
                       className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
@@ -271,18 +382,40 @@ export default function TableSelectionPage() {
                       value={reservationData.reservationDate}
                       onChange={(e) => setReservationData({ ...reservationData, reservationDate: e.target.value })}
                       className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date().toLocaleDateString('en-CA')}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-300 mb-2">Reservation Time *</label>
-                    <input
-                      type="time"
-                      value={reservationData.reservationTime}
-                      onChange={(e) => setReservationData({ ...reservationData, reservationTime: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                    />
+                     <DatePicker
+  selected={
+    reservationData.reservationTime
+      ? new Date(`1970-01-01T${reservationData.reservationTime}`)
+      : null
+  }
+  onChange={(date) => {
+    if (!date) return
+
+    const time = date.toTimeString().slice(0, 5)
+
+    setReservationData({
+      ...reservationData,
+      reservationTime: time,
+    })
+  }}
+  showTimeSelect
+  showTimeSelectOnly
+  timeIntervals={30}
+  timeCaption="Time"
+  dateFormat="HH:mm"
+  minTime={minTime}
+  maxTime={maxTime}
+  className="w-full px-10 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white"
+  placeholderText='Choose time'
+/>
                   </div>
+
+            
                 </div>
 
                 <div>
@@ -319,7 +452,11 @@ export default function TableSelectionPage() {
                     Back
                   </button>
                   <button
-                    onClick={() => setStep('area')}
+                    onClick={() => {
+                      if (validateReservationDetails()) {
+                        setStep('area')
+                      }
+                    }}
                     className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                   >
                     Continue <span className="material-symbols-outlined">arrow_forward</span>
@@ -344,7 +481,7 @@ export default function TableSelectionPage() {
                   >
                     <span className="material-symbols-outlined text-4xl text-primary block mb-3">map</span>
                     <h3 className="font-bold text-white text-lg">{area.name}</h3>
-                    <p className="text-sm text-slate-400 mt-2">{area.description || 'Select this area'}</p>
+                    {/* <p className="text-sm text-slate-400 mt-2">{area.description || 'Select this area'}</p> */}
                   </div>
                 ))}
               </div>
@@ -354,126 +491,153 @@ export default function TableSelectionPage() {
           {/* Step 4: Table Selection */}
           {step === 'table' && (
             <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                {tables.map(table => (
-                  <div
-                    key={table.areaTableId}
-                    onClick={() => setSelectedTable(table)}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
-                      selectedTable?.areaTableId === table.areaTableId
-                        ? 'border-primary bg-primary/20'
-                        : table.status === 'AVAILABLE'
-                        ? 'border-primary/40 hover:border-primary bg-slate-800/50'
-                        : 'border-slate-700 bg-slate-800/30 opacity-50 cursor-not-allowed'
-                    }`}
-                    style={{opacity: table.status !== 'AVAILABLE' ? 0.5 : 1}}
+              {tables.filter(table => table.capacity >= reservationData.guestNumber).length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full max-w-md">
+                  <span className="material-symbols-outlined text-6xl text-slate-600 mb-4">event_seat</span>
+                  <h2 className="text-2xl font-bold text-slate-200 mb-2">Không có bàn phù hợp</h2>
+                  <p className="text-slate-400 text-center mb-6">
+                    Rất tiếc, không có bàn nào có đủ chỗ cho {reservationData.guestNumber} khách trong khu vực này. Vui lòng chọn khu vực khác hoặc giảm số lượng khách.
+                  </p>
+                  <button
+                    onClick={() => setStep('area')}
+                    className="px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-3xl text-primary block mb-2">event_seat</span>
-                    <h3 className="font-bold text-white">{table.tag}</h3>
-                    <p className="text-xs text-slate-400">Capacity: {table.capacity}</p>
-                    <p className="text-xs text-slate-500 mt-1 uppercase">{table.status}</p>
-                  </div>
-                ))}
-              </div>
-
-              {selectedTable && (
-                <div className="bg-primary/10 border border-primary/30 rounded-xl p-6 max-w-md w-full mb-6">
-                  <div className="text-center">
-                    <p className="text-slate-300 text-sm mb-2">Selected Table</p>
-                    <h2 className="text-3xl font-bold text-primary mb-4">{selectedTable.tag}</h2>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <p className="text-slate-400 text-xs">Capacity</p>
-                        <p className="text-white font-bold">{selectedTable.capacity} guests</p>
+                    Chọn khu vực khác <span className="material-symbols-outlined">arrow_forward</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                    {tables.filter(table => table.capacity >= reservationData.guestNumber).map(table => (
+                      <div
+                        key={table.areaTableId}
+                        onClick={() => setSelectedTable(table)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
+                          selectedTable?.areaTableId === table.areaTableId
+                            ? 'border-primary bg-primary/20'
+                            : table.status === 'ACTIVE'
+                            ? 'border-primary/40 hover:border-primary bg-slate-800/50'
+                            : 'border-slate-700 bg-slate-800/30 opacity-50 cursor-not-allowed'
+                        }`}
+                        style={{opacity: table.status !== 'ACTIVE' ? 0.5 : 1}}
+                      >
+                        <span className="material-symbols-outlined text-3xl text-primary block mb-2">event_seat</span>
+                        <h3 className="font-bold text-white">{table.tag}</h3>
+                        <p className="text-xs text-slate-400">Capacity: {table.capacity}</p>
+                        <p className="text-xs text-slate-500 mt-1 uppercase">{table.status}</p>
                       </div>
-                      <div>
-                        <p className="text-slate-400 text-xs">Status</p>
-                        <p className="text-green-400 font-bold">Available</p>
+                    ))}
+                  </div>
+
+                  {selectedTable && (
+                    <div className="bg-primary/10 border border-primary/30 rounded-xl p-6 max-w-md w-full mb-6">
+                      <div className="text-center">
+                        <p className="text-slate-300 text-sm mb-2">Selected Table</p>
+                        <h2 className="text-3xl font-bold text-primary mb-4">{selectedTable.tag}</h2>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div>
+                            <p className="text-slate-400 text-xs">Capacity</p>
+                            <p className="text-white font-bold">{selectedTable.capacity} guests</p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400 text-xs">Status</p>
+                            <p className="text-green-400 font-bold">Available</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              <div className="flex gap-4 w-full max-w-md">
-                <button
-                  onClick={() => setStep('details')}
-                  className="flex-1 px-6 py-3 rounded-xl font-bold text-white hover:bg-slate-700 transition-colors border border-slate-600"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleReservationSubmit}
-                  disabled={!selectedTable}
-                  className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                >
-                  Complete Reservation <span className="material-symbols-outlined">check</span>
-                </button>
-              </div>
+                  <div className="flex gap-4 w-full max-w-md">
+                    <button
+                      onClick={() => setStep('details')}
+                      className="flex-1 px-6 py-3 rounded-xl font-bold text-white hover:bg-slate-700 transition-colors border border-slate-600"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleReservationSubmit}
+                      disabled={!selectedTable}
+                      className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      Complete Reservation <span className="material-symbols-outlined">check</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
 
         {/* Sidebar */}
         <aside className="w-full lg:w-96 bg-background-dark border-l border-primary/20 flex flex-col p-6">
-          <div className="mb-8">
-            <h3 className="text-lg font-bold text-slate-100 mb-4">Summary</h3>
-            
-            {selectedBranch && (
-              <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                <p className="text-xs text-slate-500 uppercase mb-1">Branch</p>
-                <p className="text-white font-semibold">{selectedBranch.address}</p>
-              </div>
-            )}
+          {step === 'branch' ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <span className="material-symbols-outlined text-5xl text-primary/30 mb-4">info</span>
+              <p className="text-slate-400">Select a branch to get started</p>
+            </div>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-slate-100 mb-4">Summary</h3>
+                
+                {selectedBranch && (
+                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Branch</p>
+                    <p className="text-white font-semibold">{selectedBranch.address}</p>
+                  </div>
+                )}
 
-            {reservationData.customerName && (
-              <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                <p className="text-xs text-slate-500 uppercase mb-1">Name</p>
-                <p className="text-white font-semibold">{reservationData.customerName}</p>
-              </div>
-            )}
+                {reservationData.customerName && (
+                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Name</p>
+                    <p className="text-white font-semibold">{reservationData.customerName}</p>
+                  </div>
+                )}
 
-            {reservationData.reservationDate && (
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                  <p className="text-xs text-slate-500 uppercase mb-1">Date</p>
-                  <p className="text-white font-semibold">{reservationData.reservationDate}</p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                  <p className="text-xs text-slate-500 uppercase mb-1">Time</p>
-                  <p className="text-white font-semibold">{reservationData.reservationTime}</p>
-                </div>
-              </div>
-            )}
+                {reservationData.reservationDate && (
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-slate-500 uppercase mb-1">Date</p>
+                      <p className="text-white font-semibold">{reservationData.reservationDate}</p>
+                    </div>
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-slate-500 uppercase mb-1">Time</p>
+                      <p className="text-white font-semibold">{reservationData.reservationTime}</p>
+                    </div>
+                  </div>
+                )}
 
-            {reservationData.guestNumber && (
-              <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                <p className="text-xs text-slate-500 uppercase mb-1">Guests</p>
-                <p className="text-white font-semibold">{reservationData.guestNumber} people</p>
-              </div>
-            )}
+                {reservationData.guestNumber && (
+                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Guests</p>
+                    <p className="text-white font-semibold">{reservationData.guestNumber} people</p>
+                  </div>
+                )}
 
-            {selectedArea && (
-              <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                <p className="text-xs text-slate-500 uppercase mb-1">Area</p>
-                <p className="text-white font-semibold">{selectedArea.name}</p>
-              </div>
-            )}
+                {selectedArea && (
+                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Area</p>
+                    <p className="text-white font-semibold">{selectedArea.name}</p>
+                  </div>
+                )}
 
-            {selectedTable && (
-              <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                <p className="text-xs text-slate-500 uppercase mb-1">Table</p>
-                <p className="text-white font-semibold">{selectedTable.tag}</p>
+                {selectedTable && (
+                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Table</p>
+                    <p className="text-white font-semibold">{selectedTable.tag}</p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <button
-            onClick={() => navigateTo('/menu')}
-            className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-colors"
-          >
-            Browse Menu
-          </button>
+              <button
+                onClick={() => navigateTo('/menu')}
+                className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-colors"
+              >
+                Browse Menu
+              </button>
+            </>
+          )}
         </aside>
       </main>
     </div>

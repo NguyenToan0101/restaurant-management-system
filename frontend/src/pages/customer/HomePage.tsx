@@ -1,14 +1,14 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { restaurantApi, branchApi } from '@/api'
-import type { RestaurantDTO, BranchDTO } from '@/types/dto'
+import { restaurantApi,menuItemApi, branchApi } from '@/api'
+import type { RestaurantDTO, MenuItemDTO,BranchDTO } from '@/types/dto'
 
 export default function HomePage() {
   const { slug } = useParams<{ slug?: string }>()
   const [restaurant, setRestaurant] = useState<RestaurantDTO | null>(null)
   const [branches, setBranches] = useState<BranchDTO[]>([])
   const [loading, setLoading] = useState(true)
-
+  const [menuItems, setMenuItems] = useState<MenuItemDTO[]>([])
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -21,6 +21,9 @@ export default function HomePage() {
           
           const branchesData = await branchApi.getByPublicRestaurant(restaurantData.restaurantId)
           setBranches(branchesData)
+          const menuResponse = await menuItemApi.getAllByRestaurant(restaurantData.restaurantId)
+                    setMenuItems(menuResponse.data.result || [])
+                    console.log('Menu',menuResponse.data.result)
         } catch (err) {
           console.error('Error fetching restaurant:', err)
         }
@@ -49,12 +52,12 @@ export default function HomePage() {
       {/* Navigation */}
       <header className="fixed top-0 w-full z-50 bg-background-dark/80 backdrop-blur-md border-b border-primary/10 px-6 lg:px-20 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link to={navigateTo('/home')} ><div className="flex items-center gap-3">
             <div className="text-primary">
               <span className="material-symbols-outlined text-3xl">restaurant</span>
             </div>
             <h2 className="text-slate-100 text-xl font-bold tracking-widest">{restaurantName}</h2>
-          </div>
+          </div></Link>
           <nav className="hidden md:flex items-center gap-10">
             <Link to={slug ? `/${slug}/home` : '/home'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Home</Link>
             <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Reservations</Link>
@@ -65,7 +68,7 @@ export default function HomePage() {
             <Link to={navigateTo('/reservations')} className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
               Book Now
             </Link>
-            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div>
+            {/* <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div> */}
           </div>
         </div>
       </header>
@@ -113,45 +116,24 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Menu Item 1 */}
-              <div className="group cursor-pointer">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-xl mb-6">
-                  <div className="absolute inset-0 bg-background-dark/20 group-hover:bg-background-dark/0 transition-all duration-500"></div>
-                  <img alt="Aged Wagyu Tartare" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtI2Y-jYUmODO4n7UiZP85i3CNBMvxw_ir7uI-6HjGjp-d6s4MAeAYy6FdtOaAtgcV2aFXd6sOFnYxg7FMyQRxa1x1o1ZbfE8_FFspos7wdk8huRn92Xky8s_gaYup4Drr5jGjSSVrM3cJnOLixer_XWvfCQFDWDEDa37uF0OVruY91hh4_Qjf07MX8O7D_WML3VHPWovExn8xJ2hixcyL-FlOp3g5Guk7msvp30QftzjHLtDWWyGlg6O3Z_T-NfBLOJRm5V9-8GI" />
-                  <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold">$42</div>
+              {menuItems.filter(item => item.isBestSeller).slice(0, 3).map(item => (
+                <div key={item.id} className="group cursor-pointer">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-xl mb-6">
+                    <div className="absolute inset-0 bg-background-dark/20 group-hover:bg-background-dark/0 transition-all duration-500"></div>
+                    <Link to={navigateTo('/menu')} ><img alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={item.media?.url || 'https://via.placeholder.com/400x500'} /></Link>
+                    <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold">{item.price} VND</div>
+                  </div>
+                  <h4 className="text-xl font-bold dark:text-white mb-2 group-hover:text-primary transition-colors">{item.name}</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{item.description}</p>
                 </div>
-                <h4 className="text-xl font-bold dark:text-white mb-2 group-hover:text-primary transition-colors">Aged Wagyu Tartare</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">Smoked egg yolk, truffle emulsion, and house-made sourdough crisps.</p>
-              </div>
-
-              {/* Menu Item 2 */}
-              <div className="group cursor-pointer">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-xl mb-6">
-                  <div className="absolute inset-0 bg-background-dark/20 group-hover:bg-background-dark/0 transition-all duration-500"></div>
-                  <img alt="Wild Atlantic Scallops" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwVwVCy1b_j5FCaXE2OoG58dDzA-dqzL6dNRRzL05A68HAbf13p14o1_pe2Mbwgw_42WhILu8tK801C3xekCvVHLdukuNcHwvfiZvQcbFglmalIuQlOezSfymMxZYJFKbniYlaDYDpjiQTfEeJm6RGXykKGBmHYPY8V9eZ51aaxvxdGJyPjxBSqL6dAWzWLRjBLISXFotEfTBpKj5oK6kJEIYORH5D-DYejFVbiDQjpLMDb7IM9kXI58JpTytJ3vtv3SqmAxAiSsg" />
-                  <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold">$38</div>
-                </div>
-                <h4 className="text-xl font-bold dark:text-white mb-2 group-hover:text-primary transition-colors">Wild Atlantic Scallops</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">Pan-seared with cauliflower silk, brown butter, and caper berries.</p>
-              </div>
-
-              {/* Menu Item 3 */}
-              <div className="group cursor-pointer">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-xl mb-6">
-                  <div className="absolute inset-0 bg-background-dark/20 group-hover:bg-background-dark/0 transition-all duration-500"></div>
-                  <img alt="Saffron Infused Risotto" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3oNXGVMy4rloibPh3LN3q6-KYrDCpEpdZpRMKgTBGauxaaWLJrYCCSgbaQSMb5xEQPYNlJCCJGHI9njcdvafn_lN2vi-dtM4mwBUJCYQOxMfSatvhJDlfbHRzH1S5nGa4Z1LsapWv61aJ0mQ-P6UkLCGcWQeFaD9ufPpWoww1XFFFXMlMjTKtWnrCwWSz1KaM0rpZycSu78CNwrfaITRkTcaMyCODgmkeju_mDPb_mwAIiERSiGV21lRHw3Ti7qa4ECpqFZb7zDI" />
-                  <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold">$35</div>
-                </div>
-                <h4 className="text-xl font-bold dark:text-white mb-2 group-hover:text-primary transition-colors">Saffron Risotto</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">Carnaroli rice, 24-month Parmigiano Reggiano, and edible gold.</p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* Our Branches Section */}
         {branches.length > 0 && (
-          <section className="py-20 px-6 lg:px-20 bg-slate-900">
+          <section className="py-20 px-6 lg:px-20 bg-slate-900 bg-background-light dark:bg-background-dark">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-16">
                 <h2 className="text-primary font-bold tracking-widest text-sm uppercase mb-3">Visit Us</h2>

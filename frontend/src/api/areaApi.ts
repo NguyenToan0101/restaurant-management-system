@@ -16,6 +16,10 @@ class AreaApi {
         const response = await axiosClient.get<ApiResponse<AreaDTO[]>>(`/areas/branch/${branchId}`);
         return response.data.result;
     }
+    async getByPublicBranch(branchId: string): Promise<AreaDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaDTO[]>>(`/public/areas/branch/${branchId}`);
+        return response.data.result;
+    }
 
     async getByBranchAndStatus(branchId: string, status: EntityStatus): Promise<AreaDTO[]> {
         const response = await axiosClient.get<ApiResponse<AreaDTO[]>>(`/areas/branch/${branchId}/status/${status}`);
