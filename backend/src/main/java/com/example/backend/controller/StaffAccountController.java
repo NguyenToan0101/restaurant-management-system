@@ -66,9 +66,12 @@ public class StaffAccountController {
     public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByBranchForOwner(
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size,
-            @RequestParam UUID branchId) {
+            @RequestParam UUID branchId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String roleFilter,
+            @RequestParam(required = false) Boolean isActive) {
         ApiResponse<PageResponse<StaffAccountDTO>> apiResponse = new ApiResponse<>();
-        apiResponse.setResult(staffAccountService.getStaffAccountByBranchForOwnerPaginated(page, size, branchId));
+        apiResponse.setResult(staffAccountService.getStaffAccountByBranchForOwnerPaginated(page, size, branchId, keyword, roleFilter, isActive));
         return apiResponse;
     }
 
@@ -82,9 +85,12 @@ public class StaffAccountController {
     public ApiResponse<PageResponse<StaffAccountDTO>> getStaffByBranch(
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "10") int size,
-            @RequestParam UUID branchId) {
+            @RequestParam UUID branchId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String roleFilter,
+            @RequestParam(required = false) Boolean isActive) {
         ApiResponse<PageResponse<StaffAccountDTO>> apiResponse = new ApiResponse<>();
-        apiResponse.setResult(staffAccountService.getStaffAccountPaginated(page, size, branchId));
+        apiResponse.setResult(staffAccountService.getStaffAccountPaginated(page, size, branchId, keyword, roleFilter, isActive));
         return apiResponse;
     }
 

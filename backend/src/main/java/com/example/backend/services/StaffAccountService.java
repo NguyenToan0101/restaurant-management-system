@@ -3,6 +3,7 @@ package com.example.backend.services;
 import java.util.List;
 import java.util.UUID;
 
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -118,12 +119,24 @@ public class StaffAccountService {
         return staffAccountMapper.toStaffAccountDTO(saved);
     }
 
-    public PageResponse<StaffAccountDTO> getStaffAccountPaginated(int page, int size, UUID branchId) {
+    public PageResponse<StaffAccountDTO> getStaffAccountPaginated(int page, int size, UUID branchId, String keyword, String roleFilter, Boolean isActive) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        
+        String searchKeyword = (keyword == null || keyword.isEmpty()) ? "%%" : "%" + keyword.toLowerCase() + "%";
+
+        RoleName roleNameFilter = null;
+        if (roleFilter != null && !roleFilter.isEmpty() && !roleFilter.equals("ALL")) {
+            try {
+                roleNameFilter = RoleName.valueOf(roleFilter);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid role filter
+            }
+        }
+
         // Manager view: filter out BRANCH_MANAGER
-        Page<StaffAccount> pageData = staffAccountRepository.findByBranchAndRole_NameNot(branch, RoleName.BRANCH_MANAGER, pageable);
+        Page<StaffAccount> pageData = staffAccountRepository.findByBranchAndFiltersForManager(
+            branch, RoleName.BRANCH_MANAGER, searchKeyword, roleNameFilter, isActive, pageable
+        );
 
         PageResponse<StaffAccountDTO> pageResponse = new PageResponse<>();
         pageResponse.setItems(pageData.map(staffAccount -> staffAccountMapper.toStaffAccountDTO(staffAccount)).toList());
@@ -137,12 +150,24 @@ public class StaffAccountService {
         return staffAccountRepository.countByBranchAndRole_Name(branch, roleName);
     }
 
-    public PageResponse<StaffAccountDTO> getStaffAccountByBranchForOwnerPaginated(int page, int size, UUID branchId) {
+    public PageResponse<StaffAccountDTO> getStaffAccountByBranchForOwnerPaginated(int page, int size, UUID branchId, String keyword, String roleFilter, Boolean isActive) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        
+        String searchKeyword = (keyword == null || keyword.isEmpty()) ? "%%" : "%" + keyword.toLowerCase() + "%";
+
+        RoleName roleNameFilter = null;
+        if (roleFilter != null && !roleFilter.isEmpty() && !roleFilter.equals("ALL")) {
+            try {
+                roleNameFilter = RoleName.valueOf(roleFilter);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid role filter
+            }
+        }
+
         // Owner view: includes BRANCH_MANAGER
-        Page<StaffAccount> pageData = staffAccountRepository.findByBranch(branch, pageable);
+        Page<StaffAccount> pageData = staffAccountRepository.findByBranchAndFiltersForOwner(
+            branch, searchKeyword, roleNameFilter, isActive, pageable
+        );
 
         PageResponse<StaffAccountDTO> pageResponse = new PageResponse<>();
         pageResponse.setItems(pageData.map(staffAccount -> staffAccountMapper.toStaffAccountDTO(staffAccount)).toList());
@@ -170,16 +195,16 @@ public class StaffAccountService {
     public StaffAccountDTO transferStaffToBranch(UUID staffAccountId, UUID newBranchId) {
         StaffAccount staffAccount = staffAccountRepository.findById(staffAccountId)
                 .orElseThrow(() -> new AppException(ErrorCode.STAFFACCOUNT_NOTEXISTED));
-        
+
         Branch newBranch = branchRepository.findById(newBranchId)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        
+
         // Kiểm tra xem branch mới có cùng restaurant không
         if (!staffAccount.getBranch().getRestaurant().getRestaurantId()
                 .equals(newBranch.getRestaurant().getRestaurantId())) {
             throw new AppException(ErrorCode.BRANCH_NOT_SAME_RESTAURANT);
         }
-        
+
         staffAccount.setBranch(newBranch);
         StaffAccount saved = staffAccountRepository.save(staffAccount);
         return staffAccountMapper.toStaffAccountDTO(saved);

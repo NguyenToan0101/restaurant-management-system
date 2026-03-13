@@ -21,5 +21,6 @@ public class OrderLineDTO {
     private OrderLineStatus orderLineStatus;
     private BigDecimal totalPrice;
     private Instant createdAt;
+    private String tableName;
     private List<OrderItemDTO> orderItems;
 }

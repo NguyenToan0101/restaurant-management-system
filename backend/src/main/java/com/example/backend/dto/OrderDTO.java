@@ -19,6 +19,7 @@ public class OrderDTO {
     private UUID orderId;
     private UUID areaTableId;
     private String tableName;
+    private String areaName;
     private OrderStatus status;
     private BigDecimal totalPrice;
     private Instant createdAt;
