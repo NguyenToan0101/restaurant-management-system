@@ -38,6 +38,7 @@ const MenuItemManagement = () => {
   const [editing, setEditing] = useState<MenuItemDTO | null>(null);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Filters
   const [searchQ, setSearchQ] = useState("");
@@ -123,10 +124,32 @@ const MenuItemManagement = () => {
   };
 
   const bulkStatusChange = async (active: boolean) => {
-    for (const id of Array.from(selectedIds)) {
-      await setActiveStatus({ menuItemId: id, active });
+    setIsBulkUpdating(true);
+    try {
+      const ids = Array.from(selectedIds);
+      let successCount = 0;
+      
+      for (const id of ids) {
+        try {
+          await setActiveStatus({ menuItemId: id, active });
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to update item ${id}:`, error);
+        }
+      }
+      
+      if (successCount > 0) {
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: 'Success',
+          description: `${successCount} item${successCount > 1 ? 's' : ''} ${active ? 'activated' : 'deactivated'} successfully`,
+        });
+      }
+      
+      setSelectedIds(new Set());
+    } finally {
+      setIsBulkUpdating(false);
     }
-    setSelectedIds(new Set());
   };
 
   const filtered = useMemo(() => {
@@ -205,12 +228,39 @@ const MenuItemManagement = () => {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <Button variant="outline" size="sm" onClick={() => bulkStatusChange(true)}>Activate</Button>
-          <Button variant="outline" size="sm" onClick={() => bulkStatusChange(false)}>Deactivate</Button>
-          <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(Array.from(selectedIds))}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => bulkStatusChange(true)}
+            disabled={isBulkUpdating}
+          >
+            {isBulkUpdating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+            Activate
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => bulkStatusChange(false)}
+            disabled={isBulkUpdating}
+          >
+            {isBulkUpdating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+            Deactivate
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={() => openDeleteDialog(Array.from(selectedIds))}
+            disabled={isBulkUpdating}
+          >
             <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
           </Button>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelectedIds(new Set())}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="ml-auto" 
+            onClick={() => setSelectedIds(new Set())}
+            disabled={isBulkUpdating}
+          >
             <X className="w-4 h-4" />
           </Button>
         </div>

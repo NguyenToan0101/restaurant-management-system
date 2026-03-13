@@ -393,6 +393,7 @@ export default function ManagerStaff() {
                       placeholder="Search by username..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
+                      autoComplete="off"
                     />
                   </div>
                 </div>
@@ -743,6 +744,7 @@ export default function ManagerStaff() {
                 placeholder="Enter new password"
                 value={newPassword}
                 onChange={(e) => { setNewPassword(e.target.value); setPwdResetError(""); }}
+                autoComplete="new-password"
               />
             </div>
             <div className="space-y-2">
@@ -754,6 +756,7 @@ export default function ManagerStaff() {
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPwdResetError(""); }}
+                  autoComplete="new-password"
                 />
                 <Button
                   type="button"

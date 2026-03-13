@@ -191,4 +191,22 @@ public class StaffAccountService {
         staffAccount.setPassword(passwordEncoder.encode(newPassword));
         staffAccountRepository.save(staffAccount);
     }
-}
+
+    public StaffAccountDTO transferStaffToBranch(UUID staffAccountId, UUID newBranchId) {
+        StaffAccount staffAccount = staffAccountRepository.findById(staffAccountId)
+                .orElseThrow(() -> new AppException(ErrorCode.STAFFACCOUNT_NOTEXISTED));
+
+        Branch newBranch = branchRepository.findById(newBranchId)
+                .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+
+        // Kiểm tra xem branch mới có cùng restaurant không
+        if (!staffAccount.getBranch().getRestaurant().getRestaurantId()
+                .equals(newBranch.getRestaurant().getRestaurantId())) {
+            throw new AppException(ErrorCode.BRANCH_NOT_SAME_RESTAURANT);
+        }
+
+        staffAccount.setBranch(newBranch);
+        StaffAccount saved = staffAccountRepository.save(staffAccount);
+        return staffAccountMapper.toStaffAccountDTO(saved);
+    }
+}

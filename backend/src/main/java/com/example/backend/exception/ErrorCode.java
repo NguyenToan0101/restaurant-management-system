@@ -56,11 +56,13 @@ public enum ErrorCode {
     MENUITEM_NOT_FOUND(3100, "Menu item not found", HttpStatus.NOT_FOUND),
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
+    MENUITEM_IN_ACTIVE_ORDER(3103, "Cannot mark menu item as unavailable because it is being served in active orders. Please remove it from orders first.", HttpStatus.BAD_REQUEST),
 
     // Staff & Role errors
     STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),
     STAFFACCOUNT_DELETED(4103, "Staff account has been deleted", HttpStatus.BAD_REQUEST),
     STAFFACCOUNT_USERNAME_EXISTED(4104, "Username already exists", HttpStatus.BAD_REQUEST),
+    BRANCH_NOT_SAME_RESTAURANT(4105, "Cannot transfer staff to a branch in a different restaurant", HttpStatus.BAD_REQUEST),
     // Package errors (3200-3299)
     PACKAGE_NOTEXISTED(3200, "Package not found", HttpStatus.NOT_FOUND),
     PACKAGE_NAME_EXISTED(3201, "Package name already exists", HttpStatus.BAD_REQUEST),
@@ -84,6 +86,7 @@ public enum ErrorCode {
     SUBSCRIPTION_NOT_FOUND(3501, "Subscription not found", HttpStatus.NOT_FOUND),
     SUBSCRIPTION_ALREADY_CANCELLED(3502, "Subscription already cancelled", HttpStatus.BAD_REQUEST),
     SUBSCRIPTION_ALREADY_EXPIRED(3503, "Subscription already expired", HttpStatus.BAD_REQUEST),
+    PACKAGE_HAS_ACTIVE_SUBSCRIPTIONS(3504, "Cannot deactivate package with active subscriptions", HttpStatus.BAD_REQUEST),
 
 
     // Area & Table errors (3200-3299)

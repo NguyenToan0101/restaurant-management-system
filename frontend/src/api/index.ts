@@ -5,3 +5,4 @@ export * from './statisticsApi';
 export * from './adminUserApi';
 export { subscriptionApi } from './subscriptionApi';
 export { branchApi } from './branchApi';
+export { branchMenuItemApi } from './branchMenuItemApi';

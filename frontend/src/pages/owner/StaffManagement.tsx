@@ -41,6 +41,7 @@ import {
   EyeOff,
   Search,
   KeyRound,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   Tabs,
@@ -63,6 +64,7 @@ import {
   useUpdateStaffAccount,
   useToggleStaffStatus,
   useResetStaffPassword,
+  useTransferStaffToBranch,
 } from "@/hooks/queries/useStaffQueries";
 import type {
   BranchDTO,
@@ -131,6 +133,11 @@ const StaffManagement = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdResetError, setPwdResetError] = useState("");
+
+  // Transfer branch state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [staffToTransfer, setStaffToTransfer] = useState<StaffAccountDTO | null>(null);
+  const [targetBranchId, setTargetBranchId] = useState<string>("");
   
   const PASSWORD_REGEX = /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).{8,}$/;
 
@@ -165,6 +172,7 @@ const StaffManagement = () => {
   const updateStaff = useUpdateStaffAccount();
   const toggleStatus = useToggleStaffStatus();
   const resetPassword = useResetStaffPassword();
+  const transferStaff = useTransferStaffToBranch();
 
   const openResetPassword = (s: StaffAccountDTO) => {
     setStaffToReset(s);
@@ -188,6 +196,21 @@ const StaffManagement = () => {
     setPwdResetError("");
     await resetPassword.mutateAsync({ staffAccountId: staffToReset.id, newPassword });
     setResetPwdOpen(false);
+  };
+
+  const openTransferBranch = (s: StaffAccountDTO) => {
+    setStaffToTransfer(s);
+    setTargetBranchId("");
+    setTransferOpen(true);
+  };
+
+  const handleTransferBranch = async () => {
+    if (!staffToTransfer || !targetBranchId) return;
+    await transferStaff.mutateAsync({ 
+      staffAccountId: staffToTransfer.id, 
+      newBranchId: targetBranchId 
+    });
+    setTransferOpen(false);
   };
 
   const selectedBranch: BranchDTO | undefined = branches.find(
@@ -449,6 +472,7 @@ const StaffManagement = () => {
                         placeholder="Search by username..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        autoComplete="off"
                       />
                     </div>
                   </div>
@@ -491,6 +515,15 @@ const StaffManagement = () => {
                             </TableCell>
                             <TableCell className="text-right pr-6">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openTransferBranch(s)}
+                                  title="Transfer to another branch"
+                                >
+                                  <ArrowRightLeft className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -561,6 +594,15 @@ const StaffManagement = () => {
                             </TableCell>
                             <TableCell className="text-right pr-6">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-black/5 dark:hover:bg-white/10"
+                                  onClick={() => openTransferBranch(s)}
+                                  title="Transfer to another branch"
+                                >
+                                  <ArrowRightLeft className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -801,6 +843,7 @@ const StaffManagement = () => {
                 placeholder="Enter new password"
                 value={newPassword}
                 onChange={(e) => { setNewPassword(e.target.value); setPwdResetError(""); }}
+                autoComplete="new-password"
               />
             </div>
             <div className="space-y-2">
@@ -812,6 +855,7 @@ const StaffManagement = () => {
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => { setConfirmPassword(e.target.value); setPwdResetError(""); }}
+                  autoComplete="new-password"
                 />
                 <Button
                   type="button"
@@ -834,6 +878,47 @@ const StaffManagement = () => {
             >
               {resetPassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Branch Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transfer Staff to Another Branch</DialogTitle>
+            <DialogDescription>
+              Transfer <strong>{staffToTransfer?.username}</strong> to a different branch within the same restaurant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Select Target Branch</Label>
+              <Select value={targetBranchId} onValueChange={setTargetBranchId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches
+                    .filter(b => b.branchId !== staffToTransfer?.branchId)
+                    .map(branch => (
+                      <SelectItem key={branch.branchId} value={branch.branchId!}>
+                        {branch.address}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleTransferBranch}
+              disabled={!targetBranchId || transferStaff.isPending}
+            >
+              {transferStaff.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Transfer
             </Button>
           </DialogFooter>
         </DialogContent>

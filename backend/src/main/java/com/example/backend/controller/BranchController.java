@@ -4,6 +4,7 @@ package com.example.backend.controller;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -48,14 +49,14 @@ public class BranchController {
     }
 
     @PostMapping("")
-    public ApiResponse<BranchDTO> create(@RequestBody BranchDTO dto) {
+    public ApiResponse<BranchDTO> create(@Valid @RequestBody BranchDTO dto) {
         ApiResponse<BranchDTO> res = new ApiResponse<>();
         res.setResult(branchService.create(dto));
         return res;
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<BranchDTO> update(@PathVariable UUID id, @RequestBody BranchDTO dto) {
+    public ApiResponse<BranchDTO> update(@PathVariable UUID id, @Valid @RequestBody BranchDTO dto) {
         ApiResponse<BranchDTO> res = new ApiResponse<>();
         res.setResult(branchService.update(id, dto));
         return res;
