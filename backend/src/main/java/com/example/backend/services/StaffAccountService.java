@@ -122,7 +122,7 @@ public class StaffAccountService {
     public PageResponse<StaffAccountDTO> getStaffAccountPaginated(int page, int size, UUID branchId, String keyword, String roleFilter, Boolean isActive) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        String searchKeyword = (keyword == null) ? "" : keyword;
+        String searchKeyword = (keyword == null || keyword.isEmpty()) ? "%%" : "%" + keyword.toLowerCase() + "%";
 
         RoleName roleNameFilter = null;
         if (roleFilter != null && !roleFilter.isEmpty() && !roleFilter.equals("ALL")) {
@@ -153,7 +153,7 @@ public class StaffAccountService {
     public PageResponse<StaffAccountDTO> getStaffAccountByBranchForOwnerPaginated(int page, int size, UUID branchId, String keyword, String roleFilter, Boolean isActive) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         Branch branch = branchRepository.findById(branchId).orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
-        String searchKeyword = (keyword == null) ? "" : keyword;
+        String searchKeyword = (keyword == null || keyword.isEmpty()) ? "%%" : "%" + keyword.toLowerCase() + "%";
 
         RoleName roleNameFilter = null;
         if (roleFilter != null && !roleFilter.isEmpty() && !roleFilter.equals("ALL")) {

@@ -43,6 +43,7 @@ export interface OrderLineDTO {
   orderLineStatus: OrderLineStatus;
   totalPrice: number;
   createdAt: string;
+  tableName?: string;
   orderItems: OrderItemDTO[];
 }
 
@@ -50,6 +51,7 @@ export interface OrderDTO {
   orderId: string;
   areaTableId: string;
   tableName: string;
+  areaName: string;
   status: OrderStatus;
   totalPrice: number;
   createdAt: string;
@@ -57,10 +59,22 @@ export interface OrderDTO {
   orderLines: OrderLineDTO[];
 }
 
+export interface OrderSummaryDTO {
+  orderId: string;
+  areaTableId: string;
+  tableName: string;
+  areaName: string;
+  status: OrderStatus;
+  totalPrice: number;
+  createdAt: string;
+}
+
 export interface BillDTO {
   billId: string;
   orderId: string;
   branchId: string;
+  tableName: string;
+  areaName: string;
   finalPrice: number;
   note: string | null;
   paymentMethod: PaymentMethod;
@@ -68,9 +82,18 @@ export interface BillDTO {
   createdAt: string;
   order: OrderDTO | null;
   restaurantName: string | null;
-  branchName: string | null;
   branchAddress: string | null;
   branchPhone: string | null;
+}
+
+export interface BillSummaryDTO {
+  billId: string;
+  orderId: string;
+  tableName: string;
+  areaName: string;
+  finalPrice: number;
+  paymentMethod: PaymentMethod;
+  paidTime: string;
 }
 
 export interface CreateOrderItemCustomizationRequest {

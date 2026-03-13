@@ -2,7 +2,6 @@ package com.example.backend.entities;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.*;
@@ -45,7 +44,7 @@ public class Bill {
     private PaymentMethod paymentMethod;
 
     @Column(name = "paid_time")
-    private LocalDateTime paidTime = LocalDateTime.now();
+    private Instant paidTime = Instant.now();
 
     public UUID getBillId() {
         return billId;
@@ -111,11 +110,11 @@ public class Bill {
         this.paymentMethod = paymentMethod;
     }
 
-    public LocalDateTime getPaidTime() {
+    public Instant getPaidTime() {
         return paidTime;
     }
 
-    public void setPaidTime(LocalDateTime paidTime) {
+    public void setPaidTime(Instant paidTime) {
         this.paidTime = paidTime;
     }
 

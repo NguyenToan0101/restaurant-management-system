@@ -31,7 +31,7 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
     
     // Lấy nhân viên theo chi nhánh, loại bỏ vai trò Manager (cho Branch Manager)
     @Query("SELECT s FROM StaffAccount s WHERE s.branch = :branch AND s.role.name != :excludeRole " +
-           "AND LOWER(s.username) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "AND LOWER(s.username) LIKE :keyword " +
            "AND (:roleFilter IS NULL OR s.role.name = :roleFilter) " +
            "AND (:isActive IS NULL OR (s.status = 'ACTIVE' AND :isActive = true) OR (s.status = 'INACTIVE' AND :isActive = false))")
     Page<StaffAccount> findByBranchAndFiltersForManager(
@@ -45,7 +45,7 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
 
     // Lấy nhân viên theo chi nhánh (bao gồm tất cả Role)
     @Query("SELECT s FROM StaffAccount s WHERE s.branch = :branch " +
-           "AND LOWER(s.username) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "AND LOWER(s.username) LIKE :keyword " +
            "AND (:roleFilter IS NULL OR s.role.name = :roleFilter) " +
            "AND (:isActive IS NULL OR (s.status = 'ACTIVE' AND :isActive = true) OR (s.status = 'INACTIVE' AND :isActive = false))")
     Page<StaffAccount> findByBranchAndFiltersForOwner(

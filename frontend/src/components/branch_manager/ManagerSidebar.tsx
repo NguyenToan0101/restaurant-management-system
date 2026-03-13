@@ -8,7 +8,8 @@ import {
   Users,
   Tag,
   LogOut,
-  ShoppingCart
+  ShoppingCart,
+  ChefHat
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -31,6 +32,7 @@ const menuItems = [
   { title: "Branch Info", description: "Branch details", url: "/branch", icon: Store },
   { title: "Area & Tables", description: "Area management", url: "/areas", icon: Grid2X2 },
   { title: "Orders", description: "Manage orders", url: "/orders", icon: ShoppingCart },
+  { title: "Kitchen", description: "Kitchen monitor", url: "/kitchen", icon: ChefHat },
   { title: "Menu", description: "Menu management", url: "/menu", icon: UtensilsCrossed },
   { title: "Bills", description: "View bill history", url: "/bills", icon: ReceiptText },
   { title: "Staff", description: "Staff management", url: "/staff", icon: Users },
