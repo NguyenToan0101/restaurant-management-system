@@ -1,5 +1,7 @@
 package com.example.backend.services;
 
+import com.example.backend.dto.request.ReservationConfirmationMailRequest;
+
 import org.springframework.web.client.RestClient;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -23,7 +25,8 @@ public class MailService {
 
     private static final String SUBSCRIPTION_REMINDER_SUBJECT =
             "[BentoX] Subscription Renewal Reminder";
-
+    private static final String RESERVATION_CONFIRMATION_SUBJECT =
+            "Xác nhận đặt bàn thành công";
     private final RestClient restClient;
     private final OTPService otpService;
     private final TemplateEngine templateEngine;
@@ -126,4 +129,31 @@ public class MailService {
         context.setVariable("otp", otp);
         return templateEngine.process("otpMail", context);
     }
+    public void sendReservationConfirmationMail(
+            ReservationConfirmationMailRequest request) {
+
+        Context context = new Context();
+        context.setVariable("restaurantName", request.getRestaurantName());
+        context.setVariable("customerName",   request.getCustomerName());
+        context.setVariable("customerPhone",  request.getCustomerPhone());
+        context.setVariable("reservationId",  request.getReservationId());
+        context.setVariable("startTime",      request.getStartTime());
+        context.setVariable("guestNumber",    request.getGuestNumber());
+        context.setVariable("note",           request.getNote());
+        context.setVariable("branchAddress",  request.getBranchAddress());
+        context.setVariable("tableTag",       request.getTableTag());
+        context.setVariable("tableCapacity",  request.getTableCapacity());
+        context.setVariable("year",           java.time.Year.now().getValue());
+
+        String htmlContent =
+                templateEngine.process("reservationConfirmation", context);
+
+        sendMail(
+                request.getMail(),
+                request.getCustomerName(),
+                RESERVATION_CONFIRMATION_SUBJECT,
+                htmlContent
+        );
+    }
+
 }

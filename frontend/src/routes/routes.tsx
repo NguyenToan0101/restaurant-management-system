@@ -9,6 +9,7 @@ import NotFound from "@/pages/NotFound";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
+import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Statistics from "@/pages/admin/Statistics";
 import PackageManagement from "@/pages/admin/PackageManagement";
@@ -22,10 +23,13 @@ import PaymentCheckout from "@/pages/payment/PaymentCheckout";
 import PaymentSuccess from "@/pages/payment/PaymentSuccess";
 import PaymentFailed from "@/pages/payment/PaymentFailed";
 import PaymentCancel from "@/pages/payment/PaymentCancel";
+import HomePage from "@/pages/customer/HomePage";
+import TableSelectionPage from "@/pages/customer/TableSelectionPage";
+import MenuPage from "@/pages/customer/MenuPage";
+import CheckoutPage from "@/pages/customer/CheckoutPage";
 
 // Staff components
 import ManagerLayout from "@/components/branch_manager/ManagerLayout";
-import ManagerDashboard from "@/pages/manager/ManagerDashboard";
 import ManagerAreaManagement from "@/pages/manager/ManagerAreaManagement";
 import ManagerTableManagement from "@/pages/manager/ManagerTableManagement";
 import BranchInfo from "@/pages/manager/BranchInfo";
@@ -316,18 +320,60 @@ const AppRoutes = () => {
         <Route path="users" element={<UserManagement />} />
         <Route index element={<Navigate to="statistics" replace />} />
       </Route>
+        <Route path="/dashboard/:id/branches/:branchId/areas" element={
+            <ProtectedRoute>
+                <AreaManagement />
+            </ProtectedRoute>
+        } />
 
-      <Route path="/dashboard/:id/branches/:branchId/areas" element={
-        <ProtectedRoute>
-          <AreaManagement />
-        </ProtectedRoute>
-      } />
+        <Route path="/dashboard/:id/areas/:areaId/tables" element={
+            <ProtectedRoute>
+                <TableManagement />
+            </ProtectedRoute>
+        } />
+        <Route path="/home" element={
 
-      <Route path="/dashboard/:id/areas/:areaId/tables" element={
-        <ProtectedRoute>
-          <TableManagement />
-        </ProtectedRoute>
-      } />
+            <HomePage/>
+
+        } />
+        <Route path="/reservations" element={
+
+            <TableSelectionPage/>
+
+        } />
+        <Route path="/menu" element={
+
+            <MenuPage/>
+
+        } />
+        <Route path="/checkout" element={
+
+            <CheckoutPage/>
+
+        } />
+
+        {/* Dynamic slug-based customer routes */}
+        <Route path="/:slug/home" element={
+
+            <HomePage/>
+
+        } />
+        <Route path="/:slug/menu" element={
+
+            <MenuPage/>
+
+        } />
+        <Route path="/:slug/menu/:tableId" element={<MenuPage />} />
+        <Route path="/:slug/reservations" element={
+
+            <TableSelectionPage/>
+
+        } />
+        <Route path="/:slug/checkout" element={
+
+            <CheckoutPage/>
+
+        } />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.math.BigDecimal;
+
 import java.util.*;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -247,7 +248,7 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    public Page<OrderSummaryDTO> searchOrders(UUID branchId, OrderStatus status, String searchTerm, 
+    public Page<OrderSummaryDTO> searchOrders(UUID branchId, OrderStatus status, String searchTerm,
                                             Instant startDate, Instant endDate, Pageable pageable) {
         String formattedSearchTerm = (searchTerm == null || searchTerm.isEmpty()) ? null : "%" + searchTerm.toLowerCase() + "%";
         return orderRepository.searchOrders(branchId, status, formattedSearchTerm, startDate, endDate, pageable)
@@ -270,13 +271,13 @@ public class OrderService {
     public OrderLineDTO updateOrderLineStatus(UUID orderLineId, OrderLineStatus status) {
         OrderLine orderLine = orderLineRepository.findById(orderLineId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        
+
         orderLine.setOrderLineStatus(status);
         orderLine = orderLineRepository.save(orderLine);
-        
+
         // Potential logic: if all lines are completed, update order status?
         // For now just update the line.
-        
+
         return toOrderLineDTO(orderLine);
     }
 
@@ -305,19 +306,19 @@ public class OrderService {
                     }
                 }
 
-                itemDTOs.add(OrderItemDTO.builder()
-                        .orderItemId(item.getOrderItemId())
-                        .menuItemId(item.getMenuItem().getMenuItemId())
-                        .menuItemName(item.getMenuItem().getName())
-                        .menuItemImageUrl(imageUrl)
-                        .menuItemPrice(item.getMenuItem().getPrice())
-                        .quantity(item.getQuantity())
-                        .totalPrice(item.getTotalPrice())
-                        .note(item.getNote())
-                        .customizations(custDTOs)
-                        .build());
-            }
-        }
+                        itemDTOs.add(OrderItemDTO.builder()
+                                .orderItemId(item.getOrderItemId())
+                                .menuItemId(item.getMenuItem().getMenuItemId())
+                                .menuItemName(item.getMenuItem().getName())
+                                .menuItemImageUrl(imageUrl)
+                                .menuItemPrice(item.getMenuItem().getPrice())
+                                .quantity(item.getQuantity())
+                                .totalPrice(item.getTotalPrice())
+                                .note(item.getNote())
+//                                .customizations(custDTOs)
+                                .build());
+                    }
+                }
 
         return OrderLineDTO.builder()
                 .orderLineId(line.getOrderLineId())

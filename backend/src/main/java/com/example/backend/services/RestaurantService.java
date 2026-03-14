@@ -157,6 +157,11 @@ public class RestaurantService {
                 .map(restaurantMapper::toRestaurantDto)
                 .toList();
     }
+    public RestaurantDTO getBySlug(String slug) {
+        return restaurantRepository.findByPublicUrl(slug)
+                .map(restaurantMapper::toRestaurantDtoWithFullUrl)
+                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+    }
 
     // public PageResponse<RestaurantDTO> getRestaurantPaginated(int page, int size)
     // {
@@ -170,4 +175,7 @@ public class RestaurantService {
     // pageResponse.setTotalPages(pageData.getTotalPages());
     // return pageResponse;
     // }
-}
+    }
+
+
+

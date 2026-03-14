@@ -70,7 +70,15 @@ public class SecurityConfig {
                                 "/api/subscriptions/**",
                                 "/api/payments/**",
                                 "/actuator/health",
-                                "/actuator/health/**")
+                                "/actuator/health/**",
+                                "/api/public/**",
+                                "/api/areas/**",
+                                "/api/area-tables/**",
+                                "/api/categories/**",
+                                "/api/menu-items/**",
+                                "api/reservations",
+                                "/api/waiter/orders/**"
+                                )
                         .permitAll()
                         // OAuth2 endpoints (handled by Spring Security)
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()

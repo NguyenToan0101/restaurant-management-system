@@ -97,7 +97,7 @@ export interface BillSummaryDTO {
 }
 
 export interface CreateOrderItemCustomizationRequest {
-  customizationId: string;
+  customizationId: string ;
   quantity: number;
 }
 
@@ -105,7 +105,7 @@ export interface CreateOrderItemRequest {
   menuItemId: string;
   quantity: number;
   note: string;
-  customizations: CreateOrderItemCustomizationRequest[];
+  // customizations: CreateOrderItemCustomizationRequest[];
 }
 
 export interface CreateOrderRequest {

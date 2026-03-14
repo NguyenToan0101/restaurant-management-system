@@ -16,6 +16,10 @@ class TableApi {
         const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/tables/area/${areaId}`);
         return response.data.result;
     }
+     async getByPublicArea(areaId: string): Promise<AreaTableDTO[]> {
+        const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/public/tables/area/${areaId}`);
+        return response.data.result;
+    }
 
     async getByBranch(branchId: string): Promise<AreaTableDTO[]> {
         const response = await axiosClient.get<ApiResponse<AreaTableDTO[]>>(`/tables/branch/${branchId}`);

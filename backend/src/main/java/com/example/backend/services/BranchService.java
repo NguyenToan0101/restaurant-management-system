@@ -213,6 +213,11 @@ public class BranchService {
         return branchRepository.findByRestaurant_RestaurantId(restaurantId)
                 .stream().map(this::toDtoWithStaffCount).toList();
     }
+    public List<BranchDTO> getByPublicRestaurant(UUID restaurantId) {
+
+        return branchRepository.findByRestaurant_RestaurantId(restaurantId)
+                .stream().map(this::toDtoWithStaffCount).toList();
+    }
 
     public List<BranchDTO> getActiveByRestaurant(UUID restaurantId) {
         // Check ownership
