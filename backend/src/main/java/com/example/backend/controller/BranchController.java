@@ -97,6 +97,13 @@ public class BranchController {
         return res;
     }
 
+    @GetMapping("/{branchId}/restaurant/slug")
+    public ApiResponse<String> getRestaurantSlugByBranchId(@PathVariable UUID branchId) {
+        ApiResponse<String> res = new ApiResponse<>();
+        res.setResult(branchService.getRestaurantSlugByBranchId(branchId));
+        return res;
+    }
+
     @GetMapping("/owner/{ownerId}")
     public ApiResponse<List<BranchDTO>> getBranchesByOwner(@PathVariable UUID ownerId) {
         ApiResponse<List<BranchDTO>> res = new ApiResponse<>();

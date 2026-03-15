@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavigate } from "react-router-dom";
+import { useTodayOrdersCount } from "@/hooks/queries/useWaiterQueries";
 import {
     UtensilsCrossed,
     Table,
@@ -11,6 +12,11 @@ import {
 const WaiterDashboard = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
     const navigate = useNavigate();
+    
+    // Get today's orders count
+    const { data: todayOrdersCount = 0, isLoading: isLoadingOrdersCount } = useTodayOrdersCount(
+        staffInfo?.branchId || ""
+    );
 
     const getWelcomeMessage = () => {
         const time = new Date().getHours();
@@ -93,7 +99,9 @@ const WaiterDashboard = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">--</div>
+                        <div className="text-2xl font-bold">
+                            {isLoadingOrdersCount ? "..." : todayOrdersCount}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Orders today
                         </p>

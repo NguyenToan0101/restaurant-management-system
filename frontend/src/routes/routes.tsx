@@ -331,27 +331,6 @@ const AppRoutes = () => {
                 <TableManagement />
             </ProtectedRoute>
         } />
-        <Route path="/home" element={
-
-            <HomePage/>
-
-        } />
-        <Route path="/reservations" element={
-
-            <TableSelectionPage/>
-
-        } />
-        <Route path="/menu" element={
-
-            <MenuPage/>
-
-        } />
-        <Route path="/checkout" element={
-
-            <CheckoutPage/>
-
-        } />
-
         {/* Dynamic slug-based customer routes */}
         <Route path="/:slug/home" element={
 

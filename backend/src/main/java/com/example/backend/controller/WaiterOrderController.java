@@ -5,6 +5,7 @@ import com.example.backend.dto.request.AddItemsToOrderRequest;
 import com.example.backend.dto.request.CreateOrderRequest;
 import com.example.backend.dto.request.UpdateOrderItemRequest;
 import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.services.BillService;
 import com.example.backend.services.OrderService;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class WaiterOrderController {
 
     private final OrderService orderService;
+    private final BillService billService;
 
-    public WaiterOrderController(OrderService orderService) {
+    public WaiterOrderController(OrderService orderService, BillService billService) {
         this.orderService = orderService;
+        this.billService = billService;
     }
 
     @PostMapping
@@ -66,5 +69,10 @@ public class WaiterOrderController {
     @PutMapping("/{orderId}/cancel")
     public ApiResponse<OrderDTO> cancelOrder(@PathVariable UUID orderId) {
         return ApiResponse.success(orderService.cancelOrder(orderId));
+    }
+
+    @GetMapping("/branch/{branchId}/today-count")
+    public ApiResponse<Long> getTodayOrdersCount(@PathVariable UUID branchId) {
+        return ApiResponse.success(billService.getTodayBillsCount(branchId));
     }
 }

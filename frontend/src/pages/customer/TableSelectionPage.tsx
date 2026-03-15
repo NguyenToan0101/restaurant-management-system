@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { restaurantApi, branchApi, areaApi, tableApi, reservationApi } from '@/api'
 import { useToast } from '@/hooks/use-toast'
+import CustomerHeader from '@/components/customer/CustomerHeader'
 import type { RestaurantDTO, BranchDTO, AreaDTO, AreaTableDTO } from '@/types/dto'
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
@@ -15,16 +16,16 @@ export default function TableSelectionPage() {
   const [restaurant, setRestaurant] = useState<RestaurantDTO | null>(null)
   const [branches, setBranches] = useState<BranchDTO[]>([])
   const [areas, setAreas] = useState<AreaDTO[]>([])
-  const [tables, setTables] = useState<AreaTableDTO[]>([])
-  
+  const[tables, setTables] = useState<AreaTableDTO[]>([])
+
   const [selectedBranch, setSelectedBranch] = useState<BranchDTO | null>(null)
   const [selectedArea, setSelectedArea] = useState<AreaDTO | null>(null)
   const [selectedTable, setSelectedTable] = useState<AreaTableDTO | null>(null)
-  
+
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<'branch' | 'details' | 'area' | 'table'>('branch')
-  
-  const [reservationData, setReservationData] = useState({
+
+  const[reservationData, setReservationData] = useState({
     customerName: '',
     customerPhone: '',
     customerEmail: '',
@@ -34,16 +35,15 @@ export default function TableSelectionPage() {
     specialOccasion: 'Just Dining',
     notes: ''
   })
-  const isToday =
-  reservationData.reservationDate === new Date().toISOString().split("T")[0]
+  
+  const isToday = reservationData.reservationDate === new Date().toISOString().split("T")[0]
+  const now = new Date()
 
-const now = new Date()
+  const minTime = isToday
+    ? new Date(now.getTime() + 30 * 60000) // ít nhất 30 phút sau hiện tại
+    : setHours(setMinutes(new Date(), 0), 8)
 
-const minTime = isToday
-  ? new Date(now.getTime() + 30 * 60000) // ít nhất 30 phút sau hiện tại
-  : setHours(setMinutes(new Date(), 0), 8)
-
-const maxTime = setHours(setMinutes(new Date(), 0), 21)
+  const maxTime = setHours(setMinutes(new Date(), 0), 21)
 
   // Fetch restaurant and branches
   useEffect(() => {
@@ -51,11 +51,11 @@ const maxTime = setHours(setMinutes(new Date(), 0), 21)
       try {
         setLoading(true)
         const restaurantSlug = slug || 'default'
-        
+
         try {
           const restaurantData = await restaurantApi.getBySlug(restaurantSlug)
           setRestaurant(restaurantData)
-          
+
           const branchesData = await branchApi.getByPublicRestaurant(restaurantData.restaurantId)
           setBranches(branchesData)
           if (branchesData.length > 0) {
@@ -110,72 +110,43 @@ const maxTime = setHours(setMinutes(new Date(), 0), 21)
 
   const validateReservationDetails = (): boolean => {
     const { customerName, customerPhone, customerEmail, guestNumber, reservationDate, reservationTime } = reservationData
-    
+
     if (!customerName || customerName.trim() === '') {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng nhập Họ tên',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng nhập Họ tên', variant: 'destructive' })
       return false
     }
-    
+
     if (!customerPhone || customerPhone.trim() === '') {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng nhập Số điện thoại',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng nhập Số điện thoại', variant: 'destructive' })
       return false
     }
-    
+
     if (!customerEmail || customerEmail.trim() === '') {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng nhập Email',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng nhập Email', variant: 'destructive' })
       return false
     }
-    
-    // Validate email format
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(customerEmail)) {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Email không hợp lệ',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Email không hợp lệ', variant: 'destructive' })
       return false
     }
-    
+
     if (!reservationDate || reservationDate.trim() === '') {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng chọn Ngày đặt bàn',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng chọn Ngày đặt bàn', variant: 'destructive' })
       return false
     }
-    
+
     if (!reservationTime || reservationTime.trim() === '') {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng chọn Thời gian đặt bàn',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng chọn Thời gian đặt bàn', variant: 'destructive' })
       return false
     }
-    
+
     if (!guestNumber || guestNumber < 1) {
-      toast({
-        title: 'Cảnh báo',
-        description: 'Vui lòng chọn Số lượng khách',
-        variant: 'destructive'
-      })
+      toast({ title: 'Cảnh báo', description: 'Vui lòng chọn Số lượng khách', variant: 'destructive' })
       return false
     }
-    
+
     return true
   }
 
@@ -185,19 +156,17 @@ const maxTime = setHours(setMinutes(new Date(), 0), 21)
         title: 'Error',
         description: 'Please select branch and table',
         variant: 'destructive',
-        duration : 4000
+        duration: 4000
       })
       return
     }
-    
-    if (!validateReservationDetails()) {
-      return
-    }
+
+    if (!validateReservationDetails()) return
 
     try {
       const startTime = `${reservationData.reservationDate}T${reservationData.reservationTime}:00`
-      
-      const reservation = await reservationApi.create({
+
+      await reservationApi.create({
         branchId: selectedBranch.branchId || '',
         areaTableId: selectedTable.areaTableId,
         startTime,
@@ -208,10 +177,9 @@ const maxTime = setHours(setMinutes(new Date(), 0), 21)
         note: `${reservationData.specialOccasion} - ${reservationData.notes}`
       })
 
-      // Show success and redirect to menu
       toast({
         title: 'Success',
-        description: 'Reservation confirmed! Please check your email to confirm infomation. ',
+        description: 'Reservation confirmed! Please check your email to confirm information.',
         variant: 'default'
       })
       navigateTo('/menu')
@@ -233,692 +201,519 @@ const maxTime = setHours(setMinutes(new Date(), 0), 21)
     }
   }
 
+  // Helper cho Progress Bar
+  const stepOrder =['branch', 'details', 'area', 'table']
+  const currentStepIndex = stepOrder.indexOf(step)
+
   if (loading) {
     return (
-      <div className="customer-theme dark bg-background-dark flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading reservation system...</p>
-        </div>
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-orange-300 border-t-orange-600 rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
-    <div className="customer-theme dark bg-background-light dark:bg-background-dark relative flex flex-col min-h-screen w-full overflow-x-hidden">
-      {/* Header */}
-      <header className="relative top-0 w-full z-50 bg-background-dark backdrop-blur-md border-b border-primary/10 px-6 lg:px-20 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-primary">
-              <span className="material-symbols-outlined text-3xl">restaurant</span>
-            </div>
-            <h2 className="text-slate-100 text-xl font-bold tracking-widest">{restaurant?.name || 'LUMIÈRE'}</h2>
-          </div>
-          <nav className="hidden md:flex items-center gap-10">
-            <Link to={slug ? `/${slug}/home` : '/home'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Home</Link>
-            <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Reservations</Link>
-            <a href={slug ? `/${slug}/menu` : '/menu'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Menu</a>
-            <a href="#" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">About</a>
-          </nav>
-          <div className="flex items-center gap-6">
-            <Link to={slug ? `/${slug}/menu` : '/menu'} className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
-              View Menu
-            </Link>
-            {/* <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div> */}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-orange-50 text-gray-800 font-sans">
+      <CustomerHeader
+        restaurant={restaurant}
+        slug={slug}
+        currentPage="reservations"
+      />
 
-      <main className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-73px)]">
-        {/* Main Content Area */}
-        <div className="flex-1 relative overflow-hidden bg-background-dark p-8 floorplan-grid flex flex-col">
+      <main className="flex-1 pt-8 pb-12">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+            <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="hover:text-orange-500 transition-colors">Reservation</Link>
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span className="text-gray-500">Booking Flow</span>
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            <span className="text-orange-500">Table Selection</span>
+          </div>
+
+          {/* Header */}
           <div className="mb-8">
-            <nav className="flex gap-2 text-xs font-medium text-slate-500 mb-4">
-              <span className="text-slate-300">Reservations</span>
-              <span>/</span>
-              <span className="text-primary">{step === 'branch' ? 'Branch' : step === 'details' ? 'Details' : step === 'area' ? 'Area' : 'Table'}</span>
-            </nav>
-            <h1 className="text-3xl font-black text-slate-100">
-              {step === 'branch' && 'Select Branch'}
-              {step === 'details' && 'Reservation Details'}
-              {step === 'area' && 'Select Dining Area'}
-              {step === 'table' && 'Choose Your Table'}
-            </h1>
-            <p className="text-slate-400 mt-1 max-w-lg">
-              {step === 'branch' && 'Choose a branch location to get started'}
-              {step === 'details' && 'Enter your reservation information'}
-              {step === 'area' && 'Select your preferred dining area'}
-              {step === 'table' && 'Select your preferred table'}
-            </p>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Book a Table</h1>
+            <p className="text-gray-600">Experience the warmth of our hearth. Complete the steps to secure your dining experience.</p>
           </div>
 
-          {/* Step 1: Branch Selection */}
-          {step === 'branch' && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                {branches.map(branch => (
-                  <div
-                    key={branch.branchId}
-                    onClick={() => {
-                      setSelectedBranch(branch)
-                      setStep('details')
-                    }}
-                    className="p-6 rounded-xl border-2 border-primary/30 hover:border-primary bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-all hover:scale-105"
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="material-symbols-outlined text-3xl text-primary">location_on</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* LỖI CŨ Ở ĐÂY: Thẻ div col-span-2 đã đóng sớm. Bây giờ nó sẽ ôm trọn các bước */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              
+              {/* Progress Steps */}
+              <div className="flex items-center justify-between bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <div className={`flex items-center gap-3 ${currentStepIndex >= 0 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStepIndex > 0 ? 'bg-orange-500 text-white' : currentStepIndex === 0 ? 'bg-orange-100 border-2 border-orange-500 text-orange-500' : 'bg-gray-200 text-gray-500'}`}>
+                    {currentStepIndex > 0 ? <span className="material-symbols-outlined text-[16px]">check</span> : '01'}
+                  </div>
+                  <span className="font-medium text-sm hidden sm:block">BRANCH</span>
+                </div>
+
+                <div className="h-px bg-gray-200 flex-1 mx-4"></div>
+
+                <div className={`flex items-center gap-3 ${currentStepIndex >= 1 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStepIndex > 1 ? 'bg-orange-500 text-white' : currentStepIndex === 1 ? 'bg-orange-100 border-2 border-orange-500 text-orange-500' : 'bg-gray-200 text-gray-500'}`}>
+                    {currentStepIndex > 1 ? <span className="material-symbols-outlined text-[16px]">check</span> : '02'}
+                  </div>
+                  <span className="font-medium text-sm hidden sm:block">DETAILS</span>
+                </div>
+
+                <div className="h-px bg-gray-200 flex-1 mx-4"></div>
+
+                <div className={`flex items-center gap-3 ${currentStepIndex >= 2 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStepIndex > 2 ? 'bg-orange-500 text-white' : currentStepIndex === 2 ? 'bg-orange-100 border-2 border-orange-500 text-orange-500' : 'bg-gray-200 text-gray-500'}`}>
+                    {currentStepIndex > 2 ? <span className="material-symbols-outlined text-[16px]">check</span> : '03'}
+                  </div>
+                  <span className="font-medium text-sm hidden sm:block">AREA</span>
+                </div>
+
+                <div className="h-px bg-gray-200 flex-1 mx-4"></div>
+
+                <div className={`flex items-center gap-3 ${currentStepIndex >= 3 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentStepIndex === 3 ? 'bg-orange-100 border-2 border-orange-500 text-orange-500' : 'bg-gray-200 text-gray-500'}`}>
+                    04
+                  </div>
+                  <span className="font-medium text-sm hidden sm:block">TABLE</span>
+                </div>
+              </div>
+
+              {/* Step 1: Branch Selection */}
+              {step === 'branch' && (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Select Branch</h2>
+                  <div className="grid grid-cols-1 gap-4">
+                    {branches.map(branch => (
+                      <div
+                        key={branch.branchId}
+                        onClick={() => {
+                          setSelectedBranch(branch)
+                          setStep('details')
+                        }}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedBranch?.branchId === branch.branchId ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-500 bg-white hover:bg-orange-50'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="material-symbols-outlined text-2xl text-orange-500">location_on</span>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{branch.address}</h3>
+                            <p className="text-sm text-gray-600">{branch.branchPhone}</p>
+                            <p className="text-xs text-gray-500 mt-1">{branch.openingTime} - {branch.closingTime}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Reservation Details */}
+              {step === 'details' && (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Reservation Details</h2>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h3 className="font-bold text-white text-lg">{branch.address}</h3>
-                        <p className="text-sm text-slate-400">{branch.branchPhone}</p>
-                        <p className="text-xs text-slate-500 mt-1">{branch.openingTime} - {branch.closingTime}</p>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                        <input
+                          type="text"
+                          value={reservationData.customerName}
+                          onChange={(e) => setReservationData({ ...reservationData, customerName: e.target.value })}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          placeholder="Your name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                        <input
+                          type="tel"
+                          value={reservationData.customerPhone}
+                          onChange={(e) => setReservationData({ ...reservationData, customerPhone: e.target.value })}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          placeholder="Ex. 0818860559"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+                        <input
+                          type="email"
+                          value={reservationData.customerEmail}
+                          onChange={(e) => setReservationData({ ...reservationData, customerEmail: e.target.value })}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          placeholder="you@gmail.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Number of Guests *</label>
+                        <select
+                          value={reservationData.guestNumber}
+                          onChange={(e) => {
+                            const newGuestNumber = parseInt(e.target.value)
+                            setReservationData({ ...reservationData, guestNumber: newGuestNumber })
+                            if (selectedTable && selectedTable.capacity < newGuestNumber) {
+                              setSelectedTable(null)
+                            }
+                          }}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                            <option key={num} value={num}>{num} Guest{num !== 1 ? 's' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Reservation Date *</label>
+                        <input
+                          type="date"
+                          value={reservationData.reservationDate}
+                          onChange={(e) => setReservationData({ ...reservationData, reservationDate: e.target.value })}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          min={new Date().toLocaleDateString('en-CA')}
+                        />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Reservation Time *</label>
+                        <DatePicker
+                          selected={
+                            reservationData.reservationTime
+                              ? new Date(`1970-01-01T${reservationData.reservationTime}`)
+                              : null
+                          }
+                          onChange={(date) => {
+                            if (!date) return
+                            const time = date.toTimeString().slice(0, 5)
+                            setReservationData({
+                              ...reservationData,
+                              reservationTime: time,
+                            })
+                          }}
+                          showTimeSelect
+                          showTimeSelectOnly
+                          timeIntervals={30}
+                          timeCaption="Time"
+                          dateFormat="HH:mm"
+                          minTime={minTime}
+                          maxTime={maxTime}
+                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          placeholderText='Choose time'
+                        />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Step 2: Reservation Details */}
-          {step === 'details' && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-full max-w-2xl space-y-6 bg-slate-800/50 p-8 rounded-2xl border border-primary/20">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Full Name *</label>
-                    <input
-                      type="text"
-                      value={reservationData.customerName}
-                      onChange={(e) => setReservationData({ ...reservationData, customerName: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      placeholder="Your name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Phone Number *</label>
-                    <input
-                      type="tel"
-                      value={reservationData.customerPhone}
-                      onChange={(e) => setReservationData({ ...reservationData, customerPhone: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      placeholder="Ex.0818860559"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Email Address *</label>
-                    <input
-                      type="email"
-                      value={reservationData.customerEmail}
-                      onChange={(e) => setReservationData({ ...reservationData, customerEmail: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      placeholder="you@gmail.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Number of Guests *</label>
-                    <select
-                      value={reservationData.guestNumber}
-                      onChange={(e) => {
-                        const newGuestNumber = parseInt(e.target.value)
-                        setReservationData({ ...reservationData, guestNumber: newGuestNumber })
-                        // Reset selected table if its capacity is less than new guest number
-                        if (selectedTable && selectedTable.capacity < newGuestNumber) {
-                         
-                          setSelectedTable(null)
-                        }
-                      }}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                        <option key={num} value={num}>{num} Guest{num !== 1 ? 's' : ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Reservation Date *</label>
-                    <input
-                      type="date"
-                      value={reservationData.reservationDate}
-                      onChange={(e) => setReservationData({ ...reservationData, reservationDate: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                      min={new Date().toLocaleDateString('en-CA')}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-300 mb-2">Reservation Time *</label>
-                     <DatePicker
-  selected={
-    reservationData.reservationTime
-      ? new Date(`1970-01-01T${reservationData.reservationTime}`)
-      : null
-  }
-  onChange={(date) => {
-    if (!date) return
-
-    const time = date.toTimeString().slice(0, 5)
-
-    setReservationData({
-      ...reservationData,
-      reservationTime: time,
-    })
-  }}
-  showTimeSelect
-  showTimeSelectOnly
-  timeIntervals={30}
-  timeCaption="Time"
-  dateFormat="HH:mm"
-  minTime={minTime}
-  maxTime={maxTime}
-  className="w-full px-10 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white"
-  placeholderText='Choose time'
-/>
-                  </div>
-
-            
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">Special Occasion</label>
-                  <select
-                    value={reservationData.specialOccasion}
-                    onChange={(e) => setReservationData({ ...reservationData, specialOccasion: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none"
-                  >
-                    <option>Just Dining</option>
-                    <option>Anniversary</option>
-                    <option>Birthday</option>
-                    <option>Business Dinner</option>
-                    <option>Proposal</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">Special Requests</label>
-                  <textarea
-                    value={reservationData.notes}
-                    onChange={(e) => setReservationData({ ...reservationData, notes: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:border-primary focus:outline-none h-24 resize-none"
-                    placeholder="Any special requests or dietary requirements?"
-                  />
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    onClick={() => setStep('branch')}
-                    className="flex-1 px-6 py-3 rounded-xl font-bold text-white hover:bg-slate-700 transition-colors border border-slate-600"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (validateReservationDetails()) {
-                        setStep('area')
-                      }
-                    }}
-                    className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-                  >
-                    Continue <span className="material-symbols-outlined">arrow_forward</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Area Selection */}
-          {step === 'area' && (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
-                {areas.map(area => (
-                  <div
-                    key={area.areaId}
-                    onClick={() => {
-                      setSelectedArea(area)
-                      setStep('table')
-                    }}
-                    className="p-6 rounded-xl border-2 border-primary/30 hover:border-primary bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-all hover:scale-105 text-center"
-                  >
-                    <span className="material-symbols-outlined text-4xl text-primary block mb-3">map</span>
-                    <h3 className="font-bold text-white text-lg">{area.name}</h3>
-                    {/* <p className="text-sm text-slate-400 mt-2">{area.description || 'Select this area'}</p> */}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Table Selection */}
-          {step === 'table' && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              {tables.filter(table => table.capacity >= reservationData.guestNumber).length === 0 ? (
-                <div className="flex flex-col items-center justify-center w-full max-w-md">
-                  <span className="material-symbols-outlined text-6xl text-slate-600 mb-4">event_seat</span>
-                  <h2 className="text-2xl font-bold text-slate-200 mb-2">Không có bàn phù hợp</h2>
-                  <p className="text-slate-400 text-center mb-6">
-                    Rất tiếc, không có bàn nào có đủ chỗ cho {reservationData.guestNumber} khách trong khu vực này. Vui lòng chọn khu vực khác hoặc giảm số lượng khách.
-                  </p>
-                  <button
-                    onClick={() => setStep('area')}
-                    className="px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-                  >
-                    Chọn khu vực khác <span className="material-symbols-outlined">arrow_forward</span>
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    {tables.filter(table => table.capacity >= reservationData.guestNumber).map(table => (
-                      <div
-                        key={table.areaTableId}
-                        onClick={() => setSelectedTable(table)}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
-                          selectedTable?.areaTableId === table.areaTableId
-                            ? 'border-primary bg-primary/20'
-                            : table.status === 'ACTIVE'
-                            ? 'border-primary/40 hover:border-primary bg-slate-800/50'
-                            : 'border-slate-700 bg-slate-800/30 opacity-50 cursor-not-allowed'
-                        }`}
-                        style={{opacity: table.status !== 'ACTIVE' ? 0.5 : 1}}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Special Occasion</label>
+                      <select
+                        value={reservationData.specialOccasion}
+                        onChange={(e) => setReservationData({ ...reservationData, specialOccasion: e.target.value })}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
                       >
-                        <span className="material-symbols-outlined text-3xl text-primary block mb-2">event_seat</span>
-                        <h3 className="font-bold text-white">{table.tag}</h3>
-                        <p className="text-xs text-slate-400">Capacity: {table.capacity}</p>
-                        <p className="text-xs text-slate-500 mt-1 uppercase">{table.status}</p>
+                        <option>Just Dining</option>
+                        <option>Anniversary</option>
+                        <option>Birthday</option>
+                        <option>Business Dinner</option>
+                        <option>Proposal</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Special Requests</label>
+                      <textarea
+                        value={reservationData.notes}
+                        onChange={(e) => setReservationData({ ...reservationData, notes: e.target.value })}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all h-24 resize-none"
+                        placeholder="Any special requests or dietary requirements?"
+                      />
+                    </div>
+
+                    <div className="flex gap-4 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => setStep('branch')}
+                        className="flex-1 px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors border border-gray-300"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (validateReservationDetails()) {
+                            setStep('area')
+                          }
+                        }}
+                        className="flex-1 px-6 py-3 rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        Continue <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Area Selection */}
+              {step === 'area' && (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900">Choose Your Atmosphere</h2>
+                    <button 
+                      onClick={() => setStep('branch')}
+                      className="text-orange-500 text-sm font-medium hover:text-orange-600 transition-colors"
+                    >
+                      Change Branch
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    {areas.map((area, index) => (
+                      <div
+                        key={area.areaId}
+                        onClick={() => {
+                          setSelectedArea(area)
+                          setStep('table')
+                        }}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-4 ${selectedArea?.areaId === area.areaId
+                            ? 'border-orange-500 bg-orange-50'
+                            : 'border-gray-200 hover:border-orange-300 bg-white hover:bg-orange-50'
+                          }`}
+                      >
+                        <div className="w-24 h-16 bg-gray-200 rounded-lg overflow-hidden shrink-0">
+                          <img
+                            src={`https://images.unsplash.com/photo-${1544025162 + index}-d76694265947?q=80&w=400&auto=format&fit=crop`}
+                            alt={area.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedArea?.areaId === area.areaId
+                                ? 'border-orange-500 bg-orange-500'
+                                : 'border-gray-300'
+                              }`}>
+                              {selectedArea?.areaId === area.areaId && (
+                                <span className="material-symbols-outlined text-white text-[12px]">radio_button_checked</span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-gray-900">{area.name}</h3>
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-1">
+                            {index === 0 && 'Warm, rustic setting near the open kitchen.'}
+                            {index === 1 && 'Surrounded by herbs and jasmine vines.'}
+                            {index === 2 && 'Panoramic views with fire pits.'}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  {selectedTable && (
-                    <div className="bg-primary/10 border border-primary/30 rounded-xl p-6 max-w-md w-full mb-6">
-                      <div className="text-center">
-                        <p className="text-slate-300 text-sm mb-2">Selected Table</p>
-                        <h2 className="text-3xl font-bold text-primary mb-4">{selectedTable.tag}</h2>
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                          <div>
-                            <p className="text-slate-400 text-xs">Capacity</p>
-                            <p className="text-white font-bold">{selectedTable.capacity} guests</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-400 text-xs">Status</p>
-                            <p className="text-green-400 font-bold">Available</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-4 w-full max-w-md">
+                  <div className="flex gap-4 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => setStep('details')}
-                      className="flex-1 px-6 py-3 rounded-xl font-bold text-white hover:bg-slate-700 transition-colors border border-slate-600"
+                      className="px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors border border-gray-300 w-full md:w-auto"
                     >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleReservationSubmit}
-                      disabled={!selectedTable}
-                      className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                    >
-                      Complete Reservation <span className="material-symbols-outlined">check</span>
+                      Back to Details
                     </button>
                   </div>
-                </>
+                </div>
+              )}
+
+              {/* Step 4: Table Selection */}
+              {step === 'table' && (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Select Your Table</h2>
+
+                  {/* UX Cải tiến: Vẫn hiện bàn nhưng bôi mờ những bàn không đủ người, thay vì ẩn đi hoàn toàn làm hỏng layout bàn */}
+                  <>
+                    <div className="flex flex-wrap items-center gap-6 mb-6 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-50 border border-green-300 rounded"></div>
+                        <span className="text-gray-600">AVAILABLE</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-orange-100 border border-orange-500 rounded"></div>
+                        <span className="text-gray-600">SELECTED</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
+                        <span className="text-gray-600">OCCUPIED / TOO SMALL</span>
+                      </div>
+                    </div>
+
+                    {/* Table Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                      {tables.map(table => {
+                        const isEnoughCapacity = table.capacity >= reservationData.guestNumber;
+                        const isAvailable = table.status === 'ACTIVE' && isEnoughCapacity;
+                        const isSelected = selectedTable?.areaTableId === table.areaTableId;
+
+                        return (
+                          <div
+                            key={table.areaTableId}
+                            onClick={() => {
+                              if (isAvailable) setSelectedTable(table)
+                            }}
+                            className={`p-4 rounded-lg border-2 transition-all text-center flex flex-col justify-center min-h-[100px] ${
+                              isSelected
+                                ? 'border-orange-500 bg-orange-100 shadow-md'
+                                : isAvailable
+                                  ? 'border-green-300 bg-green-50 hover:border-green-400 cursor-pointer'
+                                  : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                              }`}
+                          >
+                            <div className={`text-lg font-bold mb-1 ${isSelected ? 'text-orange-700' : isAvailable ? 'text-gray-900' : 'text-gray-500'}`}>
+                              {table.tag}
+                            </div>
+                            <div className="text-sm font-medium text-gray-500">{table.capacity} SEATS</div>
+                            {!isEnoughCapacity && table.status === 'ACTIVE' && (
+                              <div className="text-[10px] text-red-500 mt-1 mt-auto">Too small</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Kitchen Area Indicator */}
+                    <div className="bg-gray-100 rounded-lg p-4 text-center mb-8 border border-gray-200">
+                      <span className="text-gray-500 text-sm font-medium tracking-wider">OPEN HEARTH KITCHEN</span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-4 border-t border-gray-100 pt-6">
+                      <button
+                        onClick={() => setStep('area')}
+                        className="flex-1 px-6 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors border border-gray-300"
+                      >
+                        Back to Area
+                      </button>
+                      <button
+                        onClick={handleReservationSubmit}
+                        disabled={!selectedTable}
+                        className="flex-1 px-6 py-3 rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Confirm Reservation
+                      </button>
+                    </div>
+                  </>
+                </div>
               )}
             </div>
-          )}
-        </div>
+            {/* KẾT THÚC CỘT CHÍNH (col-span-2) Ở ĐÂY */}
 
-        {/* Sidebar */}
-        <aside className="w-full lg:w-96 bg-background-dark border-l border-primary/20 flex flex-col p-6">
-          {step === 'branch' ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <span className="material-symbols-outlined text-5xl text-primary/30 mb-4">info</span>
-              <p className="text-slate-400">Select a branch to get started</p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-8">
-                <h3 className="text-lg font-bold text-slate-100 mb-4">Summary</h3>
-                
-                {selectedBranch && (
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                    <p className="text-xs text-slate-500 uppercase mb-1">Branch</p>
-                    <p className="text-white font-semibold">{selectedBranch.address}</p>
-                  </div>
-                )}
+            {/* Sidebar - Reservation Summary (col-span-1) */}
+            <div className="lg:col-span-1 h-fit sticky top-24">
+              <div className="bg-orange-500 text-white rounded-t-lg p-6">
+                <h3 className="text-lg font-semibold mb-1">Reservation Summary</h3>
+                <p className="text-orange-100 text-sm">Almost there! Review your booking.</p>
+              </div>
 
-                {reservationData.customerName && (
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                    <p className="text-xs text-slate-500 uppercase mb-1">Name</p>
-                    <p className="text-white font-semibold">{reservationData.customerName}</p>
-                  </div>
-                )}
-
-                {reservationData.reservationDate && (
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                      <p className="text-xs text-slate-500 uppercase mb-1">Date</p>
-                      <p className="text-white font-semibold">{reservationData.reservationDate}</p>
+              <div className="bg-white rounded-b-lg p-6 shadow-sm border border-t-0 border-gray-200 space-y-5">
+                {selectedBranch ? (
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-orange-500 mt-0.5">location_on</span>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1 tracking-wide">Restaurant Branch</p>
+                      <p className="font-medium text-gray-900 leading-tight mb-1">{restaurant?.name || 'Restaurant'}</p>
+                      <p className="text-sm text-gray-600">{selectedBranch.address}</p>
                     </div>
-                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                      <p className="text-xs text-slate-500 uppercase mb-1">Time</p>
-                      <p className="text-white font-semibold">{reservationData.reservationTime}</p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-400 italic">Please select a branch</div>
+                )}
+
+                {reservationData.reservationDate && reservationData.reservationTime && (
+                  <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
+                    <span className="material-symbols-outlined text-orange-500 mt-0.5">event</span>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1 tracking-wide">Date & Time</p>
+                      <p className="font-medium text-gray-900">{new Date(reservationData.reservationDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-sm text-gray-600">{reservationData.reservationTime}</p>
                     </div>
                   </div>
                 )}
 
                 {reservationData.guestNumber && (
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                    <p className="text-xs text-slate-500 uppercase mb-1">Guests</p>
-                    <p className="text-white font-semibold">{reservationData.guestNumber} people</p>
+                  <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
+                    <span className="material-symbols-outlined text-orange-500 mt-0.5">group</span>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1 tracking-wide">Guests</p>
+                      <p className="font-medium text-gray-900">{reservationData.guestNumber} People</p>
+                    </div>
                   </div>
                 )}
 
                 {selectedArea && (
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20 mb-4">
-                    <p className="text-xs text-slate-500 uppercase mb-1">Area</p>
-                    <p className="text-white font-semibold">{selectedArea.name}</p>
+                  <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
+                    <span className="material-symbols-outlined text-orange-500 mt-0.5">deck</span>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1 tracking-wide">Area</p>
+                      <p className="font-medium text-gray-900">{selectedArea.name}</p>
+                    </div>
                   </div>
                 )}
 
                 {selectedTable && (
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                    <p className="text-xs text-slate-500 uppercase mb-1">Table</p>
-                    <p className="text-white font-semibold">{selectedTable.tag}</p>
+                  <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
+                    <span className="material-symbols-outlined text-orange-500 mt-0.5">grid_view</span>
+                    <div className="flex items-center gap-2 w-full justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1 tracking-wide">Selected Table</p>
+                        <p className="font-medium text-gray-900">Table {selectedTable.tag}</p>
+                      </div>
+                      {step === 'table' && (
+                        <button onClick={() => setSelectedTable(null)} className="text-gray-400 hover:text-orange-500 transition-colors">
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              <button
-                onClick={() => navigateTo('/menu')}
-                className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-colors"
-              >
-                Browse Menu
-              </button>
-            </>
-          )}
-        </aside>
+                <div className="pt-6 mt-2 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                    <span className="text-red-400">*</span> Cancellations made within 24 hours of the reservation may incur a $25 no-show fee.
+                  </p>
+
+                  {step === 'table' && (
+                    <button
+                      onClick={handleReservationSubmit}
+                      disabled={!selectedTable}
+                      className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3.5 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                      {selectedTable ? 'BOOK NOW' : 'SELECT A TABLE'}
+                    </button>
+                  )}
+                  
+                  <div className="text-center mt-4">
+                    <p className="text-xs text-gray-400 font-medium tracking-wide flex items-center justify-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">lock</span>
+                      Secured with BistroPay
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-orange-500 text-xl">🍽️</span>
+              <span className="text-gray-900 font-semibold">{restaurant?.name || 'Warm Hearth Bistro'}</span>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-gray-600">
+              <a href="#" className="hover:text-orange-500 transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-orange-500 transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-orange-500 transition-colors">Contact Us</a>
+            </div>
+          </div>
+          <div className="text-center mt-4">
+            <p className="text-gray-500 text-sm">© {new Date().getFullYear()} {restaurant?.name || 'Warm Hearth Bistro'}. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
-
-//   return (
-//     <div className="customer-theme dark bg-background-light dark:bg-background-dark relative flex flex-col min-h-screen w-full overflow-x-hidden ">
-//       {/* Navigation */}
-//       {/*<header className="flex items-center justify-between border-b border-primary/20 px-10 py-4 bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
-        
-//         <div className="flex items-center gap-3">
-//           <div className="text-primary">
-//             <span className="material-symbols-outlined text-4xl">restaurant_menu</span>
-//           </div>
-//           <h2 className="text-slate-100 text-xl font-bold leading-tight tracking-tight uppercase">Lumière Dining</h2>
-//         </div>
-//         <nav className="hidden md:flex items-center gap-10">
-//           <Link to="/" className="text-slate-300 hover:text-primary text-sm font-medium transition-colors">Menu</Link>
-//           <Link to="/reservations" className="text-primary text-sm font-semibold border-b-2 border-primary pb-1">Reservations</Link>
-//           <a href="#" className="text-slate-300 hover:text-primary text-sm font-medium transition-colors">Events</a>
-//           <a href="#" className="text-slate-300 hover:text-primary text-sm font-medium transition-colors">Experience</a>
-//         </nav>
-//         <div className="flex items-center gap-6">
-//           <button className="flex items-center justify-center rounded-lg h-10 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
-//             Book Table
-//           </button>
-//           <div className="rounded-full size-10 border border-primary/30 p-0.5">
-//             <div className="w-full h-full rounded-full bg-cover bg-center" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuA5akv6X9Uv5E6dAWRMAiA8TpDTv_B8aBYr_9rHA2s12MedQm1x0tNCj98uXdtDWApCLnCdLu6IbWuddXztnZ2qaGh4H2cyHhtKOErm_hIdlCZCPHp0HFwD8Gd75Bpy4YJLgtCWiG1XrX1g2xr0guUGTSeGavbZEvfAgl4ZDFFV8Q2-_5S59Y4qWJKJ_JbL8GPyJCw7-CrjHaFm6K6C7TnXNpRk__M9_-CU_Jfd-h73wWF1b-L_9kwIa80iJHHzNLGj6KYtlNMAEC0")'}}></div>
-//           </div>
-//         </div>
-//       </header> */}
-//       <header className="relative top-0 w-full z-50 bg-background-dark backdrop-blur-md border-b border-primary/10 px-6 lg:px-20 py-4">
-//         <div className="max-w-7xl mx-auto flex items-center justify-between">
-//           <div className="flex items-center gap-3">
-//             <div className="text-primary">
-//               <span className="material-symbols-outlined text-3xl">restaurant</span>
-//             </div>
-//             <h2 className="text-slate-100 text-xl font-bold tracking-widest">LUMIÈRE</h2>
-//           </div>
-//           <nav className="hidden md:flex items-center gap-10">
-//             <Link to="/home" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Home</Link>
-//             <Link to="/reservations" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Reservations</Link>
-//             <a href="/menu" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Menu</a>
-//             <a href="#" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">About</a>
-//           </nav>
-//           <div className="flex items-center gap-6">
-//             <Link to="/reservations" className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
-//               Book Now
-//             </Link>
-//             <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div>
-//           </div>
-//         </div>
-//       </header>
-
-//       <main className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-73px)]">
-//         {/* Interactive Floor Plan Area */}
-//         <div className="flex-1 relative overflow-hidden bg-background-dark p-8 floorplan-grid flex flex-col">
-//           <div className="flex flex-col mb-8">
-//             <nav className="flex gap-2 text-xs font-medium text-slate-500 mb-2">
-//               <span className="hover:text-primary cursor-pointer">Reservations</span>
-//               <span>/</span>
-//               <span className="text-slate-300">Table Selection</span>
-//             </nav>
-//             <h1 className="text-3xl font-black text-slate-100">Choose Your Experience</h1>
-//             <p className="text-slate-400 mt-1 max-w-lg">Select a table from our architectural floor plan to secure your preferred atmosphere.</p>
-//           </div>
-
-//           {/* Floor Plan Map Container */}
-//           <div className="flex-1 bg-background-dark/40 border border-primary/10 rounded-xl relative shadow-inner overflow-auto flex items-center justify-center p-12">
-//             <div className="relative w-[800px] h-[500px] border-2 border-slate-700/50 rounded-2xl p-8 bg-background-dark/60">
-//               {/* Entrance Label */}
-//               <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 px-4 py-1 rounded border border-slate-600 text-[10px] uppercase tracking-widest text-slate-400">Main Entrance</div>
-
-//               {/* Window Seat Section */}
-//               <div className="absolute top-0 right-0 left-0 h-12 border-b border-dashed border-slate-700 flex items-center justify-center gap-12">
-//                 <div className="text-[10px] uppercase text-slate-500 tracking-[0.2em]">Panoramic Window View</div>
-//               </div>
-
-//               {/* Floor Plan Layout */}
-//               <div className="grid grid-cols-4 grid-rows-3 gap-16 mt-12">
-//                 {/* Table Window 1 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('W1')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -top-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -bottom-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'W1' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>W1</div>
-//                   </div>
-//                 </div>
-
-//                 {/* Table Window 2 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('W2')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -top-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -bottom-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'W2' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>W2</div>
-//                   </div>
-//                 </div>
-
-//                 {/* Table Booth 1 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('B1')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-6 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -right-6 text-slate-600">chair_alt</span>
-//                     <div className={`w-20 h-14 rounded-full border-2 shadow-[0_0_20px_rgba(212,175,55,0.3)] flex items-center justify-center text-xs font-bold italic transition-all ${selectedTable === 'B1' ? 'border-accent-gold bg-accent-gold text-background-dark' : 'border-accent-gold/50 bg-slate-800/50'}`}>
-//                       B1
-//                       {selectedTable === 'B1' && (
-//                         <div className="absolute -top-2 -right-2 bg-accent-gold text-background-dark rounded-full size-5 flex items-center justify-center text-[10px] font-black border-2 border-background-dark">
-//                           <span className="material-symbols-outlined text-[12px]">check</span>
-//                         </div>
-//                       )}
-//                     </div>
-//                   </div>
-//                 </div>
-
-//                 {/* Table Window 3 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('W3')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -top-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -bottom-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'W3' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>W3</div>
-//                   </div>
-//                 </div>
-
-//                 {/* Row 2 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('C1')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -right-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'C1' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>C1</div>
-//                   </div>
-//                 </div>
-
-//                 {/* Bar Area Overlay */}
-//                 <div className="col-span-2 row-span-1 bg-slate-800/40 rounded-xl border border-slate-700/50 flex items-center justify-center">
-//                   <span className="material-symbols-outlined text-slate-600 mr-2">local_bar</span>
-//                   <span className="text-[10px] uppercase tracking-widest text-slate-500">Artisan Bar Area</span>
-//                 </div>
-
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('C2')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -right-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'C2' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>C2</div>
-//                   </div>
-//                 </div>
-
-//                 {/* Row 3 */}
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer">
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-6 text-slate-600 rotate-90">chair_alt</span>
-//                     <div className="w-14 h-24 rounded-lg bg-slate-800/30 border-2 border-slate-700 flex items-center justify-center text-slate-600 cursor-not-allowed">
-//                       <span className="text-xs font-bold opacity-40">P1</span>
-//                     </div>
-//                     <span className="absolute text-[8px] bg-slate-700 px-1 rounded text-slate-300">BOOKED</span>
-//                   </div>
-//                 </div>
-
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('C3')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -right-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'C3' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>C3</div>
-//                   </div>
-//                 </div>
-
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTable('C4')}>
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -left-4 text-slate-600">chair_alt</span>
-//                     <span className="material-symbols-outlined absolute -right-4 text-slate-600">chair_alt</span>
-//                     <div className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all ${selectedTable === 'C4' ? 'border-primary bg-primary text-white' : 'border-primary/40 bg-slate-800 text-primary'}`}>C4</div>
-//                   </div>
-//                 </div>
-
-//                 <div className="flex flex-col items-center gap-2 group cursor-pointer">
-//                   <div className="relative flex items-center justify-center">
-//                     <span className="material-symbols-outlined absolute -right-6 text-slate-600 -rotate-90">chair_alt</span>
-//                     <div className="w-14 h-24 rounded-lg bg-slate-800/30 border-2 border-slate-700 flex items-center justify-center text-slate-600 cursor-not-allowed">
-//                       <span className="text-xs font-bold opacity-40">P2</span>
-//                     </div>
-//                     <span className="absolute text-[8px] bg-slate-700 px-1 rounded text-slate-300">BOOKED</span>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-
-//           {/* Legend */}
-//           <div className="absolute bottom-4 right-4 flex gap-4 bg-background-dark/80 backdrop-blur p-3 rounded-lg border border-primary/10">
-//             <div className="flex items-center gap-2">
-//               <div className="size-3 rounded-full bg-slate-800 border border-primary/40"></div>
-//               <span className="text-[10px] text-slate-400">Available</span>
-//             </div>
-//             <div className="flex items-center gap-2">
-//               <div className="size-3 rounded-full bg-accent-gold"></div>
-//               <span className="text-[10px] text-slate-400">Selected</span>
-//             </div>
-//             <div className="flex items-center gap-2">
-//               <div className="size-3 rounded-full bg-slate-700 opacity-50"></div>
-//               <span className="text-[10px] text-slate-400">Occupied</span>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Sidebar Details */}
-//         <aside className="w-full lg:w-96 bg-background-dark border-l border-primary/20 flex flex-col">
-//           <div className="p-6 border-b border-primary/10">
-//             <div className="flex items-center gap-4 mb-6">
-//               <div className="size-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-//                 <span className="material-symbols-outlined text-3xl">event_seat</span>
-//               </div>
-//               <div>
-//                 <h3 className="text-lg font-bold text-slate-100">Selection Details</h3>
-//                 <p className="text-xs text-slate-500">Table #{selectedTable} - {selectedTable.startsWith('B') ? 'Velvet Booth' : selectedTable.startsWith('W') ? 'Window Seat' : 'Center Table'}</p>
-//               </div>
-//             </div>
-//             <div className="space-y-4">
-//               <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
-//                 <div className="flex items-center justify-between mb-2">
-//                   <span className="text-xs uppercase tracking-tighter text-slate-500">Category</span>
-//                   <span className="text-xs font-bold text-accent-gold">{selectedTable.startsWith('B') ? 'Premium Booth' : 'Standard Seating'}</span>
-//                 </div>
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-xs uppercase tracking-tighter text-slate-500">Capacity</span>
-//                   <span className="text-xs font-bold text-slate-200">{selectedTable.startsWith('B') ? '2-4 Guests' : '2-3 Guests'}</span>
-//                 </div>
-//               </div>
-//               <div className="flex flex-col gap-2">
-//                 <div className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-//                   <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">visibility</span>
-//                   <div className="flex-1">
-//                     <p className="text-sm font-medium text-slate-200">Central View</p>
-//                     <p className="text-[10px] text-slate-500">Perfect view of the open kitchen</p>
-//                   </div>
-//                 </div>
-//                 <div className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-//                   <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">volume_off</span>
-//                   <div className="flex-1">
-//                     <p className="text-sm font-medium text-slate-200">Quiet Zone</p>
-//                     <p className="text-[10px] text-slate-500">Tucked away for private conversation</p>
-//                   </div>
-//                 </div>
-//                 <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-primary/20 border border-primary/30">
-//                   <span className="material-symbols-outlined text-primary">verified</span>
-//                   <div className="flex-1">
-//                     <p className="text-sm font-medium text-slate-200">Sommelier Choice</p>
-//                     <p className="text-[10px] text-primary/70">Includes complimentary tasting pour</p>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//           <div className="flex-1 p-6 flex flex-col gap-4">
-//             <div className="mt-auto space-y-4">
-//               <div className="flex flex-col gap-1">
-//                 <label className="text-[10px] uppercase tracking-widest text-slate-500 px-1">Special Occasion</label>
-//                 <select defaultValue="Just Dining" className="bg-background-dark border border-slate-700 rounded-lg text-sm text-slate-300 focus:ring-primary focus:border-primary">
-//                   <option>Anniversary</option>
-//                   <option>Birthday</option>
-//                   <option>Business Dinner</option>
-//                   <option >Just Dining</option>
-//                 </select>
-//               </div>
-//               <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-//                 <div className="flex justify-between items-center mb-1">
-//                   <span className="text-slate-400 text-sm">Reservation Fee</span>
-//                   <span className="text-slate-200 font-bold">$25.00</span>
-//                 </div>
-//                 <p className="text-[10px] text-slate-500 italic">Fee is deducted from your final bill</p>
-//               </div>
-//               <button onClick={() => navigate('/menu')} className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 group">
-//                 Confirm Selection
-//                 <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
-//               </button>
-//               <button onClick={() => navigate(-1)} className="w-full bg-transparent text-slate-400 py-3 rounded-xl font-medium text-xs hover:text-slate-100 transition-colors">
-//                 Go Back
-//               </button>
-//             </div>
-//           </div>
-//         </aside>
-//       </main>
-//     </div>
-//   )
-// }

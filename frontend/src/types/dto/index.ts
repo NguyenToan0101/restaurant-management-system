@@ -11,7 +11,6 @@ export * from './customization.dto';
 export * from './menu-item.dto';
 export * from './package.dto';
 export * from './subscription.dto';
-export * from './area.dto';
 export * from './reservation.dto';
 export * from './order.dto';
 export * from './branch-menu-item.dto';

@@ -151,7 +151,7 @@ const WaiterHistory = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                                <p className="text-2xl font-bold text-primary">${stats.totalRevenue.toFixed(2)}</p>
+                                <p className="text-2xl font-bold text-primary">{stats.totalRevenue.toFixed(2)}đ</p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                                 <DollarSign className="w-6 h-6 text-primary" />

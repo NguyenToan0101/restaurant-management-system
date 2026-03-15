@@ -38,7 +38,10 @@ import {
     useMarkTableOutOfOrder,
 } from "@/hooks/queries/useTableQueries";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
+import { useRestaurantSlugByBranch } from "@/hooks/queries/useBranchQueries";
 import { useAuthStore } from "@/stores/authStore";
+import TableQrCodeDialog from "@/components/table/TableQrCodeDialog";
+import { getTableUrlWithSlug } from "@/utils/tableUrl";
 import type { AreaTableDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
 
@@ -50,6 +53,9 @@ const ManagerTableManagement = () => {
 
     const { data: allAreas = [] } = useAreasByBranch(branchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
+
+    // Get restaurant slug for generating table URLs
+    const { data: restaurantSlug } = useRestaurantSlugByBranch(branchId || '');
 
     const [selectedAreaId, setSelectedAreaId] = useState<string>(areaId || (activeAreas.length > 0 ? activeAreas[0].areaId! : ''));
     const selectedArea = activeAreas.find(a => a.areaId === selectedAreaId);
@@ -462,31 +468,12 @@ const ManagerTableManagement = () => {
             </AlertDialog>
 
             {/* QR Code Dialog */}
-            <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>QR Code - {viewingQr?.tag}</DialogTitle>
-                        <DialogDescription>
-                            Scan this QR code to access the menu for this table
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center gap-4 py-4">
-                        {viewingQr?.qr ? (
-                            <div className="p-4 bg-white rounded-lg border">
-                                <img
-                                    src={viewingQr.qr}
-                                    alt={`QR Code for ${viewingQr.tag}`}
-                                    className="w-64 h-64"
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center text-muted-foreground py-8">
-                                No QR code available
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <TableQrCodeDialog
+                open={qrDialogOpen}
+                onOpenChange={setQrDialogOpen}
+                table={viewingQr}
+                tableUrl={viewingQr?.areaTableId && restaurantSlug ? getTableUrlWithSlug(viewingQr.areaTableId, restaurantSlug) : undefined}
+            />
         </div>
     );
 };

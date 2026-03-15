@@ -232,6 +232,12 @@ public class BranchService {
         return branchRepository.findRestaurantIdByBranchId(branchId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
     }
+    @Transactional(readOnly = true)
+    public String getRestaurantSlugByBranchId(UUID branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        return branch.getRestaurant().getPublicUrl();
+    }
 
     @Transactional(readOnly = true)
     public boolean canCreateBranch(UUID restaurantId) {

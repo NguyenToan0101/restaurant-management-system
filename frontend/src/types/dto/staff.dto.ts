@@ -1,7 +1,5 @@
 import type { RoleDTO } from './user.dto';
 
-export type EntityStatus = 'ACTIVE' | 'INACTIVE' | 'DELETED';
-
 export type StaffRoleName =
   | 'ADMIN'
   | 'RESTAURANT_OWNER'
@@ -13,7 +11,7 @@ export interface StaffAccountBackendDTO {
   staffAccountId: string;
   role: RoleDTO;
   username: string;
-  status: EntityStatus;
+  status: string;
   branchId: string;
 }
 
@@ -21,7 +19,7 @@ export interface StaffAccountDTO {
   id: string;
   username: string;
   role: RoleDTO;
-  status: EntityStatus;
+  status: string;
   isActive: boolean;
   branchId: string;
 }
@@ -37,14 +35,8 @@ export interface StaffAccountUpdateRequest {
   staffAccountId: string;
   username: string;
   role: RoleDTO;
-  status?: EntityStatus;
+  status?: string;
   branchId: string;
-}
-
-export interface PageResponse<T> {
-  items: T[];
-  totalElements: number;
-  totalPages: number;
 }
 
 export function mapStaffAccountFromBackend(

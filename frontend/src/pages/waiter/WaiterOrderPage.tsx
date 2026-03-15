@@ -293,7 +293,7 @@ const WaiterOrderPage = () => {
                                                 </div>
                                                 {item.customizations.length > 0 && (
                                                     <p className="text-xs text-muted-foreground">
-                                                        {item.customizations.map(c => c.name).join(', ')}
+                                                        {item.customizations.map(c => `${c.name} x${c.quantity}`).join(', ')}
                                                     </p>
                                                 )}
                                                 {item.note && (
@@ -453,12 +453,17 @@ const CustomizeDialog = ({
 
     const totalPrice = (item.price + custTotal) * quantity;
 
-    const toggleCustomization = (custId: string) => {
-        const current = selectedCustomizations[custId] || 0;
-        setSelectedCustomizations({
-            ...selectedCustomizations,
-            [custId]: current > 0 ? 0 : 1,
-        });
+    const updateCustomizationQuantity = (custId: string, quantity: number) => {
+        if (quantity <= 0) {
+            const newCustomizations = { ...selectedCustomizations };
+            delete newCustomizations[custId];
+            setSelectedCustomizations(newCustomizations);
+        } else {
+            setSelectedCustomizations({
+                ...selectedCustomizations,
+                [custId]: quantity,
+            });
+        }
     };
 
     return (
@@ -504,20 +509,38 @@ const CustomizeDialog = ({
                     {item.customizations.length > 0 && (
                         <div>
                             <label className="text-sm font-medium">Options</label>
-                            <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div className="space-y-2 mt-2">
                                 {item.customizations.map(c => {
-                                    const isSelected = (selectedCustomizations[c.customizationId] || 0) > 0;
+                                    const currentQty = selectedCustomizations[c.customizationId] || 0;
                                     return (
-                                        <Button
+                                        <div
                                             key={c.customizationId}
-                                            variant={isSelected ? "default" : "outline"}
-                                            size="sm"
-                                            className="justify-between h-auto py-2 px-3"
-                                            onClick={() => toggleCustomization(c.customizationId)}
+                                            className="flex items-center justify-between p-3 border border-border rounded-lg"
                                         >
-                                            <span className="text-xs">{c.name}</span>
-                                            <span className="text-xs font-bold">+${c.price.toFixed(2)}</span>
-                                        </Button>
+                                            <div className="flex-1">
+                                                <span className="text-sm font-medium">{c.name}</span>
+                                                <span className="text-xs text-muted-foreground block">+${c.price.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => updateCustomizationQuantity(c.customizationId, currentQty - 1)}
+                                                >
+                                                    <Minus className="w-3 h-3" />
+                                                </Button>
+                                                <span className="w-8 text-center text-sm font-medium">{currentQty}</span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => updateCustomizationQuantity(c.customizationId, currentQty + 1)}
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
                                     );
                                 })}
                             </div>

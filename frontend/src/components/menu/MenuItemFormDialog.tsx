@@ -66,13 +66,26 @@ export function MenuItemFormDialog({
     if (!fCatId) return [];
     const selectedCategory = categories.find((c) => c.id === fCatId);
     if (!selectedCategory) return [];
+    
+    // Get customizations that belong to this category
+    const categoryCustomizationIds = selectedCategory.customizationIds || [];
     return customizations.filter((cust) =>
-      selectedCategory.customizationIds.includes(cust.id)
+      categoryCustomizationIds.includes(cust.id)
     );
   }, [fCatId, categories, customizations]);
 
+  // All available customizations for the restaurant (not filtered by category)
+  const allCustomizations = useMemo(() => {
+    const filtered = customizations.filter((cust) => cust.restaurantId === (menuItem?.restaurantId || categories[0]?.restaurantId));
+    console.log('MenuItemFormDialog - allCustomizations:', filtered);
+    console.log('MenuItemFormDialog - selectedCustIds:', selectedCustIds);
+    return filtered;
+  }, [customizations, menuItem, categories, selectedCustIds]);
+
   useEffect(() => {
     if (menuItem) {
+      console.log('MenuItemFormDialog - Setting up form with menuItem:', menuItem);
+      console.log('MenuItemFormDialog - menuItem.customizations:', menuItem.customizations);
       setFName(menuItem.name);
       setFDesc(menuItem.description);
       setFPrice(menuItem.price.toString());
@@ -81,7 +94,10 @@ export function MenuItemFormDialog({
       setFCatId(menuItem.categoryId);
       setFBestSeller(menuItem.isBestSeller);
       setFActive(menuItem.isActive);
-      setSelectedCustIds(new Set(menuItem.customizations || []));
+      // Fix: Make sure to use the customizations array from the menuItem
+      const custIds = new Set(menuItem.customizations || []);
+      console.log('MenuItemFormDialog - Setting selectedCustIds to:', custIds);
+      setSelectedCustIds(custIds);
     } else {
       setFName("");
       setFDesc("");
@@ -254,41 +270,92 @@ export function MenuItemFormDialog({
             </div>
           </div>
 
-          {/* Customizations - filtered by selected category */}
-          {fCatId && categoryCustomizations.length > 0 && (
+          {/* Customizations - show both category and individual customizations */}
+          {fCatId && (
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-primary" />
                 <Label className="text-base font-semibold">Customizations</Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Select which customizations are available for this item.
+                Select which customizations are available for this item. This includes both category-level and item-specific customizations.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {categoryCustomizations.map((c) => (
-                  <label
-                    key={c.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedCustIds.has(c.id)
-                        ? "border-primary/50 bg-primary/5"
-                        : "border-border/60 hover:bg-muted/30"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={selectedCustIds.has(c.id)}
-                      onCheckedChange={() => toggleCustomization(c.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium">{c.name}</span>
-                    </div>
-                    {c.price > 0 && (
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        +${c.price.toFixed(2)}
-                      </Badge>
-                    )}
-                  </label>
-                ))}
+              
+              {/* Debug info - remove this after testing */}
+              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                <div>Selected IDs: {Array.from(selectedCustIds).join(', ')}</div>
+                <div>Category Customizations: {categoryCustomizations.map(c => c.id).join(', ')}</div>
+                <div>All Customizations: {allCustomizations.map(c => c.id).join(', ')}</div>
               </div>
+
+              {/* Category Customizations */}
+              {categoryCustomizations.length > 0 && (
+                <div className="space-y-2">
+                  <h6 className="text-sm font-medium text-gray-700">From Category ({categories.find(c => c.id === fCatId)?.name})</h6>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {categoryCustomizations.map((c) => (
+                      <label
+                        key={c.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedCustIds.has(c.id)
+                            ? "border-primary/50 bg-primary/5"
+                            : "border-border/60 hover:bg-muted/30"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={selectedCustIds.has(c.id)}
+                          onCheckedChange={() => toggleCustomization(c.id)}
+                          className="rounded-none"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium">{c.name}</span>
+                        </div>
+                        {c.price > 0 && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            +${c.price.toFixed(2)}
+                          </Badge>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* All Restaurant Customizations */}
+              {allCustomizations.length > 0 && (
+                <div className="space-y-2">
+                  <h6 className="text-sm font-medium text-gray-700">Additional Customizations</h6>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {allCustomizations
+                      .filter(c => !categoryCustomizations.some(cc => cc.id === c.id)) // Exclude already shown category customizations
+                      .map((c) => (
+                      <label
+                        key={c.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedCustIds.has(c.id)
+                            ? "border-primary/50 bg-primary/5"
+                            : "border-border/60 hover:bg-muted/30"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={selectedCustIds.has(c.id)}
+                          onCheckedChange={() => toggleCustomization(c.id)}
+                          className="rounded-none"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium">{c.name}</span>
+                        </div>
+                        {c.price > 0 && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            +${c.price.toFixed(2)}
+                          </Badge>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {selectedCustIds.size > 0 && (
                 <p className="text-xs text-muted-foreground">
                   {selectedCustIds.size} customization{selectedCustIds.size > 1 ? 's' : ''} selected
@@ -297,11 +364,11 @@ export function MenuItemFormDialog({
             </div>
           )}
 
-          {fCatId && categoryCustomizations.length === 0 && (
+          {fCatId && categoryCustomizations.length === 0 && allCustomizations.length === 0 && (
             <div className="space-y-3 border-t pt-4">
               <Label className="text-base font-semibold">Customizations</Label>
               <p className="text-xs text-muted-foreground italic">
-                No customizations available for this category.
+                No customizations available for this restaurant.
               </p>
             </div>
           )}
