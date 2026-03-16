@@ -692,11 +692,11 @@ const TableDetailDialog = ({
                                 <div className="pt-2 space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span>Subtotal</span>
-                                        <span className="font-medium">${subtotal.toFixed(2)}</span>
+                                        <span className="font-medium">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between text-base font-bold border-t pt-2">
                                         <span>Total</span>
-                                        <span>${subtotal.toFixed(2)}</span>
+                                        <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(subtotal)}</span>
                                     </div>
                                 </div>
 

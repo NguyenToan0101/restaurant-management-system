@@ -21,5 +21,6 @@ public class StaffAuthResponse {
         private String username;
         private String role;
         private UUID branchId;
+        private UUID restaurantId;
     }
 }

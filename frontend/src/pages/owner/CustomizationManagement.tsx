@@ -131,7 +131,7 @@ const CustomizationManagement = () => {
                   <div>
                     <h3 className="font-semibold text-sm">{c.name}</h3>
                     <p className="text-lg font-display text-primary mt-1">
-                      {c.price > 0 ? `$${c.price.toFixed(2)}` : "Free"}
+                      {c.price > 0 ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(c.price) : "Free"}
                     </p>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

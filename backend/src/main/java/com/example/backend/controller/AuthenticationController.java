@@ -197,7 +197,8 @@ public class AuthenticationController {
                     staff.getStaffAccountId(),
                     staff.getUsername(),
                     staff.getRole().getName().name(),
-                    staff.getBranch().getBranchId()
+                    staff.getBranch().getBranchId(),
+                    staff.getBranch().getRestaurant().getRestaurantId()
             );
         } else if (principal instanceof com.example.backend.entities.User userFromContext) {
             // Regular user — reload từ DB để đảm bảo role được load trong transaction

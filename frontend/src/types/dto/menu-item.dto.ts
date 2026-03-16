@@ -11,6 +11,7 @@ interface MenuItemBackendDTO {
   restaurantId: string;
   customizationIds: string[];
   imageUrl: string | null;
+  discountedPrice?: number;
 }
 
 export interface MediaDTO {
@@ -34,6 +35,7 @@ export interface MenuItemDTO {
   hasCustomization: boolean;
   media: MediaDTO | null;
   customizations: string[];
+  discountedPrice?: number;
 }
 
 export interface MenuItemCreateRequest {
@@ -66,5 +68,6 @@ export function mapMenuItemFromBackend(backend: MenuItemBackendDTO): MenuItemDTO
       targetId: backend.menuItemId,
     } : null,
     customizations: backend.customizationIds || [],
+    discountedPrice: backend.discountedPrice,
   };
 }

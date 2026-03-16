@@ -9,6 +9,8 @@ import com.example.backend.mapper.BranchMenuItemMapper;
 import com.example.backend.repositories.*;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,7 @@ public class BranchMenuItemService {
     private final MediaService mediaService;
     private final BranchMenuItemMapper branchMenuItemMapper;
     private final OrderItemRepository orderItemRepository;
+    private final PromotionRepository promotionRepository;
 
     public BranchMenuItemService(
             BranchMenuItemRepository branchMenuItemRepository,
@@ -28,7 +31,8 @@ public class BranchMenuItemService {
             BranchRepository branchRepository,
             MediaService mediaService,
             BranchMenuItemMapper branchMenuItemMapper,
-            OrderItemRepository orderItemRepository
+            OrderItemRepository orderItemRepository,
+            PromotionRepository promotionRepository
     ) {
         this.branchMenuItemRepository = branchMenuItemRepository;
         this.menuItemRepository = menuItemRepository;
@@ -36,6 +40,7 @@ public class BranchMenuItemService {
         this.mediaService = mediaService;
         this.branchMenuItemMapper = branchMenuItemMapper;
         this.orderItemRepository = orderItemRepository;
+        this.promotionRepository = promotionRepository;
     }
 
     public List<BranchMenuItemDTO> getMenuItemsByBranch(UUID branchId) {
@@ -53,6 +58,12 @@ public class BranchMenuItemService {
         Map<UUID, BranchMenuItem> branchMenuItemMap = branchMenuItems.stream()
                 .collect(Collectors.toMap(b -> b.getMenuItem().getMenuItemId(), b -> b));
 
+        List<Promotion> activeItemPromotions = promotionRepository.findAllByRestaurant_RestaurantIdAndStatus(restaurantId, PromotionStatus.ACTIVE)
+                .stream()
+                .filter(p -> p.getPromotionType() == PromotionType.MENU_ITEM)
+                .filter(p -> p.getStartDate().isBefore(Instant.now()) && p.getEndDate().isAfter(Instant.now()))
+                .toList();
+
         return activeItems.stream().map(menuItem -> {
             BranchMenuItem mapping = branchMenuItemMap.get(menuItem.getMenuItemId());
             BranchMenuItemDTO dto = new BranchMenuItemDTO();
@@ -61,6 +72,27 @@ public class BranchMenuItemService {
             dto.setName(menuItem.getName());
             dto.setDescription(menuItem.getDescription());
             dto.setPrice(menuItem.getPrice());
+
+            // Calculate discounted price (Maximum discount should be applied)
+            BigDecimal maxDiscountAmount = BigDecimal.ZERO;
+            for (Promotion promotion : activeItemPromotions) {
+                if (promotion.getMenuItems().contains(menuItem)) {
+                    BigDecimal currentDiscount = BigDecimal.ZERO;
+                    if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
+                        currentDiscount = menuItem.getPrice().multiply(promotion.getDiscountValue()).divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
+                    } else if (promotion.getDiscountType() == DiscountType.FIXED_AMOUNT) {
+                        currentDiscount = promotion.getDiscountValue();
+                    }
+                    
+                    if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
+                        maxDiscountAmount = currentDiscount;
+                    }
+                }
+            }
+            BigDecimal discountedPrice = menuItem.getPrice().subtract(maxDiscountAmount);
+            if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
+            dto.setDiscountedPrice(discountedPrice);
+
             dto.setStatus(menuItem.getStatus());
             dto.setBestSeller(menuItem.isBestSeller());
             dto.setHasCustomization(menuItem.isHasCustomization());

@@ -13,3 +13,4 @@ export * from './package.dto';
 export * from './subscription.dto';
 export * from './order.dto';
 export * from './branch-menu-item.dto';
+export * from './promotion.dto';

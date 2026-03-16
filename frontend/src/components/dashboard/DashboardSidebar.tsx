@@ -1,7 +1,7 @@
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, UtensilsCrossed, ShoppingCart, Users, Settings,
-  Store, ChevronLeft, MapPin, LogOut,
+  Store, ChevronLeft, MapPin, LogOut, BadgePercent,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -29,6 +29,7 @@ const menuItems = [
       { title: "Customizations", url: "/customizations" },
     ]
   },
+  { title: "Promotions", description: "Manage restaurant promotions", url: "/promotions", icon: BadgePercent },
   { title: "Areas & Tables", description: "Manage areas & tables", url: "/areas", icon: MapPin },
   { title: "Orders", description: "View orders", url: "/orders", icon: ShoppingCart },
   { title: "Staff", description: "Manage staff", url: "/staff", icon: Users },

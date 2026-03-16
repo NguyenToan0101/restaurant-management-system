@@ -84,13 +84,14 @@ const WaiterOrderPage = () => {
             });
 
         const custTotal = custs.reduce((sum, c) => sum + c.price * c.quantity, 0);
-        const totalPrice = (customizeItem.price + custTotal) * customizeQty;
+        const itemPrice = customizeItem.discountedPrice ?? customizeItem.price;
+        const totalPrice = (itemPrice + custTotal) * customizeQty;
 
         cart.addItem({
             cartItemId: `${customizeItem.menuItemId}-${Date.now()}`,
             menuItemId: customizeItem.menuItemId,
             name: customizeItem.name,
-            price: customizeItem.price,
+            price: itemPrice,
             imageUrl: customizeItem.imageUrl,
             quantity: customizeQty,
             note: customizeNote,
@@ -322,7 +323,7 @@ const WaiterOrderPage = () => {
                                                             <Plus className="w-3 h-3" />
                                                         </Button>
                                                     </div>
-                                                    <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                    <span className="font-semibold text-sm">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.totalPrice)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -336,11 +337,11 @@ const WaiterOrderPage = () => {
                         <div className="p-4 border-t space-y-3">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span className="font-medium">${cart.getTotal().toFixed(2)}</span>
+                                <span className="font-medium">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(cart.getTotal())}</span>
                             </div>
                             <div className="flex justify-between font-bold text-base">
                                 <span>Total</span>
-                                <span>${cart.getTotal().toFixed(2)}</span>
+                                <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(cart.getTotal())}</span>
                             </div>
                             <Button
                                 className="w-full"
@@ -419,7 +420,16 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
             )}
             <div className="flex items-center justify-between mt-3">
-                <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                <div className="flex flex-col">
+                    {item.discountedPrice !== undefined && item.discountedPrice < item.price ? (
+                        <>
+                            <span className="text-lg font-bold text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.discountedPrice)}</span>
+                            <span className="text-xs text-muted-foreground line-through">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</span>
+                        </>
+                    ) : (
+                        <span className="text-lg font-bold text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</span>
+                    )}
+                </div>
                 <Button size="sm" variant="outline" className="h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Add
@@ -451,7 +461,8 @@ const CustomizeDialog = ({
             return sum + (c ? c.price * qty : 0);
         }, 0);
 
-    const totalPrice = (item.price + custTotal) * quantity;
+    const basePrice = item.discountedPrice ?? item.price;
+    const totalPrice = (basePrice + custTotal) * quantity;
 
     const toggleCustomization = (custId: string) => {
         const current = selectedCustomizations[custId] || 0;
@@ -479,7 +490,16 @@ const CustomizeDialog = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                        <div className="flex flex-col">
+                            {item.discountedPrice !== undefined && item.discountedPrice < item.price ? (
+                                <>
+                                    <span className="text-xl font-bold text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.discountedPrice)}</span>
+                                    <span className="text-sm text-muted-foreground line-through">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</span>
+                                </>
+                            ) : (
+                                <span className="text-xl font-bold text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -516,7 +536,7 @@ const CustomizeDialog = ({
                                             onClick={() => toggleCustomization(c.customizationId)}
                                         >
                                             <span className="text-xs">{c.name}</span>
-                                            <span className="text-xs font-bold">+${c.price.toFixed(2)}</span>
+                                            <span className="text-xs font-bold">+{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(c.price)}</span>
                                         </Button>
                                     );
                                 })}
@@ -540,7 +560,7 @@ const CustomizeDialog = ({
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={onAdd}>
                         <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Order - ${totalPrice.toFixed(2)}
+                        Add to Order - {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalPrice)}
                     </Button>
                 </DialogFooter>
             </DialogContent>

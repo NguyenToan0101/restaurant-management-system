@@ -27,6 +27,7 @@ public class OrderService {
     private final MenuItemRepository menuItemRepository;
     private final CustomizationRepository customizationRepository;
     private final MediaService mediaService;
+    private final PromotionService promotionService;
 
     public OrderService(OrderRepository orderRepository,
                         OrderLineRepository orderLineRepository,
@@ -35,7 +36,8 @@ public class OrderService {
                         AreaTableRepository areaTableRepository,
                         MenuItemRepository menuItemRepository,
                         CustomizationRepository customizationRepository,
-                        MediaService mediaService) {
+                        MediaService mediaService,
+                        PromotionService promotionService) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.orderItemRepository = orderItemRepository;
@@ -44,6 +46,7 @@ public class OrderService {
         this.menuItemRepository = menuItemRepository;
         this.customizationRepository = customizationRepository;
         this.mediaService = mediaService;
+        this.promotionService = promotionService;
     }
 
     @Transactional
@@ -106,7 +109,9 @@ public class OrderService {
             MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
                     .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
-            BigDecimal itemPrice = menuItem.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            BigDecimal discountedPrice = promotionService.calculateItemDiscountedPrice(menuItem);
+            BigDecimal unitPrice = menuItem.getPrice();
+            BigDecimal itemPrice = discountedPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrderLine(orderLine);
@@ -114,6 +119,8 @@ public class OrderService {
             orderItem.setQuantity(itemReq.getQuantity());
             orderItem.setNote(itemReq.getNote());
             orderItem.setStatus(EntityStatus.ACTIVE);
+            orderItem.setUnitPrice(unitPrice);
+            orderItem.setDiscountedUnitPrice(discountedPrice);
             orderItem.setTotalPrice(itemPrice);
             orderItem = orderItemRepository.save(orderItem);
 
@@ -153,7 +160,9 @@ public class OrderService {
         OrderItem orderItem = orderItemRepository.findById(orderItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
-        BigDecimal basePrice = orderItem.getMenuItem().getPrice();
+        // Re-snapshot prices at update time (keep behavior consistent with add-items flow)
+        BigDecimal basePrice = promotionService.calculateItemDiscountedPrice(orderItem.getMenuItem());
+        BigDecimal unitPrice = orderItem.getMenuItem().getPrice();
         BigDecimal custTotal = orderItem.getOrderItemCustomizations().stream()
                 .map(OrderItemCustomization::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -164,6 +173,8 @@ public class OrderService {
 
         orderItem.setQuantity(request.getQuantity());
         orderItem.setNote(request.getNote());
+        orderItem.setUnitPrice(unitPrice);
+        orderItem.setDiscountedUnitPrice(basePrice);
         orderItem.setTotalPrice(perItemPrice.multiply(BigDecimal.valueOf(request.getQuantity())));
         orderItemRepository.save(orderItem);
 
@@ -216,7 +227,7 @@ public class OrderService {
 
     public List<OrderDTO> getOrdersByBranch(UUID branchId) {
         return orderRepository.findByBranchId(branchId).stream()
-                .map(this::toOrderDTO)
+                .map(this::toHistoricalOrderDTO)
                 .collect(Collectors.toList());
     }
 
@@ -243,7 +254,7 @@ public class OrderService {
 
     public List<OrderDTO> getOrderHistory(UUID branchId) {
         return orderRepository.findHistoryByBranchId(branchId).stream()
-                .map(this::toOrderDTO)
+                .map(this::toHistoricalOrderDTO)
                 .collect(Collectors.toList());
     }
 
@@ -310,7 +321,8 @@ public class OrderService {
                         .menuItemId(item.getMenuItem().getMenuItemId())
                         .menuItemName(item.getMenuItem().getName())
                         .menuItemImageUrl(imageUrl)
-                        .menuItemPrice(item.getMenuItem().getPrice())
+                        .menuItemPrice(item.getUnitPrice() != null ? item.getUnitPrice() : item.getMenuItem().getPrice())
+                        .discountedPrice(item.getDiscountedUnitPrice() != null ? item.getDiscountedUnitPrice() : promotionService.calculateItemDiscountedPrice(item.getMenuItem()))
                         .quantity(item.getQuantity())
                         .totalPrice(item.getTotalPrice())
                         .note(item.getNote())
@@ -349,6 +361,80 @@ public class OrderService {
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .orderLines(lineDTOs)
+                .build();
+    }
+
+    // For history views (manager/waiter), we want a stable snapshot that does NOT
+    // recalculate item discounts based on current promotions. This prevents
+    // newly-activated promotions from affecting old completed orders.
+    private OrderDTO toHistoricalOrderDTO(Order order) {
+        List<OrderLineDTO> lineDTOs = new ArrayList<>();
+
+        if (order.getOrderLines() != null) {
+            for (OrderLine line : order.getOrderLines()) {
+                lineDTOs.add(toHistoricalOrderLineDTO(line));
+            }
+        }
+
+        return OrderDTO.builder()
+                .orderId(order.getOrderId())
+                .areaTableId(order.getAreaTable().getAreaTableId())
+                .tableName(order.getAreaTable().getTag())
+                .areaName(order.getAreaTable().getArea().getName())
+                .status(order.getStatus())
+                .totalPrice(order.getTotalPrice())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .orderLines(lineDTOs)
+                .build();
+    }
+
+    private OrderLineDTO toHistoricalOrderLineDTO(OrderLine line) {
+        List<OrderItemDTO> itemDTOs = new ArrayList<>();
+        if (line.getOrderItems() != null) {
+            for (OrderItem item : line.getOrderItems()) {
+                if (item.getStatus() == EntityStatus.DELETED) continue;
+
+                List<OrderItemCustomizationDTO> custDTOs = new ArrayList<>();
+                if (item.getOrderItemCustomizations() != null) {
+                    for (OrderItemCustomization oic : item.getOrderItemCustomizations()) {
+                        custDTOs.add(OrderItemCustomizationDTO.builder()
+                                .orderItemCustomizationId(oic.getOrderItemCustomizationId())
+                                .customizationId(oic.getCustomization().getCustomizationId())
+                                .customizationName(oic.getCustomization().getName())
+                                .quantity(oic.getQuantity())
+                                .totalPrice(oic.getTotalPrice())
+                                .build());
+                    }
+                }
+
+                java.math.BigDecimal menuPrice = item.getMenuItem() != null
+                        ? item.getMenuItem().getPrice()
+                        : java.math.BigDecimal.ZERO;
+
+                itemDTOs.add(OrderItemDTO.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .menuItemId(item.getMenuItem().getMenuItemId())
+                        .menuItemName(item.getMenuItem().getName())
+                        .menuItemImageUrl(null)
+                        .menuItemPrice(menuPrice)
+                        .discountedPrice(menuPrice)
+                        .quantity(item.getQuantity())
+                        .totalPrice(item.getTotalPrice())
+                        .note(item.getNote())
+                        .customizations(custDTOs)
+                        .build());
+            }
+        }
+
+        return OrderLineDTO.builder()
+                .orderLineId(line.getOrderLineId())
+                .orderId(line.getOrder().getOrderId())
+                .orderLineStatus(line.getOrderLineStatus())
+                .totalPrice(line.getTotalPrice())
+                .createdAt(line.getCreatedAt())
+                .tableName(line.getOrder().getAreaTable().getTag())
+                .orderItems(itemDTOs)
                 .build();
     }
 

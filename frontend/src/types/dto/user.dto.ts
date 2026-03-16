@@ -25,6 +25,7 @@ export interface StaffInfo {
   username: string;
   role: StaffRoleName;
   branchId: string;
+  restaurantId: string;
 }
 
 export interface StaffAuthResponse {

@@ -47,7 +47,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             @Param("branchId") UUID branchId,
             @Param("status") OrderStatus status,
             @Param("searchTerm") String searchTerm,
-            @Param("startDate") java.time.Instant startDate,
-            @Param("endDate") java.time.Instant endDate,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
             Pageable pageable);
 }

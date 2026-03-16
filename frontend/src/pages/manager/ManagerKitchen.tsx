@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useEffect, useState, useCallback, memo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { managerApi } from "@/api/managerApi";
@@ -11,6 +11,134 @@ import { toast } from "sonner";
 import { OrderLineDTO } from "@/types/dto";
 import { useMutation } from "@tanstack/react-query";
 
+function normalizeEpochMs(createdAt?: string) {
+  if (!createdAt) return NaN;
+  let start = new Date(createdAt).getTime();
+  if (Number.isNaN(start)) return NaN;
+  // Detect seconds timestamp (Unix epoch) vs ms
+  if (start < 10000000000) start *= 1000;
+  return start;
+}
+
+function formatElapsed(nowMs: number, startMs: number) {
+  if (!Number.isFinite(startMs)) return "--:--";
+  const diff = Math.max(0, nowMs - startMs);
+  const hours = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  if (hours > 0) return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+const OrderLineCard = ({
+  line,
+  nowMs,
+  onUpdateStatus,
+  isUpdating,
+}: {
+  line: OrderLineDTO;
+  nowMs: number;
+  onUpdateStatus: (orderLineId: string, status: string) => void;
+  isUpdating: boolean;
+}) => {
+  const startMs = useMemo(() => normalizeEpochMs(line.createdAt), [line.createdAt]);
+  const elapsed = useMemo(() => formatElapsed(nowMs, startMs), [nowMs, startMs]);
+
+  const isLate = useMemo(() => {
+    if (elapsed === "--:--") return false;
+    const [first] = elapsed.split(":");
+    const mins = Number.parseInt(first, 10);
+    return Number.isFinite(mins) && mins > 10;
+  }, [elapsed]);
+
+  return (
+    <Card
+      className={`overflow-hidden border-l-4 ${line.orderLineStatus === "PENDING" ? "border-l-amber-500" : "border-l-blue-500"} shadow-md hover:shadow-lg transition-shadow flex flex-col`}
+    >
+      <CardHeader className="bg-muted/30 p-4">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Utensils className="h-4 w-4" />
+              Table: {line.tableName || "N/A"}
+            </CardTitle>
+            <div className="text-xs text-muted-foreground">
+              Line: #{line.orderLineId.substring(0, 6)} | Order: #{line.orderId.substring(0, 8)}
+            </div>
+          </div>
+          <Badge
+            variant={line.orderLineStatus === "PENDING" ? "secondary" : "default"}
+            className={line.orderLineStatus === "PENDING" ? "animate-pulse" : ""}
+          >
+            {line.orderLineStatus}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 space-y-3 flex-1">
+        {line.orderItems?.map((item) => (
+          <div key={item.orderItemId} className="border-b last:border-0 pb-2 last:pb-0">
+            <div className="flex justify-between font-bold text-base">
+              <span>{item.menuItemName}</span>
+              <span className="bg-primary/10 text-primary px-2 rounded-full">x{item.quantity}</span>
+            </div>
+            {item.note && (
+              <div className="mt-1 flex items-start gap-1 p-1 bg-destructive/10 border border-destructive/20 rounded text-destructive text-sm italic font-medium">
+                <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                <span>{item.note}</span>
+              </div>
+            )}
+            {item.customizations && item.customizations.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {item.customizations.map((c) => (
+                  <Badge key={c.orderItemCustomizationId} variant="outline" className="text-[10px] font-normal py-0">
+                    {c.customizationName} {c.quantity > 1 ? `x${c.quantity}` : ""}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+      <CardFooter className="bg-muted/10 p-3 flex flex-col gap-3 border-t">
+        <div className="flex justify-between items-center w-full text-sm">
+          <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+            <Clock className="h-4 w-4" />
+            <span className={isLate ? "text-destructive font-bold" : ""}>{elapsed}</span>
+          </div>
+          <div className="text-xs font-semibold text-primary">
+            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(line.totalPrice)}
+          </div>
+        </div>
+
+        <div className="w-full">
+          {line.orderLineStatus === "PENDING" ? (
+            <button
+              onClick={() => onUpdateStatus(line.orderLineId, "PREPARING")}
+              disabled={isUpdating}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Bắt đầu nấu
+            </button>
+          ) : line.orderLineStatus === "PREPARING" ? (
+            <button
+              onClick={() => onUpdateStatus(line.orderLineId, "COMPLETED")}
+              disabled={isUpdating}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Hoàn thành
+            </button>
+          ) : null}
+        </div>
+      </CardFooter>
+    </Card>
+  );
+};
+
+const MemoOrderLineCard = memo(OrderLineCard);
+MemoOrderLineCard.displayName = "OrderLineCard";
+
 const ManagerKitchen = () => {
   const queryClient = useQueryClient();
   const staffInfo = useAuthStore((state) => state.staffInfo);
@@ -20,152 +148,68 @@ const ManagerKitchen = () => {
     queryKey: ["current-order-lines", branchId],
     queryFn: () => managerApi.getCurrentOrderLines(branchId),
     enabled: !!branchId,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ orderLineId, status }: { orderLineId: string, status: string }) => 
+    mutationFn: ({ orderLineId, status }: { orderLineId: string; status: string }) =>
       managerApi.updateOrderLineStatus(orderLineId, status),
+    onMutate: async ({ orderLineId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["current-order-lines", branchId] });
+      const previous = queryClient.getQueryData<OrderLineDTO[]>(["current-order-lines", branchId]) || [];
+
+      queryClient.setQueryData<OrderLineDTO[]>(["current-order-lines", branchId], (old = []) =>
+        old.map((line) =>
+          line.orderLineId === orderLineId
+            ? {
+                ...line,
+                orderLineStatus: status,
+              }
+            : line
+        )
+      );
+
+      return { previous };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["current-order-lines", branchId] });
       toast.success("Status updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: any, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData<OrderLineDTO[]>(["current-order-lines", branchId], context.previous);
+      }
       toast.error("Failed to update status", {
-        description: error.response?.data?.message || "An error occurred"
+        description: error.response?.data?.message || "An error occurred",
       });
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["current-order-lines", branchId] });
+    },
   });
 
   const handleUpdateStatus = (orderLineId: string, status: string) => {
     updateStatusMutation.mutate({ orderLineId, status });
   };
 
+  const pendingLines = useMemo(() => orderLines.filter((line) => line.orderLineStatus === "PENDING"), [orderLines]);
+  const preparingLines = useMemo(() => orderLines.filter((line) => line.orderLineStatus === "PREPARING"), [orderLines]);
 
-  const pendingLines = orderLines.filter(line => line.orderLineStatus === "PENDING");
-  const preparingLines = orderLines.filter(line => line.orderLineStatus === "PREPARING");
+  // One shared timer tick for all cards (prevents N intervals + lag)
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!orderLines.length) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [orderLines.length]);
 
-  const OrderLineCard = ({ line }: { line: OrderLineDTO }) => {
-    const [elapsed, setElapsed] = useState<string>("00:00");
-
-    useEffect(() => {
-      if (!line.createdAt) {
-        setElapsed("--:--");
-        return;
-      }
-
-      let start = new Date(line.createdAt).getTime();
-
-      // If start is NaN, it's an invalid date string
-      if (isNaN(start)) {
-        setElapsed("--:--");
-        return;
-      }
-
-      // Detect if the timestamp is in seconds (Unix epoch) instead of milliseconds
-      // 10,000,000,000 corresponds to the year 2286 in seconds, 
-      // but only the year 1970 in milliseconds.
-      if (start < 10000000000) {
-        start *= 1000;
-      }
-
-      const interval = setInterval(() => {
-        const now = new Date().getTime();
-        const diff = Math.max(0, now - start);
-
-        const hours = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        const secs = Math.floor((diff % 60000) / 1000);
-
-        if (hours > 0) {
-          setElapsed(`${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-        } else {
-          setElapsed(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-        }
-      }, 1000);
-      return () => clearInterval(interval);
-    }, [line.createdAt]);
-
-    return (
-      <Card className={`overflow-hidden border-l-4 ${line.orderLineStatus === 'PENDING' ? 'border-l-amber-500' : 'border-l-blue-500'} shadow-md hover:shadow-lg transition-shadow flex flex-col`}>
-        <CardHeader className="bg-muted/30 p-4">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Utensils className="h-4 w-4" />
-                Table: {line.tableName || "N/A"}
-              </CardTitle>
-              <div className="text-xs text-muted-foreground">
-                Line: #{line.orderLineId.substring(0, 6)} | Order: #{line.orderId.substring(0, 8)}
-              </div>
-            </div>
-            <Badge variant={line.orderLineStatus === 'PENDING' ? 'secondary' : 'default'} className={line.orderLineStatus === 'PENDING' ? 'animate-pulse' : ''}>
-              {line.orderLineStatus}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 space-y-3 flex-1">
-          {line.orderItems?.map((item) => (
-            <div key={item.orderItemId} className="border-b last:border-0 pb-2 last:pb-0">
-              <div className="flex justify-between font-bold text-base">
-                <span>{item.menuItemName}</span>
-                <span className="bg-primary/10 text-primary px-2 rounded-full">x{item.quantity}</span>
-              </div>
-              {item.note && (
-                <div className="mt-1 flex items-start gap-1 p-1 bg-destructive/10 border border-destructive/20 rounded text-destructive text-sm italic font-medium">
-                  <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                  <span>{item.note}</span>
-                </div>
-              )}
-              {item.customizations && item.customizations.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {item.customizations.map(c => (
-                    <Badge key={c.orderItemCustomizationId} variant="outline" className="text-[10px] font-normal py-0">
-                      {c.customizationName} {c.quantity > 1 ? `x${c.quantity}` : ''}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </CardContent>
-        <CardFooter className="bg-muted/10 p-3 flex flex-col gap-3 border-t">
-          <div className="flex justify-between items-center w-full text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
-              <Clock className="h-4 w-4" />
-              <span className={parseInt(elapsed.split(':')[0]) > 10 ? 'text-destructive font-bold' : ''}>
-                {elapsed}
-              </span>
-            </div>
-            <div className="text-xs font-semibold text-primary">
-              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(line.totalPrice)}
-            </div>
-          </div>
-          
-          <div className="w-full">
-            {line.orderLineStatus === 'PENDING' ? (
-              <button 
-                onClick={() => handleUpdateStatus(line.orderLineId, 'PREPARING')}
-                disabled={updateStatusMutation.isPending}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {updateStatusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                Bắt đầu nấu
-              </button>
-            ) : line.orderLineStatus === 'PREPARING' ? (
-              <button 
-                onClick={() => handleUpdateStatus(line.orderLineId, 'COMPLETED')}
-                disabled={updateStatusMutation.isPending}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {updateStatusMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Hoàn thành
-              </button>
-            ) : null}
-          </div>
-        </CardFooter>
-      </Card>
-    );
-  };
+  const handleUpdateStatusStable = useCallback(
+    (orderLineId: string, status: string) => {
+      handleUpdateStatus(orderLineId, status);
+    },
+    [handleUpdateStatus]
+  );
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col p-6 space-y-6">
@@ -214,7 +258,15 @@ const ManagerKitchen = () => {
                   <p className="text-xl font-medium text-muted-foreground">Kitchen is currently empty</p>
                 </div>
               ) : (
-                orderLines.map(line => <OrderLineCard key={line.orderLineId} line={line} />)
+                orderLines.map((line) => (
+                  <MemoOrderLineCard
+                    key={line.orderLineId}
+                    line={line}
+                    nowMs={nowMs}
+                    onUpdateStatus={handleUpdateStatusStable}
+                    isUpdating={updateStatusMutation.isPending}
+                  />
+                ))
               )}
             </div>
           </ScrollArea>
@@ -223,7 +275,15 @@ const ManagerKitchen = () => {
         <TabsContent value="pending" className="flex-1 overflow-hidden mt-4">
           <ScrollArea className="h-full pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-              {pendingLines.map(line => <OrderLineCard key={line.orderLineId} line={line} />)}
+              {pendingLines.map((line) => (
+                <MemoOrderLineCard
+                  key={line.orderLineId}
+                  line={line}
+                  nowMs={nowMs}
+                  onUpdateStatus={handleUpdateStatusStable}
+                  isUpdating={updateStatusMutation.isPending}
+                />
+              ))}
               {pendingLines.length === 0 && !isLoading && (
                 <div className="col-span-full text-center py-20 text-muted-foreground">No pending items.</div>
               )}
@@ -234,7 +294,15 @@ const ManagerKitchen = () => {
         <TabsContent value="preparing" className="flex-1 overflow-hidden mt-4">
           <ScrollArea className="h-full pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-              {preparingLines.map(line => <OrderLineCard key={line.orderLineId} line={line} />)}
+              {preparingLines.map((line) => (
+                <MemoOrderLineCard
+                  key={line.orderLineId}
+                  line={line}
+                  nowMs={nowMs}
+                  onUpdateStatus={handleUpdateStatusStable}
+                  isUpdating={updateStatusMutation.isPending}
+                />
+              ))}
               {preparingLines.length === 0 && !isLoading && (
                 <div className="col-span-full text-center py-20 text-muted-foreground">No items currently cooking.</div>
               )}

@@ -317,7 +317,16 @@ const MenuItemCard = ({
               {item.categoryName}
             </Badge>
           </div>
-          <p className="font-display text-primary ml-2">${item.price.toFixed(2)}</p>
+          <div className="text-right ml-2">
+            {item.discountedPrice !== undefined && item.discountedPrice < item.price ? (
+              <>
+                <p className="font-display text-primary font-bold">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.discountedPrice)}</p>
+                <p className="text-[10px] text-muted-foreground line-through">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</p>
+              </>
+            ) : (
+              <p className="font-display text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)}</p>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 mt-2 mb-3">{item.description}</p>
         {item.customizations && item.customizations.length > 0 && (

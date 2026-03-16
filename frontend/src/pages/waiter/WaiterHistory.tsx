@@ -151,7 +151,7 @@ const WaiterHistory = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                                <p className="text-2xl font-bold text-primary">${stats.totalRevenue.toFixed(2)}</p>
+                                <p className="text-2xl font-bold text-primary">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(stats.totalRevenue)}</p>
                             </div>
                             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                                 <DollarSign className="w-6 h-6 text-primary" />
@@ -179,7 +179,7 @@ const WaiterHistory = () => {
                                     <Armchair className="w-5 h-5 text-muted-foreground" />
                                     <span className="text-xs font-semibold">{ts.tableName}</span>
                                     <span className="text-[11px] text-muted-foreground">{ts.count} orders</span>
-                                    <span className="text-[11px] font-medium text-teal">${ts.revenue.toFixed(0)}</span>
+                                    <span className="text-[11px] font-medium text-teal">{new Intl.NumberFormat("vi-VN").format(ts.revenue)}</span>
                                 </div>
                             ))}
                         </div>
@@ -312,7 +312,7 @@ const OrderRow = ({ order, onClick, formatDate, formatTime }: {
                     </div>
 
                     <div className="text-right shrink-0">
-                        <p className="font-bold text-sm">${order.totalPrice.toFixed(2)}</p>
+                        <p className="font-bold text-sm">{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(order.totalPrice)}</p>
                         <p className="text-[10px] text-muted-foreground">#{order.orderId.slice(0, 8)}</p>
                     </div>
 
@@ -379,56 +379,101 @@ const OrderDetailDialog = ({ order, open, onOpenChange, formatDate, formatTime }
                 <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Items ({allItems.length})</h4>
                     <div className="space-y-2">
-                        {allItems.map((item) => (
-                            <div key={item.orderItemId} className="flex gap-3 p-2 rounded-lg bg-muted/30">
-                                {item.menuItemImageUrl && (
-                                    <img
-                                        src={item.menuItemImageUrl}
-                                        alt={item.menuItemName}
-                                        className="w-12 h-12 rounded-lg object-cover shrink-0"
-                                    />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h5 className="font-medium text-sm truncate">{item.menuItemName}</h5>
-                                        <span className="font-semibold text-sm shrink-0">${item.totalPrice.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                        <span>Qty: {item.quantity}</span>
-                                        <span>@ ${item.menuItemPrice.toFixed(2)}</span>
-                                    </div>
-                                    {item.customizations?.length > 0 && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                            {item.customizations.map(c => c.customizationName).join(', ')}
-                                        </p>
+                        {allItems.map((item) => {
+                            const hasItemDiscount = item.discountedPrice && item.discountedPrice < item.menuItemPrice;
+                            return (
+                                <div key={item.orderItemId} className="flex gap-3 p-2 rounded-lg bg-muted/30">
+                                    {item.menuItemImageUrl && (
+                                        <img
+                                            src={item.menuItemImageUrl}
+                                            alt={item.menuItemName}
+                                            className="w-12 h-12 rounded-lg object-cover shrink-0"
+                                        />
                                     )}
-                                    {item.note && (
-                                        <p className="text-xs text-muted-foreground italic mt-0.5">"{item.note}"</p>
-                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h5 className="font-medium text-sm truncate">{item.menuItemName}</h5>
+                                            <span className="font-semibold text-sm shrink-0">
+                                                {new Intl.NumberFormat("vi-VN").format(item.totalPrice)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                            <span>Qty: {item.quantity}</span>
+                                            <span>@ 
+                                                {hasItemDiscount && (
+                                                    <span className="line-through mx-1 text-[10px]">
+                                                        {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)}
+                                                    </span>
+                                                )}
+                                                <span className={hasItemDiscount ? "text-primary font-bold" : ""}>
+                                                    {new Intl.NumberFormat("vi-VN").format(item.discountedPrice || item.menuItemPrice)}
+                                                </span>
+                                            </span>
+                                        </div>
+                                        {item.customizations?.length > 0 && (
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {item.customizations.map(c => c.customizationName).join(', ')}
+                                            </p>
+                                        )}
+                                        {item.note && (
+                                            <p className="text-xs text-muted-foreground italic mt-0.5">"{item.note}"</p>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Total */}
                 <div className="border-t pt-3 space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Gross Total</span>
+                        <span>{
+                            new Intl.NumberFormat("vi-VN").format(allItems.reduce((sum, i) => {
+                                const custTotal = i.customizations?.reduce((s, c) => s + c.totalPrice, 0) || 0;
+                                return sum + (i.menuItemPrice * i.quantity) + custTotal;
+                            }, 0))
+                        }</span>
+                    </div>
+
+                    {/* Item Discounts */}
+                    {allItems.some(i => i.discountedPrice && i.discountedPrice < i.menuItemPrice) && (
+                        <div className="flex justify-between text-xs text-teal-600">
+                            <span>Item Discounts</span>
+                            <span>-{
+                                new Intl.NumberFormat("vi-VN").format(allItems.reduce((sum, i) => {
+                                    if (i.discountedPrice && i.discountedPrice < i.menuItemPrice) {
+                                        return sum + (i.menuItemPrice - i.discountedPrice) * i.quantity;
+                                    }
+                                    return sum;
+                                }, 0))
+                            }</span>
+                        </div>
+                    )}
+
                     <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span>${order.totalPrice.toFixed(2)}</span>
+                        <span>{new Intl.NumberFormat("vi-VN").format((bill?.finalPrice || order.totalPrice) + (bill?.discountAmount || 0))}</span>
                     </div>
-                    {bill && (
-                        <div className="flex justify-between text-base font-bold">
-                            <span>Total Paid</span>
-                            <span className="text-teal">${bill.finalPrice.toFixed(2)}</span>
+
+                    {bill && bill.discountAmount > 0 && (
+                        <div className="flex justify-between text-xs text-blue-600">
+                            <div className="flex flex-col">
+                                <span>Order Discount</span>
+                                <span className="text-[10px] opacity-70">({bill.promotionName || bill.promotionCode})</span>
+                            </div>
+                            <span>-{new Intl.NumberFormat("vi-VN").format(bill.discountAmount)}</span>
                         </div>
                     )}
-                    {!bill && (
-                        <div className="flex justify-between text-base font-bold">
-                            <span>Total</span>
-                            <span>${order.totalPrice.toFixed(2)}</span>
-                        </div>
-                    )}
+
+                    <div className="border-t border-gray-100 mt-2 pt-2" />
+                    <div className="flex justify-between text-base font-bold">
+                        <span>{bill ? 'Total Paid' : 'Total'}</span>
+                        <span className={bill ? "text-teal" : "text-primary"}>
+                            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(bill ? bill.finalPrice : order.totalPrice)}
+                        </span>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

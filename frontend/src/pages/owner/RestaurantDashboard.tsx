@@ -27,11 +27,12 @@ import {
   Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import CommingSoon from "@/pages/CommingSoon";
+import ComingSoon from "@/components/ComingSoon";
 import StaffManagement from "@/pages/owner/StaffManagement";
 import CategoryManagement from "@/pages/owner/CategoryManagement";
 import CustomizationManagement from "@/pages/owner/CustomizationManagement";
 import MenuItemManagement from "@/pages/owner/MenuItemManagement";
+import PromotionManagement from "@/pages/owner/PromotionManagement";
 import BranchAreaSelection from "@/pages/owner/BranchAreaSelection";
 import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
@@ -60,10 +61,11 @@ const RestaurantDashboard = () => {
         <Route path="menu" element={<MenuItemManagement />} />
         <Route path="categories" element={<CategoryManagement />} />
         <Route path="customizations" element={<CustomizationManagement />} />
+        <Route path="promotions" element={<PromotionManagement />} />
         <Route path="areas" element={<BranchAreaSelection />} />
-        <Route path="orders" element={<CommingSoon title="Orders" />} />
+        <Route path="orders" element={<ComingSoon title="Orders" />} />
         <Route path="staff" element={<StaffManagement />} />
-        <Route path="settings" element={<CommingSoon title="Settings" />} />
+        <Route path="settings" element={<ComingSoon title="Settings" />} />
       </Routes>
     </DashboardLayout>
   );

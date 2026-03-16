@@ -283,7 +283,7 @@ export function MenuItemFormDialog({
                     </div>
                     {c.price > 0 && (
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        +${c.price.toFixed(2)}
+                        +{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(c.price)}
                       </Badge>
                     )}
                   </label>

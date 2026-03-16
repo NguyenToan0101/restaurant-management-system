@@ -30,13 +30,15 @@ public class MenuItemService {
     private final MediaService mediaService;
     private final CustomizationMapper customizationMapper;
     private final FeatureLimitCheckerService featureLimitCheckerService;
+    private final PromotionRepository promotionRepository;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
                            CustomizationRepository customizationRepository, BranchMenuItemRepository branchMenuItemRepository,
                            MediaService mediaService,
                            CustomizationMapper customizationMapper,
-                           FeatureLimitCheckerService featureLimitCheckerService) {
+                           FeatureLimitCheckerService featureLimitCheckerService,
+                           PromotionRepository promotionRepository) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -46,6 +48,7 @@ public class MenuItemService {
         this.mediaService = mediaService;
         this.customizationMapper = customizationMapper;
         this.featureLimitCheckerService = featureLimitCheckerService;
+        this.promotionRepository = promotionRepository;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
@@ -54,9 +57,37 @@ public class MenuItemService {
 
         if (list.isEmpty()) return Collections.emptyList();
 
+        List<Promotion> activeItemPromotions = promotionRepository.findAllByRestaurant_RestaurantIdAndStatus(restaurantId, PromotionStatus.ACTIVE)
+                .stream()
+                .filter(p -> p.getPromotionType() == PromotionType.MENU_ITEM)
+                .filter(p -> p.getStartDate().isBefore(Instant.now()) && p.getEndDate().isAfter(Instant.now()))
+                .toList();
+
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            
+            // Calculate discounted price (Maximum discount should be applied)
+            BigDecimal maxDiscountAmount = BigDecimal.ZERO;
+            for (Promotion promotion : activeItemPromotions) {
+                if (promotion.getMenuItems().contains(item)) {
+                    BigDecimal currentDiscount = BigDecimal.ZERO;
+                    if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
+                        currentDiscount = item.getPrice().multiply(promotion.getDiscountValue()).divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
+                    } else if (promotion.getDiscountType() == DiscountType.FIXED_AMOUNT) {
+                        currentDiscount = promotion.getDiscountValue();
+                    }
+                    
+                    if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
+                        maxDiscountAmount = currentDiscount;
+                    }
+                }
+            }
+            BigDecimal discountedPrice = item.getPrice().subtract(maxDiscountAmount);
+            // Apply floor of 0
+            if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
+            
+            dto.setDiscountedPrice(discountedPrice);
             return dto;
         }).toList();
     }
@@ -66,6 +97,33 @@ public class MenuItemService {
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
         MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
         dto.setImageUrl(mediaService.getImageUrlByTarget(id, "MENU_ITEM_IMAGE"));
+        
+        // Add promotion logic for single item view
+        List<Promotion> activeItemPromotions = promotionRepository.findAllByRestaurant_RestaurantIdAndStatus(item.getRestaurant().getRestaurantId(), PromotionStatus.ACTIVE)
+                .stream()
+                .filter(p -> p.getPromotionType() == PromotionType.MENU_ITEM)
+                .filter(p -> p.getStartDate().isBefore(Instant.now()) && p.getEndDate().isAfter(Instant.now()))
+                .toList();
+        
+        BigDecimal maxDiscountAmount = BigDecimal.ZERO;
+        for (Promotion promotion : activeItemPromotions) {
+            if (promotion.getMenuItems().contains(item)) {
+                BigDecimal currentDiscount = BigDecimal.ZERO;
+                if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
+                    currentDiscount = item.getPrice().multiply(promotion.getDiscountValue()).divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
+                } else if (promotion.getDiscountType() == DiscountType.FIXED_AMOUNT) {
+                    currentDiscount = promotion.getDiscountValue();
+                }
+                
+                if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
+                    maxDiscountAmount = currentDiscount;
+                }
+            }
+        }
+        BigDecimal discountedPrice = item.getPrice().subtract(maxDiscountAmount);
+        if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
+        dto.setDiscountedPrice(discountedPrice);
+        
         return dto;
     }
 
