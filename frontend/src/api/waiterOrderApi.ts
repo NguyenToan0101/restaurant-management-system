@@ -76,7 +76,12 @@ class WaiterOrderApi {
 
   async getMenuForBranch(branchId: string): Promise<WaiterMenuItemDTO[]> {
     const response = await axiosClient.get<ApiResponse<WaiterMenuItemDTO[]>>(`/branch-menu-items/branch/${branchId}`);
-    return response.data.result.filter((item: any) => item.available);
+    return response.data.result
+      .filter((item: Record<string, unknown>) => item.available)
+      .map((item: Record<string, unknown>) => ({
+        ...(item as unknown as WaiterMenuItemDTO),
+        isBestSeller: Boolean(item.isBestSeller ?? item.bestSeller),
+      }));
   }
 
   async getCategoriesForBranch(branchId: string): Promise<WaiterCategoryDTO[]> {

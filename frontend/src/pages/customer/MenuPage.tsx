@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { restaurantApi, menuItemApi, categoryApi, branchApi, waiterOrderApi } from '@/api'
 import { useToast } from '@/hooks/use-toast'
 import CustomerHeader from '@/components/customer/CustomerHeader'
+import { Star } from 'lucide-react'
 import type { RestaurantDTO, MenuItemDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CustomizationDTO } from '@/types/dto'
 
 // Format currency to Vietnamese Dong
@@ -331,7 +332,7 @@ export default function MenuPage() {
           </div>
 
           {/* Menu Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mt-8 pt-2">
             {filteredMenuItems.map((item: any) => (
               <div key={item.id} className="group flex flex-col bg-white border border-gray-200 rounded-xl hover:shadow-xl hover:border-orange-200 transition-all duration-300 h-full overflow-hidden">
                 
@@ -342,9 +343,12 @@ export default function MenuPage() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                     src={item.media?.url || item.image || ''} 
                   />
-                  {item.isBestSeller && (
-                    <div className="absolute top-3 left-3 bg-orange-500 shadow-md text-white px-3 py-1 text-[10px] font-bold tracking-wider rounded-full uppercase">
-                      Signature
+                  {(item.isBestSeller || item.bestSeller) && (
+                    <div
+                      className="pointer-events-none absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 shadow-md ring-2 ring-white/90"
+                      title="Best seller"
+                    >
+                      <Star className="h-6 w-6 fill-yellow-600 text-yellow-700 drop-shadow-sm" aria-hidden />
                     </div>
                   )}
                   {item.hasCustomization && (
