@@ -19,8 +19,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Plus, Pencil, Loader2, MapPin, CheckCircle, XCircle, Trash2, Table as TableIcon,
+    Plus, Pencil, Loader2, MapPin, CheckCircle, XCircle, Trash2, Table as TableIcon, Info, Building2,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
     useAreasByBranch,
@@ -38,7 +39,7 @@ import { EntityStatus } from "@/types/dto";
 const AreaManagement = () => {
     const { id: restaurantId, branchId } = useParams<{ id: string; branchId: string }>();
     const navigate = useNavigate();
-    const { canManageAreas } = useRoleAccess();
+    const { canManageAreas, isRestaurantOwner } = useRoleAccess();
     const { data: areas = [], isLoading } = useAreasByBranch(branchId || '');
     const createArea = useCreateArea();
     const updateArea = useUpdateArea();
@@ -127,6 +128,20 @@ const AreaManagement = () => {
     return (
         <DashboardLayout>
             <div className="p-6 lg:p-8">
+                {/* Info Alert for Restaurant Owners (View Only) */}
+                {isRestaurantOwner && !canManageAreas && (
+                    <Alert className="border-blue-500/50 bg-blue-500/10 mb-6">
+                        <div className="flex items-start gap-3">
+                            <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                            <div className="flex-1 space-y-2">
+                                <AlertDescription className="text-sm text-foreground">
+                                    You are viewing area information. To manage areas, please access the Branch Dashboard.
+                                </AlertDescription>
+                            </div>
+                        </div>
+                    </Alert>
+                )}
+
                 <Card className="glass-card border-border/60">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">

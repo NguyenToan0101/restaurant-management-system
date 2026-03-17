@@ -209,3 +209,11 @@ export const useWaiterSetTableStatus = () => {
     },
   });
 };
+export const useTodayOrdersCount = (branchId: string) => {
+  return useQuery({
+    queryKey: ['waiter', 'orders', 'today-count', branchId],
+    queryFn: () => waiterOrderApi.getTodayOrdersCount(branchId),
+    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: !!branchId,
+  });
+};

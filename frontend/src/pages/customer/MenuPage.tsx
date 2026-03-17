@@ -2,7 +2,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { restaurantApi, menuItemApi, categoryApi, branchApi, waiterOrderApi } from '@/api'
 import { useToast } from '@/hooks/use-toast'
-import type { RestaurantDTO, MenuItemDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CreateOrderItemRequest } from '@/types/dto'
+import CustomerHeader from '@/components/customer/CustomerHeader'
+import type { RestaurantDTO, MenuItemDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CustomizationDTO } from '@/types/dto'
 
 // Format currency to Vietnamese Dong
 const formatVND = (value: number): string => {
@@ -28,9 +29,14 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const [basket, setBasket] = useState([])
+  const [basket, setBasket] = useState<any[]>([])
   const [orderLoading, setOrderLoading] = useState(false)
-  const [showBasketOnly] = useState(!!tableId)
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false)
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItemDTO | null>(null)
+  const [selectedCustomizations, setSelectedCustomizations] = useState<{[key: string]: number}>({})
+  const [itemNote, setItemNote] = useState('')
+  const [menuItemCustomizations, setMenuItemCustomizations] = useState<CustomizationDTO[]>([])
+  const [loadingCustomizations, setLoadingCustomizations] = useState(false)
 
   // Fetch restaurant data on mount or when slug changes
   useEffect(() => {
@@ -39,61 +45,30 @@ export default function MenuPage() {
         setLoading(true)
         setError(null)
         
-        // Use slug if available, otherwise use a default or show error
         const restaurantSlug = slug || 'default'
         
-        // Try to fetch by slug first
         try {
           const restaurantData = await restaurantApi.getBySlug(restaurantSlug)
           setRestaurant(restaurantData)
           
-          // Fetch branches for this restaurant
           const branchesData = await branchApi.getByPublicRestaurant(restaurantData.restaurantId)
           setBranches(branchesData)
           if (branchesData.length > 0) {
             setSelectedBranch(branchesData[0])
           }
           
-          // Fetch categories for this restaurant
           const categoriesData = await categoryApi.getAllByRestaurant(restaurantData.restaurantId)
           setCategories(categoriesData.data.result)
           if (categoriesData.data.result.length > 0) {
-  setSelectedCategory(categoriesData.data.result[0].id)
-}
+            setSelectedCategory(categoriesData.data.result[0].id)
+          }
           
-          // Fetch menu items for this restaurant
           const menuResponse = await menuItemApi.getAllByRestaurant(restaurantData.restaurantId)
-          setMenuItems(menuResponse.data.result || [])
+          setMenuItems(menuResponse.data.result ||[])
          
         } catch (slugError) {
-          // If slug doesn't work, use mock data for now
-          console.warn('Could not fetch restaurant by slug, using fallback')
-          setMenuItems([
-            {
-              id: '1',
-              name: 'Wagyu Beef Carpaccio',
-              price: 34.00,
-              description: 'Thinly sliced A5 Wagyu, shaved black winter truffles, aged parmesan crisps, and wild baby arugula with a lemon-caper vinaigrette.',
-              image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB-P_RNpmK_dU8AFzuBlc9E-_qOsAGWowzzMBxaiCH8mSTOA1ZN7XPaaYzIxoRToQ30QNyLBo1FiJodP7k_yJbOuEb9fmJWLHQov4LCtGXceMipCalPv3kk0NB5RIULkSHJWe-L29OHOrq-W40aEgYel7nrmg7NOBkU40Wztu8sG7Rmaq6xpuI0p8parEgq0HYW_yM-_fJk86kKl1YYdfAPieYzlghN2pAjEIgCUh-6uzKkYmVImST_tJAzaxGo3CuLRsjroCwLrPk',
-              restaurantId: '1',
-              categoryId: '1',
-              status: 'ACTIVE',
-              hasCustomization: false,
-              isBestSeller: false,
-            },
-            {
-              id: '2',
-              name: 'Black Truffle Risotto',
-              price: 42.00,
-              description: 'Creamy Acquerello rice slow-cooked with roasted forest mushrooms and topped with fresh black truffle shavings.',
-              image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDJd-nqcyvyG2fIMTmTC45iYAb6EFUwhRtZvnF4e9zez65jkebxwC10J8M7XAX1TMa30ymqdIYGlnrXVWSxNbqgrkToJTfak7C7uwTds7_teNzPDYsIk3QdDas_yAa176mSCi-PBFeZOLYdfRPuiAJF63en9pNo57JjelLpdbGgpEruVK06dabw0WYLTbfezzYLdduyQUGq5xOQAZmLsLCZv6h-v5eYAp1a78tPBHvKQbvOZZjzliSlAMbwVZqpin-IUJNybj0VrAg',
-              restaurantId: '1',
-              categoryId: '1',
-              status: 'ACTIVE',
-              hasCustomization: false,
-              isBestSeller: false,
-            }
-          ] as any)
+          console.warn('Could not fetch restaurant by slug')
+          setMenuItems([])
         }
       } catch (err) {
         console.error('Error fetching restaurant data:', err)
@@ -104,127 +79,162 @@ export default function MenuPage() {
     }
 
     fetchRestaurantData()
-  }, [slug])
+  },[slug])
 
-  // const addToBasket = (item: any) => {
-  //   setBasket([...basket, { ...item, qty: 1, notes: '', id: Math.random() }])
-  // }
-
-  // const removeFromBasket = (id: any) => {
-  //   setBasket(basket.filter(item => item.id !== id))
-  // }
-
-  // const updateQty = (id: any, qty: number) => {
-  //   if (qty <= 0) {
-  //     removeFromBasket(id)
-  //   } else {
-  //     setBasket(basket.map(item => item.id === id ? { ...item, qty } : item))
-  //   }
-  // }
-
-  const addToBasket = (item: any) => {
-  setBasket([
-    ...basket,
-    {
-      ...item,
-      basketId: Math.random(), // id cho basket
-      menuItemId: item.id,     // giữ id thật
-      qty: 1,
-      notes: '',
-    },
-  ])
-}
-const updateQty = (basketId: any, qty: number) => {
-  if (qty <= 0) {
-    removeFromBasket(basketId)
-  } else {
-    setBasket(
-      basket.map(item =>
-        item.basketId === basketId ? { ...item, qty } : item
-      )
-    )
-  }
-}
-  const removeFromBasket = (basketId: any) => {
-  setBasket(basket.filter(item => item.basketId !== basketId))
-}
-
-  const subtotal = basket.reduce((sum, item) => sum + (item.price * item.qty), 0)
-  const tax = subtotal * 0.1
-  const total = subtotal + tax
-
-  const filteredMenuItems = selectedCategory
-    ? menuItems.filter((item: any) => item.categoryId === selectedCategory)
-    : menuItems
-
-  const navigateTo = (path: string) => {
-    if (slug) {
-      navigate(`/${slug}${path}`)
+  const addToBasket = async (item: any) => {
+    if (item.hasCustomization) {
+      // Load customizations for this specific menu item
+      setLoadingCustomizations(true)
+      try {
+        const customizationsResponse = await menuItemApi.getCustomizations(item.id)
+        setMenuItemCustomizations(customizationsResponse.data.result || [])
+        
+        if (customizationsResponse.data.result && customizationsResponse.data.result.length > 0) {
+          // Show customization modal
+          setSelectedMenuItem(item)
+          setSelectedCustomizations({})
+          setItemNote('')
+          setShowCustomizationModal(true)
+        } else {
+          // No customizations available, add directly
+          addItemToBasket(item, {}, '')
+        }
+      } catch (error) {
+        console.error('Error loading customizations:', error)
+        // Add directly if error loading customizations
+        addItemToBasket(item, {}, '')
+      } finally {
+        setLoadingCustomizations(false)
+      }
     } else {
-      navigate(path)
+      // Add directly to basket
+      addItemToBasket(item, {}, '')
     }
   }
 
+  const addItemToBasket = (item: any, itemCustomizations: {[key: string]: number}, note: string) => {
+    // Calculate customization price
+    const customizationPrice = Object.entries(itemCustomizations).reduce((sum, [customizationId, quantity]) => {
+      const customization = menuItemCustomizations.find(c => c.id === customizationId)
+      return sum + (customization ? customization.price * quantity : 0)
+    }, 0)
+
+    const totalItemPrice = item.price + customizationPrice
+
+    // Check if same item with same customizations exists
+    const existingItemIndex = basket.findIndex(b => 
+      b.menuItemId === item.id && 
+      JSON.stringify(b.customizations) === JSON.stringify(itemCustomizations) &&
+      b.notes === note
+    )
+    
+    if (existingItemIndex >= 0) {
+      const newBasket = [...basket]
+      newBasket[existingItemIndex].qty += 1
+      newBasket[existingItemIndex].totalPrice = totalItemPrice * newBasket[existingItemIndex].qty
+      setBasket(newBasket)
+      
+      toast({
+        title: "Updated Selection",
+        description: `Increased quantity of ${item.name}.`,
+        duration: 2000,
+      })
+    } else {
+      setBasket([
+        ...basket,
+        {
+          ...item,
+          basketId: Math.random().toString(36).substring(7),
+          menuItemId: item.id,
+          qty: 1,
+          notes: note,
+          customizations: itemCustomizations,
+          customizationPrice,
+          totalPrice: totalItemPrice,
+        },
+      ])
+      
+      toast({
+        title: "Added to Selection",
+        description: `${item.name} has been added to your order.`,
+        duration: 2000,
+      })
+    }
+  }
+
+  const updateQty = (basketId: string, qty: number) => {
+    if (qty <= 0) {
+      removeFromBasket(basketId)
+    } else {
+      setBasket(
+        basket.map(item => {
+          if (item.basketId === basketId) {
+            const basePrice = item.price + (item.customizationPrice || 0)
+            return { ...item, qty, totalPrice: basePrice * qty }
+          }
+          return item
+        })
+      )
+    }
+  }
+
+  const updateNote = (basketId: string, notes: string) => {
+    setBasket(
+      basket.map(item =>
+        item.basketId === basketId ? { ...item, notes } : item
+      )
+    )
+  }
+
+  const removeFromBasket = (basketId: string) => {
+    setBasket(basket.filter(item => item.basketId !== basketId))
+  }
+
+  const subtotal = basket.reduce((sum, item) => sum + (item.totalPrice || item.price * item.qty), 0)
+  const total = subtotal // Removed VAT calculation
+  const totalItems = basket.reduce((sum, item) => sum + item.qty, 0)
+
+  const filteredMenuItems = selectedCategory
+    ? menuItems.filter((item: any) => item.categoryId === selectedCategory || item.category?.id === selectedCategory)
+    : menuItems
+
   const handleCompleteOrder = async () => {
     if (!tableId) {
-      toast({
-        title: 'Error',
-        description: 'Table ID not found. Please access menu from a table.',
-        variant: 'destructive',
-      })
+      toast({ title: 'Error', description: 'Table ID not found. Please access menu from a table.', variant: 'destructive' })
       return
     }
 
     if (basket.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please add items to your order first.',
-        variant: 'destructive',
-      })
+      toast({ title: 'Error', description: 'Please add items to your order first.', variant: 'destructive' })
       return
     }
 
     try {
       setOrderLoading(true)
-
-      // Transform basket to CreateOrderRequest format
-      // const orderItems: CreateOrderItemRequest[] = basket.map((item: any) => ({
-      //   menuItemId: item.id,
-      //   quantity: item.qty,
-      //   note: item.notes || '',
-      //   customizations: item.customizations || [],
-      // }))
       const orderItems = basket.map((item) => ({
-  menuItemId: item.menuItemId,
-  quantity: item.qty,
-  note: item.notes,
-  // customizations: item.customizations.map((id: string) => ({
-  //   customizationOptionId: id
-  // }))
-}))
+        menuItemId: item.menuItemId,
+        quantity: item.qty,
+        note: item.notes || '',
+        customizations: Object.entries(item.customizations || {}).map(([customizationId, quantity]) => ({
+          customizationId,
+          quantity: Number(quantity)
+        }))
+      }))
       
       const createOrderRequest: CreateOrderRequest = {
         areaTableId: tableId,
         items: orderItems,
       }
-      console.log('oder iterm', orderItems)
-      console.log('Create ordẻr', createOrderRequest)
-      // Call backend API to create order
-      const response = await waiterOrderApi.createOrder(createOrderRequest)
+      
+      await waiterOrderApi.createOrder(createOrderRequest)
 
-      // Clear basket on success
       setBasket([])
 
-      // Show success notification
       toast({
-        title: 'Success!',
-        description: `Your order has been placed successfully. Please wait for your food, we will bring it to you as soon as possible.`,
+        title: 'Order Confirmed',
+        description: `Your culinary journey begins shortly. Our chef is preparing your selection.`,
       })
 
-      // Wait 2 seconds then navigate back
-      setTimeout(() => {
-        navigateTo(`/menu/${tableId}`)
-      }, 2000)
     } catch (err: any) {
       console.error('Error creating order:', err)
       toast({
@@ -237,389 +247,436 @@ const updateQty = (basketId: any, qty: number) => {
     }
   }
 
+  const handleCustomizationConfirm = () => {
+    if (selectedMenuItem) {
+      addItemToBasket(selectedMenuItem, selectedCustomizations, itemNote)
+      setShowCustomizationModal(false)
+      setSelectedMenuItem(null)
+      setSelectedCustomizations({})
+      setItemNote('')
+    }
+  }
+
+  const updateCustomizationQuantity = (customizationId: string, quantity: number) => {
+    if (quantity <= 0) {
+      const newCustomizations = { ...selectedCustomizations }
+      delete newCustomizations[customizationId]
+      setSelectedCustomizations(newCustomizations)
+    } else {
+      setSelectedCustomizations({
+        ...selectedCustomizations,
+        [customizationId]: quantity
+      })
+    }
+  }
+
+  const getCustomizationTotal = () => {
+    return Object.entries(selectedCustomizations).reduce((sum, [customizationId, quantity]) => {
+      const customization = menuItemCustomizations.find(c => c.id === customizationId)
+      return sum + (customization ? customization.price * quantity : 0)
+    }, 0)
+  }
+
   if (loading) {
     return (
-      <div className="customer-theme dark bg-background-dark flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading menu...</p>
-        </div>
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-orange-300 border-t-orange-600 rounded-full animate-spin"></div>
       </div>
     )
   }
 
   return (
-    <div className="customer-theme dark bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 bg-background-dark backdrop-blur-md border-b border-primary/10 px-6 lg:px-20 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
-            <div className="text-primary">
-              <span className="material-symbols-outlined text-3xl">restaurant</span>
-            </div>
-            <h2 className="text-slate-100 text-xl font-bold tracking-widest">{restaurant?.name || 'LUMIÈRE'}</h2>
-         </div>
-          
-          <nav className="hidden md:flex items-center gap-10">
-            <Link to={slug ? `/${slug}/home` : '/home'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Home</Link>
-            <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Reservations</Link>
-            <a href={slug ? `/${slug}/menu` : '/menu'} className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Menu</a>
-            <a href="#" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">About</a>
-          </nav>
-          <div className="flex items-center gap-6">
-            <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
-              Book Now
-            </Link>
-            {/* <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div> */}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-orange-50 text-gray-800 font-sans relative">
+      
+      <CustomerHeader 
+        restaurant={restaurant} 
+        slug={slug} 
+        currentPage="menu"
+      />
 
-      <main className="customer-theme dark bg-background-light dark:bg-background-dark flex flex-col lg:flex-row mx-auto w-full grow px-4 md:px-10 py-20 gap-8">
-        {/* Main Menu Content */}
-        <div className="flex-1 space-y-8">
+      {/* Main Content Area - Added padding bottom for mobile floating cart */}
+      <main className={`flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row px-4 sm:px-6 pt-8 pb-12 gap-8 ${basket.length > 0 && tableId ? 'pb-28 lg:pb-12' : ''}`}>
+        
+        {/* Menu Section */}
+        <div className="flex-1 space-y-8 min-w-0">
+          
           {/* Hero Banner */}
-          <div className="relative rounded-xl overflow-hidden min-h-[300px] flex flex-col justify-end p-8 bg-slate-900 shadow-2xl">
-            <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZ9sv2Ovg-UPbxV8wVJJ8cAfSRh0KOwJEf0HtoowdCi7F8CXe75KewCSNMnqj7qCQ7EOMwVyLU3XILcLFTgqUU-F1VD_ROr8p96h6ehf9661YGjvMWa9IFbuI14FQ28_sQsKqiW4mtfKm6y8txDGNcfS4jg1Pe83bUOwXPZJtqbOioY85pCHJojPdbiohJGm8TzPGl8qPAIb5hOfX-PHMBv9_iFU2TBy5OGiIZ40kWg21vcWScsw6edwCYoImaBSBYPJ_YrR2z-KU")'}}></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent"></div>
-            <div className="relative z-10">
-              <span className="inline-block px-3 py-1 bg-primary text-xs font-bold rounded-full mb-4">SEASONAL MENU</span>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">The Art of Fine Dining</h1>
-              <p className="text-slate-300 max-w-xl text-lg">{restaurant?.description || 'Experience a symphony of flavors crafted by Michelin-starred chefs using only the finest seasonal ingredients.'}</p>
+          <div className="relative overflow-hidden rounded-2xl min-h-[300px] md:min-h-[400px] flex flex-col justify-end p-6 md:p-12 bg-gray-900 shadow-sm">
+            <div className="absolute inset-0 bg-cover bg-center" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=2070&auto=format&fit=crop")'}}></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+            <div className="relative z-10 max-w-2xl">
+              <span className="inline-block text-orange-400 text-xs font-bold tracking-widest uppercase mb-3">Seasonal Menu</span>
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">The Art of <br/><span className="italic text-orange-400">Fine Dining</span></h1>
+              <p className="text-gray-300 text-sm md:text-base leading-relaxed line-clamp-3 md:line-clamp-none">{restaurant?.description || 'Experience our seasonal menu crafted with passion and the finest local ingredients. From farm to table, curated for your palate.'}</p>
             </div>
           </div>
 
           {/* Categories Tabs */}
-          <div className="sticky top-[88px] z-40 bg-background-light dark:bg-background-dark py-4 border-b border-slate-200 dark:border-primary/10">
-            <div className="flex gap-8 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="pt-4 pb-2 border-b border-orange-200/60">
+            <div className="flex gap-6 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none][scrollbar-width:none]">
               {categories.map(category => (
                 <button 
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`flex-none border-b-2 pb-2 font-bold text-sm tracking-wide transition-colors ${
+                  className={`flex-none pb-2 font-semibold text-sm uppercase tracking-wider transition-all duration-300 border-b-2 whitespace-nowrap ${
                     selectedCategory === category.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-slate-500 hover:text-primary'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
                   }`}
                 >
-                  {category.name.toUpperCase()}
+                  {category.name}
                 </button>
               ))}
             </div>
           </div>
 
           {/* Menu Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredMenuItems.map((item: any) => (
-              <div key={item.basketId} className="group flex flex-col bg-white dark:bg-primary/5 rounded-xl overflow-hidden border border-slate-200 dark:border-primary/10 hover:shadow-xl transition-all">
-                <div className="h-35 bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style={{backgroundImage: `url("${item.image}")`}}></div>
-                <img alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src={item.media?.url || 'https://via.placeholder.com/400x500'} />
-                <div className="p-6 flex flex-col grow">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold text-white">{item.name}</h3>
-                    <span className="text-primary font-bold">{formatVND(item.price)}</span>
+              <div key={item.id} className="group flex flex-col bg-white border border-gray-200 rounded-xl hover:shadow-xl hover:border-orange-200 transition-all duration-300 h-full overflow-hidden">
+                
+                {/* Image Box */}
+                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                  <img 
+                    alt={item.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                    src={item.media?.url || item.image || ''} 
+                  />
+                  {item.isBestSeller && (
+                    <div className="absolute top-3 left-3 bg-orange-500 shadow-md text-white px-3 py-1 text-[10px] font-bold tracking-wider rounded-full uppercase">
+                      Signature
+                    </div>
+                  )}
+                  {item.hasCustomization && (
+                    <div className="absolute top-3 right-3 bg-blue-500 shadow-md text-white px-2 py-1 text-[10px] font-bold tracking-wider rounded-full uppercase">
+                      Customizable
+                    </div>
+                  )}
+                </div>
+
+                {/* Content Box */}
+                <div className="p-5 flex flex-col grow">
+                  <div className="flex justify-between items-start gap-3 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-tight line-clamp-2">{item.name}</h3>
+                    <span className="text-orange-600 font-bold text-base whitespace-nowrap bg-orange-50 px-2 py-0.5 rounded-md">{formatVND(item.price)}</span>
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 grow">{item.description}</p>
-                  {tableId ? (
-                    <button  onClick={() => addToBasket(item)} className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-bold rounded-lg hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-colors">
-                      <span className="material-symbols-outlined text-xl">add_shopping_cart</span>
-                      Add to Basket
-                    </button>
-                  ) : null}
+                  
+                  <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">{item.description}</p>
+                  
+                  {tableId && (
+                    <div className="mt-auto">
+                      <button 
+                        onClick={() => addToBasket(item)} 
+                        disabled={loadingCustomizations}
+                        className="w-full h-11 border-2 border-gray-200 text-gray-700 font-semibold hover:bg-orange-500 hover:border-orange-500 hover:text-white transition-all flex items-center justify-center gap-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingCustomizations ? (
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                        )}
+                        {loadingCustomizations ? 'Loading...' : (item.hasCustomization ? 'Customize & Add' : 'Add to Selection')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+            
+            {filteredMenuItems.length === 0 && (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-200 rounded-2xl bg-white">
+                <span className="text-5xl mb-4">🍽️</span>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">No items found</h3>
+                <p className="text-gray-500 text-sm">We're updating our menu. Please check another category.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sidebar / Gourmet Basket */}
+        {/* Sidebar / Shopping Basket (Desktop) */}
         {tableId && (
-        <aside className="w-full lg:w-96">
-          <div className="sticky top-[88px] flex flex-col bg-white dark:bg-primary/5 rounded-2xl border border-slate-200 dark:border-primary/20 shadow-xl overflow-hidden min-h-[600px]">
-            <div className="p-6 border-b border-slate-100 dark:border-primary/10 bg-slate-50 dark:bg-primary/10">
-              <div className="flex items-center justify-between mb-4">
+          <aside id="basket-section" className="w-full lg:w-[380px] shrink-0">
+            <div className="sticky top-[88px] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-lg shadow-gray-200/50 h-[calc(100vh-120px)] min-h-[500px] overflow-hidden">
+              
+              {/* Basket Header */}
+              <div className="p-5 border-b border-gray-100 bg-orange-50 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>shopping_basket</span>
-                  <h2 className="text-xl font-bold text-white">Order Item</h2>
-                </div>
-                <span className="px-2 py-1 bg-primary/20 text-red-600 text-xs font-bold rounded">{basket.length} ITEMS</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {basket.map(item => (
-                <div key={item.id} className="flex gap-4">
-                  <div className="size-20 rounded-lg bg-cover bg-center shrink-0" style={{backgroundImage: `url("${item.media?.url || item.image || 'https://via.placeholder.com/150'}")`}}></div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="text-sm font-bold text-white">{item.name}</h4>
-                      <button onClick={() => removeFromBasket(item.basketId)} className="text-slate-400 hover:text-primary transition-colors">
-                        <span className="material-symbols-outlined text-lg">close</span>
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => updateQty(item.basketId, item.qty - 1)} className="size-6 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">-</button>
-                        <span className="text-sm font-bold text-stone-200">{item.qty}</span>
-                        <button onClick={() => updateQty(item.basketId, item.qty + 1)} className="size-6 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">+</button>
-                      </div>
-                      <span className="text-sm font-bold text-stone-200">{formatVND(item.price * item.qty)}</span>
-                    </div>
+                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                    <span className="material-symbols-outlined">shopping_basket</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 leading-none">Your Selection</h2>
+                    <p className="text-xs text-gray-500 mt-1">Table Order</p>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <div className="p-6 bg-slate-50 dark:bg-primary/10 border-t border-slate-200 dark:border-primary/20 space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-slate-500">
-                  <span>Subtotal</span>
-                  <span>{formatVND(subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm text-slate-500">
-                  <span>Tax (10%)</span>
-                  <span>{formatVND(tax)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-200 dark:border-primary/20">
-                  <span className='text-zinc-300'>Total</span>
-                  <span className="text-primary">{formatVND(total)}</span>
-                </div>
+                {totalItems > 0 && (
+                  <span className="px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    {totalItems} {totalItems === 1 ? 'Item' : 'Items'}
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={handleCompleteOrder}
-                disabled={orderLoading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
-              >
-                {orderLoading ? 'Processing...' : 'Complete Order'}
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
-              <p className="text-center text-[10px] text-slate-400 uppercase tracking-widest font-bold">Prices exclude 12% service charge</p>
+
+              {/* Basket Items List */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50/50">
+                {basket.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                    <span className="material-symbols-outlined text-6xl text-gray-300">restaurant_menu</span>
+                    <p className="text-sm text-center font-medium">Your selection is empty.<br/>Add some delicious items!</p>
+                  </div>
+                ) : (
+                  basket.map(item => (
+                    <div key={item.basketId} className="flex flex-col gap-2 p-3 bg-white border border-gray-200 shadow-sm rounded-xl transition-all hover:border-orange-300">
+                      <div className="flex gap-3">
+                        <div className="size-16 bg-gray-100 shrink-0 rounded-lg overflow-hidden border border-gray-100">
+                          <img className="w-full h-full object-cover" src={item.media?.url || item.image || ''} alt={item.name} />
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">{item.name}</h4>
+                            <button onClick={() => removeFromBasket(item.basketId)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full p-1 -mt-1 -mr-1 transition-colors">
+                              <span className="material-symbols-outlined text-[18px] block">close</span>
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-orange-600 text-sm font-bold">{formatVND(item.totalPrice || item.price * item.qty)}</span>
+                            
+                            {/* Quantity Controls */}
+                            <div className="flex items-center gap-3 bg-gray-50 rounded-md p-1 border border-gray-200">
+                              <button onClick={() => updateQty(item.basketId, item.qty - 1)} className="size-6 flex items-center justify-center bg-white border border-gray-200 shadow-sm text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded">-</button>
+                              <span className="text-sm font-bold text-gray-900 w-4 text-center">{item.qty}</span>
+                              <button onClick={() => updateQty(item.basketId, item.qty + 1)} className="size-6 flex items-center justify-center bg-white border border-gray-200 shadow-sm text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Customizations Display */}
+                      {item.customizations && Object.keys(item.customizations).length > 0 && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          {Object.entries(item.customizations).map(([customizationId, quantity]) => {
+                            const customization = menuItemCustomizations.find(c => c.id === customizationId)
+                            const qty = Number(quantity)
+                            return customization ? (
+                              <div key={customizationId} className="flex justify-between">
+                                <span>+ {customization.name} x{qty}</span>
+                                <span>{formatVND(customization.price * qty)}</span>
+                              </div>
+                            ) : null
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Note Input */}
+                      <div className="mt-1">
+                        <input 
+                          type="text" 
+                          placeholder="Add a note (e.g. no onions, less spicy...)"
+                          value={item.notes || ''}
+                          onChange={(e) => updateNote(item.basketId, e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 focus:bg-white transition-colors placeholder:text-gray-400"
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Order Summary & Checkout */}
+              <div className="p-5 bg-white border-t border-gray-200 shrink-0">
+                <div className="space-y-3 mb-5">
+                  <div className="flex justify-between text-sm text-gray-500 font-medium">
+                    <span>Subtotal</span>
+                    <span className="text-gray-900">{formatVND(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-2">
+                    <span className='text-sm font-bold text-gray-900 uppercase tracking-wider'>Total Amount</span>
+                    <span className="text-orange-600 text-xl font-black">{formatVND(total)}</span>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={handleCompleteOrder}
+                  disabled={orderLoading || basket.length === 0}
+                  className="w-full h-12 bg-gray-900 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                >
+                  {orderLoading ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      PROCESSING...
+                    </span>
+                  ) : 'CONFIRM ORDER'}
+                </button>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
         )}
       </main>
 
-      <footer className="mt-auto py-12 px-10 border-t border-slate-200 dark:border-primary/10 bg-white dark:bg-background-dark">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-3 text-primary opacity-60 grayscale">
-            <span className="text-white material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>restaurant</span>
-            <h2 className="text-lg font-extrabold tracking-tight uppercase text-white">{restaurant?.name || 'L\'Élite'}</h2>
-          </div>
-          <div className="flex gap-8 text-slate-400 text-sm font-medium">
-            <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
-            <a className="hover:text-primary transition-colors" href="#">Terms of Service</a>
-            <a className="hover:text-primary transition-colors" href="#">Allergens Information</a>
-            <a className="hover:text-primary transition-colors" href="#">Contact: {restaurant?.restaurantPhone || 'N/A'}</a>
-          </div>
-          <div className="flex gap-4">
-            <a className="size-8 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all" href="#">
-              <span className="material-symbols-outlined text-base">public</span>
-            </a>
-            <a className="size-8 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all" href="mailto:{restaurant?.email}">
-              <span className="material-symbols-outlined text-base">mail</span>
-            </a>
+      {/* Floating Bottom Bar for Mobile (Jumps to cart) */}
+      {tableId && basket.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] z-50 animate-in slide-in-from-bottom-full duration-300">
+          <button
+            onClick={() => {
+              document.getElementById('basket-section')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            className="w-full h-12 flex items-center justify-between bg-orange-500 hover:bg-orange-600 text-white px-5 rounded-xl font-bold shadow-lg transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-7 h-7 bg-white text-orange-600 rounded-full flex items-center justify-center text-sm shadow-sm">{totalItems}</span>
+              <span className="tracking-wide">View Selection</span>
+            </div>
+            <span className="text-lg">{formatVND(total)}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Customization Modal */}
+      {showCustomizationModal && selectedMenuItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">Customize Your Order</h3>
+                <button 
+                  onClick={() => setShowCustomizationModal(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="mt-2">
+                <h4 className="font-semibold text-gray-800">{selectedMenuItem.name}</h4>
+                <p className="text-sm text-gray-500">{formatVND(selectedMenuItem.price)}</p>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[50vh]">
+              {/* Customizations */}
+              <div className="space-y-4">
+                <h5 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Add-ons</h5>
+                {menuItemCustomizations.map(customization => (
+                  <div key={customization.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div className="flex-1">
+                      <h6 className="font-medium text-gray-900">{customization.name}</h6>
+                      <p className="text-sm text-orange-600 font-semibold">{formatVND(customization.price)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) - 1)}
+                        className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-bold text-gray-900 w-6 text-center">
+                        {selectedCustomizations[customization.id] || 0}
+                      </span>
+                      <button 
+                        onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) + 1)}
+                        className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {menuItemCustomizations.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No customizations available for this item.</p>
+                )}
+              </div>
+
+              {/* Special Instructions */}
+              <div className="mt-6">
+                <label className="block text-sm font-semibold text-gray-800 mb-2 uppercase tracking-wider">Special Instructions</label>
+                <textarea
+                  value={itemNote}
+                  onChange={(e) => setItemNote(e.target.value)}
+                  placeholder="Any special requests? (e.g., no onions, extra spicy...)"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 text-sm resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-semibold text-gray-800">Total Price:</span>
+                <span className="text-lg font-bold text-orange-600">
+                  {formatVND(selectedMenuItem.price + getCustomizationTotal())}
+                </span>
+              </div>
+              <button
+                onClick={handleCustomizationConfirm}
+                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors"
+              >
+                Add to Selection
+              </button>
+            </div>
           </div>
         </div>
-        <p className="text-center text-slate-400 text-xs mt-8">© 2024 {restaurant?.name || 'L\'Élite'} Gastronomie. All rights reserved.</p>
+      )}
+
+      {/* Footer */}
+      <footer className="bg-gray-950 text-white py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-8 mb-12">
+            <div className="md:col-span-1">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-lg">🍽️</span>
+                </div>
+                <span className="text-xl font-bold tracking-tight">{restaurant?.name || 'Warm Hearth Bistro'}</span>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                Dedicated to serving authentic culinary experiences using only the freshest local ingredients. Join us for a journey of flavors.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider text-sm">Explore</h4>
+              <div className="space-y-4 text-sm text-gray-400">
+                <Link to={slug ? `/${slug}/menu` : '/menu'} className="block hover:text-orange-400 transition-colors">Our Menu</Link>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Weekly Specials</a>
+                <Link to={slug ? `/${slug}/reservations` : '/reservations'} className="block hover:text-orange-400 transition-colors">Reservations</Link>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Gift Cards</a>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider text-sm">Legal</h4>
+              <div className="space-y-4 text-sm text-gray-400">
+                <a href="#" className="block hover:text-orange-400 transition-colors">Privacy Policy</a>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Terms of Service</a>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Cookie Policy</a>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider text-sm">Safety</h4>
+              <div className="space-y-4 text-sm text-gray-400">
+                <a href="#" className="block hover:text-orange-400 transition-colors">Allergen Guide</a>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Food Hygiene</a>
+                <a href="#" className="block hover:text-orange-400 transition-colors">Sustainable Sourcing</a>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-800/60 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-gray-500 text-sm">© {new Date().getFullYear()} {restaurant?.name || 'Warm Hearth Bistro'}. All rights reserved.</p>
+            <div className="flex gap-4">
+              <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:text-white hover:bg-orange-500 transition-all cursor-pointer">
+                <span className="text-sm">fb</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-gray-400 hover:text-white hover:bg-orange-500 transition-all cursor-pointer">
+                <span className="text-sm">ig</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   )
 }
-      {/* Top Navigation Bar */}
-      {/* <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-primary/20 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-6 md:px-10 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
-          <div className="flex items-center gap-10">
-            <div className="flex items-center gap-3 text-primary">
-              <span className="material-symbols-outlined text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>restaurant</span>
-              <h2 className="text-xl font-extrabold tracking-tight uppercase">L'Élite</h2>
-            </div>
-            <nav className="hidden lg:flex items-center gap-8">
-              <Link to="/menu" className="text-sm font-semibold hover:text-primary transition-colors">Menu</Link>
-              <Link to="/reservations" className="text-sm font-semibold hover:text-primary transition-colors">Reservations</Link>
-              <a href="#" className="text-sm font-semibold hover:text-primary transition-colors">Private Dining</a>
-              <a href="#" className="text-sm font-semibold hover:text-primary transition-colors">Our Story</a>
-            </nav>
-          </div>
-          <div className="flex flex-1 justify-end items-center gap-6">
-            <div className="hidden md:flex relative w-full max-w-xs">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-              <input className="w-full bg-slate-100 dark:bg-primary/10 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/50" placeholder="Search delicacies..." type="text" />
-            </div>
-            <Link to="/reservations" className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-primary/20 whitespace-nowrap">
-              Book a Table
-            </Link>
-            <div className="size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden">
-              <span className="material-symbols-outlined text-primary">person</span>
-            </div>
-          </div>
-        </div>
-      </header> */}
-//       <header className="fixed top-0 w-full z-50 bg-background-dark backdrop-blur-md border-b border-primary/10 px-6 lg:px-20 py-4">
-//         <div className="max-w-7xl mx-auto flex items-center justify-between">
-//           <div className="flex items-center gap-3">
-//             <div className="text-primary">
-//               <span className="material-symbols-outlined text-3xl">restaurant</span>
-//             </div>
-//             <h2 className="text-slate-100 text-xl font-bold tracking-widest">LUMIÈRE</h2>
-//           </div>
-//           <nav className="hidden md:flex items-center gap-10">
-//             <Link to="/home" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Home</Link>
-//             <Link to="/reservations" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Reservations</Link>
-//             <a href="/menu" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">Menu</a>
-//             <a href="#" className="text-slate-100 hover:text-primary text-sm font-medium transition-colors">About</a>
-//           </nav>
-//           <div className="flex items-center gap-6">
-//             <Link to="/reservations" className="hidden sm:flex items-center justify-center rounded-lg h-11 px-6 bg-primary text-white text-sm font-bold tracking-wide hover:bg-primary/90 transition-all">
-//               Book Now
-//             </Link>
-//             <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-primary/20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAiOgEqohQsk5k_CZWwTHb05xpYZERL9tIaWeMXzexkFlioYAbgSGrrCmtubYeOLrU6aMWKZ0Ayp_YomlMFhsX5Cz7H6x9O9gYBOlyR0DwXsxgqytrPkK_Cbm8cPb5iSrDyKHfnBk222XmlKWxXNFWpUBmRU053GK4d-5XOW4d1SVdWk26TdxayJi5Wiia3_-CPzpcs1VPOiyHDsUdEzdsUZadeckdQkgTK5YhcSoD-ZCxL2xmVIiSSQZUXGRiKXMZ3sl78u6IC0Mc")'}}></div>
-//           </div>
-//         </div>
-//       </header>
-
-//       <main className="customer-theme dark bg-background-light dark:bg-background-dark flex flex-col lg:flex-row  mx-auto w-full grow px-4 md:px-10 py-20 gap-8">
-//         {/* Main Menu Content */}
-//         <div className="flex-1 space-y-8">
-//           {/* Hero Banner */}
-//           <div className="relative rounded-xl overflow-hidden min-h-[300px] flex flex-col justify-end p-8 bg-slate-900 shadow-2xl">
-//             <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZ9sv2Ovg-UPbxV8wVJJ8cAfSRh0KOwJEf0HtoowdCi7F8CXe75KewCSNMnqj7qCQ7EOMwVyLU3XILcLFTgqUU-F1VD_ROr8p96h6ehf9661YGjvMWa9IFbuI14FQ28_sQsKqiW4mtfKm6y8txDGNcfS4jg1Pe83bUOwXPZJtqbOioY85pCHJojPdbiohJGm8TzPGl8qPAIb5hOfX-PHMBv9_iFU2TBy5OGiIZ40kWg21vcWScsw6edwCYoImaBSBYPJ_YrR2z-KU")'}}></div>
-//             <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent"></div>
-//             <div className="relative z-10">
-//               <span className="inline-block px-3 py-1 bg-primary text-xs font-bold rounded-full mb-4">SEASONAL MENU</span>
-//               <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">The Art of Fine Dining</h1>
-//               <p className="text-slate-300 max-w-xl text-lg">Experience a symphony of flavors crafted by Michelin-starred chefs using only the finest seasonal ingredients.</p>
-//             </div>
-//           </div>
-
-//           {/* Categories Tabs */}
-//           <div className="sticky top-[88px] z-40 bg-background-light dark:bg-background-dark py-4 border-b border-slate-200 dark:border-primary/10">
-//             <div className="flex gap-8 overflow-x-auto pb-2 scrollbar-hide">
-//               <button className="flex-none border-b-2 border-primary text-primary pb-2 font-bold text-sm tracking-wide">APPETIZERS</button>
-//               <button className="flex-none border-b-2 border-transparent text-slate-500 hover:text-primary pb-2 font-bold text-sm tracking-wide transition-colors">MAIN COURSES</button>
-//               <button className="flex-none border-b-2 border-transparent text-slate-500 hover:text-primary pb-2 font-bold text-sm tracking-wide transition-colors">DESSERTS</button>
-//               <button className="flex-none border-b-2 border-transparent text-slate-500 hover:text-primary pb-2 font-bold text-sm tracking-wide transition-colors">FINE WINES</button>
-//               <button className="flex-none border-b-2 border-transparent text-slate-500 hover:text-primary pb-2 font-bold text-sm tracking-wide transition-colors">SIGNATURE COCKTAILS</button>
-//             </div>
-//           </div>
-
-//           {/* Menu Grid */}
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-//             {menuItems.map(item => (
-//               <div key={item.id} className="group flex flex-col bg-white dark:bg-primary/5 rounded-xl overflow-hidden border border-slate-200 dark:border-primary/10 hover:shadow-xl transition-all">
-//                 <div className="h-56 bg-cover bg-center group-hover:scale-105 transition-transform duration-500" style={{backgroundImage: `url("${item.image}")`}}></div>
-//                 <div className="p-6 flex flex-col grow">
-//                   <div className="flex justify-between items-start mb-2">
-//                     <h3 className="text-lg font-bold text-white">{item.name}</h3>
-//                     <span className="text-primary font-bold">${item.price.toFixed(2)}</span>
-//                   </div>
-//                   <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 grow">{item.description}</p>
-//                   <button onClick={() => addToBasket({...item, qty: 1, notes: '', id: Math.random()})} className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-bold rounded-lg hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-colors">
-//                     <span className="material-symbols-outlined text-xl">add_shopping_cart</span>
-//                     Add to Basket
-//                   </button>
-//                 </div>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Sidebar / Gourmet Basket */}
-//         <aside className="w-full lg:w-96">
-//           <div className="sticky top-[88px] flex flex-col bg-white dark:bg-primary/5 rounded-2xl border border-slate-200 dark:border-primary/20 shadow-xl overflow-hidden min-h-[600px]">
-//             <div className="p-6 border-b border-slate-100 dark:border-primary/10 bg-slate-50 dark:bg-primary/10">
-//               <div className="flex items-center justify-between mb-4">
-//                 <div className="flex items-center gap-3">
-//                   <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>shopping_basket</span>
-//                   <h2 className="text-xl font-bold text-white">Gourmet Basket</h2>
-//                 </div>
-//                 <span className="px-2 py-1 bg-primary/20 text-red-600 text-xs font-bold rounded">{basket.length} ITEMS</span>
-//               </div>
-//               <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-//                 <div className="flex items-center gap-1">
-//                   <span className="material-symbols-outlined text-sm">schedule</span>
-//                   45 mins
-//                 </div>
-//                 <div className="flex items-center gap-1">
-//                   <span className="material-symbols-outlined text-sm">person</span>
-//                   Table 12
-//                 </div>
-//               </div>
-//             </div>
-
-//             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-//               {basket.map(item => (
-//                 <div key={item.id} className="flex gap-4">
-//                   <div className="size-20 rounded-lg bg-cover bg-center shrink-0" style={{backgroundImage: `url("${item.image}")`}}></div>
-//                   <div className="flex-1">
-//                     <div className="flex justify-between items-start mb-1">
-//                       <h4 className="text-sm font-bold text-white">{item.name}</h4>
-//                       <button onClick={() => removeFromBasket(item.id)} className="text-slate-400 hover:text-primary transition-colors">
-//                         <span className="material-symbols-outlined text-lg">close</span>
-//                       </button>
-//                     </div>
-//                     <p className="text-xs text-slate-500 mb-2">{item.notes}</p>
-//                     <div className="flex items-center justify-between">
-//                       <div className="flex items-center gap-3">
-//                         <button onClick={() => updateQty(item.id, item.qty - 1)} className="size-6 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">-</button>
-//                         <span className="text-sm font-bold text-stone-200">{item.qty}</span>
-//                         <button onClick={() => updateQty(item.id, item.qty + 1)} className="size-6 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">+</button>
-//                       </div>
-//                       <span className="text-sm font-bold text-stone-200">${(item.price * item.qty).toFixed(2)}</span>
-//                     </div>
-//                   </div>
-//                 </div>
-//               ))}
-//             </div>
-
-//             <div className="p-6 bg-slate-50 dark:bg-primary/10 border-t border-slate-200 dark:border-primary/20 space-y-4">
-//               <div className="space-y-2">
-//                 <div className="flex justify-between text-sm text-slate-500">
-//                   <span>Subtotal</span>
-//                   <span>${subtotal.toFixed(2)}</span>
-//                 </div>
-//                 <div className="flex justify-between text-sm text-slate-500">
-//                   <span>Tax (10%)</span>
-//                   <span>${tax.toFixed(2)}</span>
-//                 </div>
-//                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-200 dark:border-primary/20">
-//                   <span className='text-zinc-300'>Total</span>
-//                   <span className="text-primary">${total.toFixed(2)}</span>
-//                 </div>
-//               </div>
-//               <button onClick={() => navigate('/checkout')} className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
-//                 Complete Order
-//                 <span className="material-symbols-outlined">arrow_forward</span>
-//               </button>
-//               <p className="text-center text-[10px] text-slate-400 uppercase tracking-widest font-bold">Prices exclude 12% service charge</p>
-//             </div>
-//           </div>
-//         </aside>
-//       </main>
-
-//       <footer className="mt-auto py-12 px-10 border-t border-slate-200 dark:border-primary/10 bg-white dark:bg-background-dark">
-//         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-//           <div className="flex items-center gap-3 text-primary opacity-60 grayscale">
-//             <span className="text-white material-symbols-outlined text-2xl" style={{fontVariationSettings: "'FILL' 1"}}>restaurant</span>
-//             <h2 className="text-lg font-extrabold tracking-tight uppercase text-white">L'Élite</h2>
-//           </div>
-//           <div className="flex gap-8 text-slate-400 text-sm font-medium">
-//             <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
-//             <a className="hover:text-primary transition-colors" href="#">Terms of Service</a>
-//             <a className="hover:text-primary transition-colors" href="#">Allergens Information</a>
-//             <a className="hover:text-primary transition-colors" href="#">Contact</a>
-//           </div>
-//           <div className="flex gap-4">
-//             <a className="size-8 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all" href="#">
-//               <span className="material-symbols-outlined text-base">public</span>
-//             </a>
-//             <a className="size-8 rounded-full border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all" href="#">
-//               <span className="material-symbols-outlined text-base">mail</span>
-//             </a>
-//           </div>
-//         </div>
-//         <p className="text-center text-slate-400 text-xs mt-8">© 2024 L'Élite Gastronomie. All rights reserved.</p>
-//       </footer>
-//     </div>
-//   )
-// }

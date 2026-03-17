@@ -16,8 +16,14 @@ export const useRoleAccess = () => {
     // Check if current user is Receptionist
     const isReceptionist = !!staffInfo && staffInfo.role === 'RECEPTIONIST';
 
-    const canManageAreas = isRestaurantOwner || isBranchManager;
-    const canManageTables = isRestaurantOwner || isBranchManager;
+    // Check if user has both Restaurant Owner and Branch Manager roles
+    // This happens when owner also manages a specific branch
+    const hasOwnerAndManagerRole = isRestaurantOwner && isBranchManager;
+
+    // Restaurant Owner can only MANAGE areas/tables if they're also a Branch Manager
+    // Otherwise they can only VIEW
+    const canManageAreas = isBranchManager;
+    const canManageTables = isBranchManager;
 
     // All authenticated users can view areas and tables
     const canViewAreas = !!user || !!staffInfo;
@@ -31,6 +37,7 @@ export const useRoleAccess = () => {
         isBranchManager,
         isWaiter,
         isReceptionist,
+        hasOwnerAndManagerRole,
         canManageAreas,
         canManageTables,
         canViewAreas,

@@ -28,6 +28,7 @@ public class BranchService {
     private final RestaurantRepository restaurantRepository;
     private final StaffAccountRepository staffAccountRepository;
     private final FeatureLimitCheckerService featureLimitCheckerService;
+    private final OwnershipValidationService ownershipValidationService;
     // private final BranchMenuItemRepository branchMenuItemRepository;
     // private final MenuItemRepository menuItemRepository;
 
@@ -36,7 +37,8 @@ public class BranchService {
             BranchMapper branchMapper,
             RestaurantRepository restaurantRepository,
             StaffAccountRepository staffAccountRepository,
-            FeatureLimitCheckerService featureLimitCheckerService
+            FeatureLimitCheckerService featureLimitCheckerService,
+            OwnershipValidationService ownershipValidationService
             // BranchMenuItemRepository branchMenuItemRepository,
             // MenuItemRepository menuItemRepository
     ) {
@@ -45,6 +47,7 @@ public class BranchService {
         this.restaurantRepository = restaurantRepository;
         this.staffAccountRepository = staffAccountRepository;
         this.featureLimitCheckerService = featureLimitCheckerService;
+        this.ownershipValidationService = ownershipValidationService;
         // this.branchMenuItemRepository = branchMenuItemRepository;
         // this.menuItemRepository = menuItemRepository;
     }
@@ -65,23 +68,9 @@ public class BranchService {
         throw new AppException(ErrorCode.UNAUTHORIZED);
     }
 
-    private StaffAccount getStaffPrincipal() {
-        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext()
-                .getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof StaffAccount) {
-            return (StaffAccount) authentication.getPrincipal();
-        }
-        return null;
-    }
-
     private void checkRestaurantOwnership(UUID restaurantId) {
-        User currentUser = getCurrentUser();
-        Restaurant restaurant = restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        
-        if (!restaurant.getUser().getUserId().equals(currentUser.getUserId())) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
+        // Use OwnershipValidationService for consistent ownership validation
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
     }
 
     public List<BranchDTO> getAll() {
@@ -91,6 +80,10 @@ public class BranchService {
     public BranchDTO getById(UUID id) {
         Branch b = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        
+        // Check ownership - only restaurant owner can access branch details
+        checkRestaurantOwnership(b.getRestaurant().getRestaurantId());
+        
         return toDtoWithStaffCount(b);
     }
 
@@ -231,6 +224,12 @@ public class BranchService {
     public UUID getRestaurantIdByBranchId(UUID branchId) {
         return branchRepository.findRestaurantIdByBranchId(branchId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+    }
+    @Transactional(readOnly = true)
+    public String getRestaurantSlugByBranchId(UUID branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        return branch.getRestaurant().getPublicUrl();
     }
 
     @Transactional(readOnly = true)

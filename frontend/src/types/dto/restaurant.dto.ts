@@ -8,12 +8,3 @@ export interface RestaurantDTO {
     publicUrl: string;
     description: string;
 }
-
-export interface RestaurantCreateRequest {
-    userId: string;
-    name: string;
-    email: string;
-    restaurantPhone: string;
-    publicUrl?: string;
-    description?: string;
-}

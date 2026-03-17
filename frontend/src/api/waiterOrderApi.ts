@@ -95,6 +95,11 @@ class WaiterOrderApi {
     const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/waiter/tables/${tableId}/status?status=${status}`);
     return response.data.result;
   }
+
+  async getTodayOrdersCount(branchId: string): Promise<number> {
+    const response = await axiosClient.get<ApiResponse<number>>(`/waiter/orders/branch/${branchId}/today-count`);
+    return response.data.result;
+  }
 }
 
 export const waiterOrderApi = new WaiterOrderApi();

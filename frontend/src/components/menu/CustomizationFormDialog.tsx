@@ -69,7 +69,7 @@ export function CustomizationFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Price ($)</Label>
+            <Label>Price (đ)</Label>
             <Input
               type="number"
               min="0"

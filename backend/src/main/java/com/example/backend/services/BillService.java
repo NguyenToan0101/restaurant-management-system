@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -141,5 +143,13 @@ public class BillService {
                                 .paymentMethod(bill.getPaymentMethod())
                                 .paidTime(bill.getPaidTime())
                                 .build();
+        }
+
+        public long getTodayBillsCount(UUID branchId) {
+                LocalDate today = LocalDate.now();
+                Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+                Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+                
+                return billRepository.countByBranchAndDateRange(branchId, startOfDay, endOfDay);
         }
 }

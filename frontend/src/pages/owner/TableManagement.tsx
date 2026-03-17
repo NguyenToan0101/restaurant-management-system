@@ -27,8 +27,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
     Plus, Pencil, Loader2, CheckCircle, XCircle, Trash2,
-    Users, AlertTriangle, QrCode, ChevronLeft, Armchair,
+    Users, AlertTriangle, QrCode, ChevronLeft, Armchair, Info, Building2,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
     useTablesByArea,
@@ -40,20 +41,25 @@ import {
     useMarkTableOutOfOrder,
 } from "@/hooks/queries/useTableQueries";
 import { useArea, useAreasByBranch } from "@/hooks/queries/useAreaQueries";
-import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
+import { useBranchesByRestaurant, useRestaurantSlugByBranch } from "@/hooks/queries/useBranchQueries";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import TableQrCodeDialog from "@/components/table/TableQrCodeDialog";
+import { getTableUrlWithSlug } from "@/utils/tableUrl";
 import type { AreaTableDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
 
 const TableManagement = () => {
     const { id: restaurantId, areaId } = useParams<{ id: string; areaId: string }>();
     const navigate = useNavigate();
-    const { canManageTables } = useRoleAccess();
+    const { canManageTables, isRestaurantOwner } = useRoleAccess();
     const { data: area } = useArea(areaId || '');
     const { data: branches = [] } = useBranchesByRestaurant(restaurantId || '');
     const currentBranchId = area?.branchId;
     const { data: allAreas = [] } = useAreasByBranch(currentBranchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
+
+    // Get restaurant slug for generating table URLs
+    const { data: restaurantSlug } = useRestaurantSlugByBranch(currentBranchId || '');
 
     const { data: tables = [], isLoading } = useTablesByArea(areaId || '');
     const createTable = useCreateTable();
@@ -162,6 +168,29 @@ const TableManagement = () => {
     return (
         <DashboardLayout>
             <div className="p-6 lg:p-8 space-y-6">
+                {/* Info Alert for Restaurant Owners (View Only) */}
+                {isRestaurantOwner && !canManageTables && (
+                    <Alert className="border-blue-500/50 bg-blue-500/10">
+                        <div className="flex items-start gap-3">
+                            <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                            <div className="flex-1 space-y-2">
+                                <AlertDescription className="text-sm text-foreground">
+                                    You are viewing table information. To manage tables, please access the Branch Dashboard.
+                                </AlertDescription>
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={() => navigate('/manager/dashboard')}
+                                    className="gap-2 bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <Building2 className="w-4 h-4" />
+                                    Go to Branch Dashboard
+                                </Button>
+                            </div>
+                        </div>
+                    </Alert>
+                )}
+
                 {/* Header with Area Selector */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -451,40 +480,13 @@ const TableManagement = () => {
             </AlertDialog>
 
             {/* QR Code Dialog */}
-            <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>QR Code - {viewingQr?.tag}</DialogTitle>
-                        <DialogDescription>
-                            Scan this QR code to access the menu for this table
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center gap-4 py-4">
-                        {viewingQr?.qr ? (
-                            <>
-                                <div className="p-4 bg-white rounded-lg">
-                                    <img
-                                        src={viewingQr.qr}
-                                        alt={`QR Code for ${viewingQr.tag}`}
-                                        className="w-64 h-64"
-                                    />
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-sm font-medium">{viewingQr.tag}</p>
-                                    <p className="text-xs text-muted-foreground">Capacity: {viewingQr.capacity} people</p>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="text-center text-muted-foreground py-8">
-                                No QR code available
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setQrDialogOpen(false)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <TableQrCodeDialog
+                open={qrDialogOpen}
+                onOpenChange={setQrDialogOpen}
+                table={viewingQr}
+                tableUrl={viewingQr?.areaTableId && restaurantSlug ? getTableUrlWithSlug(viewingQr.areaTableId, restaurantSlug) : undefined}
+                showTableInfo={true}
+            />
         </DashboardLayout>
     );
 };

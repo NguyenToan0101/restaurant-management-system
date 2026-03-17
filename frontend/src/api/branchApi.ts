@@ -36,6 +36,11 @@ class BranchApi {
         return response.data.result;
     }
 
+    async getRestaurantSlugByBranchId(branchId: string): Promise<string> {
+        const response = await axiosClient.get<ApiResponse<string>>(`/branches/${branchId}/restaurant/slug`);
+        return response.data.result;
+    }
+
     async create(data: BranchDTO): Promise<BranchDTO> {
         const response = await axiosClient.post<ApiResponse<BranchDTO>>('/branches', data);
         return response.data.result;
