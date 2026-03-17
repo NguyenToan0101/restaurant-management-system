@@ -22,7 +22,7 @@ import {
 import {
     CheckCircle, XCircle, Users, Armchair, Loader2,
     CreditCard, DollarSign, Minus, Plus, Trash2, Receipt, X, Printer, Search,
-    UtensilsCrossed, Settings2,
+    UtensilsCrossed, Settings2, ChevronLeft,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
@@ -30,12 +30,20 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
 import {
     useActiveOrderByTable, useUpdateOrderItem, useRemoveOrderItem,
-    useConfirmPayment, useWaiterSetTableStatus,
+    useConfirmPayment, useWaiterSetTableStatus, useCancelOrder,
 } from "@/hooks/queries/useWaiterQueries";
 import type { AreaTableDTO, OrderDTO, BillDTO } from "@/types/dto";
 import { TableStatus, EntityStatus, PaymentMethod } from "@/types/dto";
 import InvoiceView from "@/components/waiter/InvoiceView";
 import { useReactToPrint } from "react-to-print";
+
+const formatVND = (value: number): string =>
+    new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
 
 const WaiterTableView = () => {
     const navigate = useNavigate();
@@ -68,6 +76,7 @@ const WaiterTableView = () => {
     const updateOrderItemMutation = useUpdateOrderItem();
     const removeOrderItemMutation = useRemoveOrderItem();
     const setTableStatusMutation = useWaiterSetTableStatus();
+    const cancelOrderMutation = useCancelOrder();
 
     const invoiceRef = useRef<HTMLDivElement>(null);
     const [pendingAutoPrint, setPendingAutoPrint] = useState(false);
@@ -165,6 +174,12 @@ const WaiterTableView = () => {
             setOrderPanelOpen(false);
             setSelectedTable(null);
         } catch { /* handled by mutation */ }
+    };
+
+    const handleOrderCancelled = () => {
+        setTableDialogOpen(false);
+        setOrderPanelOpen(false);
+        setSelectedTable(null);
     };
 
     const handleGoToOrder = (table: AreaTableDTO) => {
@@ -328,11 +343,11 @@ const WaiterTableView = () => {
 
                         {selectedTable.status === TableStatus.FREE && (
                             <Button
-                                className="w-full"
+                                className="w-full mb-4"
                                 onClick={() => handleGoToOrder(selectedTable)}
                             >
                                 <UtensilsCrossed className="w-4 h-4 mr-2" />
-                                Add Order for This Table
+                                Add order for this table
                             </Button>
                         )}
 
@@ -347,15 +362,6 @@ const WaiterTableView = () => {
                                 >
                                     <CheckCircle className="w-4 h-4 text-teal" />
                                     Available
-                                </Button>
-                                <Button
-                                    variant={selectedTable.status === TableStatus.OCCUPIED ? "default" : "outline"}
-                                    className="justify-start gap-2"
-                                    onClick={() => handleStatusChange(TableStatus.OCCUPIED)}
-                                    disabled={setTableStatusMutation.isPending}
-                                >
-                                    <Users className="w-4 h-4 text-orange-500" />
-                                    Occupied
                                 </Button>
                                 <Button
                                     variant={selectedTable.status === TableStatus.INACTIVE ? "default" : "outline"}
@@ -400,6 +406,8 @@ const WaiterTableView = () => {
                     removeOrderItem={removeOrderItemMutation}
                     onStatusChange={handleStatusChange}
                     isStatusChanging={setTableStatusMutation.isPending}
+                    cancelOrderMutation={cancelOrderMutation}
+                    onOrderCancelled={handleOrderCancelled}
                 />
             )}
 
@@ -514,6 +522,8 @@ interface TableDetailDialogProps {
     removeOrderItem: ReturnType<typeof useRemoveOrderItem>;
     onStatusChange: (status: TableStatus) => void;
     isStatusChanging: boolean;
+    cancelOrderMutation: ReturnType<typeof useCancelOrder>;
+    onOrderCancelled: () => void;
 }
 
 const TableDetailDialog = ({
@@ -521,7 +531,7 @@ const TableDetailDialog = ({
     paymentMethod, setPaymentMethod, promotionCode, setPromotionCode,
     paymentNote, setPaymentNote, autoPrint, setAutoPrint,
     onConfirmPayment, isConfirming, updateOrderItem, removeOrderItem,
-    onStatusChange, isStatusChanging,
+    onStatusChange, isStatusChanging, cancelOrderMutation, onOrderCancelled,
 }: TableDetailDialogProps) => {
     const { data: activeOrder, isLoading, refetch } = useActiveOrderByTable(table.areaTableId || '');
 
@@ -566,21 +576,39 @@ const TableDetailDialog = ({
         finally { setUpdatingItemId(null); }
     };
 
+    const showOrderSplit = orderPanelOpen && !!activeOrder;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${orderPanelOpen ? 'max-w-5xl' : 'max-w-md'} max-h-[90vh] p-0 flex flex-col overflow-hidden`}>
+            <DialogContent
+                hideClose={showOrderSplit}
+                className={`${orderPanelOpen ? 'max-w-5xl' : 'max-w-md'} max-h-[90vh] p-0 flex flex-col overflow-hidden`}
+            >
                 <div className="flex flex-1 min-h-0">
                     {/* Left Panel */}
                     <div className={`${orderPanelOpen ? 'w-1/2 border-r' : 'w-full'} p-6 space-y-4 overflow-y-auto`}>
                         <DialogHeader>
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
+                            <div className="flex items-center justify-between gap-2 pr-10 sm:pr-0">
+                                <div className="min-w-0 flex-1">
                                     <DialogTitle className="text-xl">Table {table.tag}</DialogTitle>
                                     <DialogDescription>
                                         {table.areaName && `${table.areaName} · `}{table.capacity} seats
                                     </DialogDescription>
                                 </div>
 
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {showOrderSplit && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-sm text-muted-foreground hover:text-foreground"
+                                            onClick={() => onOpenChange(false)}
+                                            aria-label="Close"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                 {/* Compact status change popover */}
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -592,41 +620,50 @@ const TableDetailDialog = ({
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-48 p-2" align="end">
-                                        <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Change status</p>
-                                        <div className="space-y-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.FREE)}
-                                                disabled={isStatusChanging || table.status === TableStatus.FREE}
-                                            >
-                                                <CheckCircle className="w-3.5 h-3.5 text-teal" />
-                                                Available
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.OCCUPIED)}
-                                                disabled={isStatusChanging || table.status === TableStatus.OCCUPIED}
-                                            >
-                                                <Users className="w-3.5 h-3.5 text-orange-500" />
-                                                Occupied
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.INACTIVE)}
-                                                disabled={isStatusChanging || table.status === TableStatus.INACTIVE}
-                                            >
-                                                <XCircle className="w-3.5 h-3.5 text-destructive" />
-                                                Out of Order
-                                            </Button>
-                                        </div>
+                                        {activeOrder ? (
+                                            <div className="space-y-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8 text-destructive"
+                                                    onClick={async () => {
+                                                        if (!activeOrder.orderId || cancelOrderMutation.isPending) return;
+                                                        await cancelOrderMutation.mutateAsync(activeOrder.orderId);
+                                                        onOrderCancelled();
+                                                    }}
+                                                    disabled={cancelOrderMutation.isPending}
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    Cancel order
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8"
+                                                    onClick={() => onStatusChange(TableStatus.FREE)}
+                                                    disabled={isStatusChanging || table.status === TableStatus.FREE}
+                                                >
+                                                    <CheckCircle className="w-3.5 h-3.5 text-teal" />
+                                                    Available
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8"
+                                                    onClick={() => onStatusChange(TableStatus.INACTIVE)}
+                                                    disabled={isStatusChanging || table.status === TableStatus.INACTIVE}
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5 text-destructive" />
+                                                    Out of Order
+                                                </Button>
+                                            </div>
+                                        )}
                                     </PopoverContent>
                                 </Popover>
+                                </div>
                             </div>
                         </DialogHeader>
 
@@ -692,11 +729,11 @@ const TableDetailDialog = ({
                                 <div className="pt-2 space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span>Subtotal</span>
-                                        <span className="font-medium">${subtotal.toFixed(2)}</span>
+                                        <span className="font-medium">{formatVND(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between text-base font-bold border-t pt-2">
                                         <span>Total</span>
-                                        <span>${subtotal.toFixed(2)}</span>
+                                        <span>{formatVND(subtotal)}</span>
                                     </div>
                                 </div>
 
@@ -741,10 +778,17 @@ const TableDetailDialog = ({
                     {/* Right Panel - Order Items */}
                     {orderPanelOpen && activeOrder && (
                         <div className="w-1/2 flex flex-col min-h-0 bg-muted/30">
-                            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-                                <h3 className="font-semibold">Order Items</h3>
-                                <Button variant="ghost" size="icon" onClick={() => setOrderPanelOpen(false)}>
-                                    <X className="w-4 h-4" />
+                            <div className="flex items-center justify-between gap-2 px-6 py-4 border-b shrink-0">
+                                <h3 className="font-semibold truncate">Order items</h3>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="shrink-0 gap-1.5 text-muted-foreground"
+                                    onClick={() => setOrderPanelOpen(false)}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    <span className="text-xs font-medium">Hide list</span>
                                 </Button>
                             </div>
 
@@ -830,7 +874,7 @@ const TableDetailDialog = ({
                                                                         <Plus className="w-3 h-3" />
                                                                     </Button>
                                                                 </div>
-                                                                <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                                <span className="font-semibold text-sm text-primary">{formatVND(item.totalPrice)}</span>
                                                             </div>
                                                         </div>
                                                     </div>

@@ -221,6 +221,38 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Fast history list: no order lines/items loaded. Two queries (orders + item counts).
+     */
+    public List<OrderHistorySummaryDTO> getOrderHistorySummaries(UUID branchId) {
+        List<Order> orders = orderRepository.findHistoryOrdersLightByBranchId(branchId);
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = orders.stream().map(Order::getOrderId).toList();
+        List<Object[]> countRows = orderRepository.countActiveItemsByOrderIds(ids);
+        Map<UUID, Long> itemCountByOrder = new HashMap<>();
+        for (Object[] row : countRows) {
+            itemCountByOrder.put((UUID) row[0], (Long) row[1]);
+        }
+        List<OrderHistorySummaryDTO> out = new ArrayList<>(orders.size());
+        for (Order o : orders) {
+            long cnt = itemCountByOrder.getOrDefault(o.getOrderId(), 0L);
+            out.add(OrderHistorySummaryDTO.builder()
+                    .orderId(o.getOrderId())
+                    .areaTableId(o.getAreaTable().getAreaTableId())
+                    .tableName(o.getAreaTable().getTag())
+                    .areaName(o.getAreaTable().getArea().getName())
+                    .status(o.getStatus())
+                    .totalPrice(o.getTotalPrice())
+                    .createdAt(o.getCreatedAt())
+                    .updatedAt(o.getUpdatedAt())
+                    .itemCount(cnt)
+                    .build());
+        }
+        return out;
+    }
+
     public List<OrderDTO> getActiveOrdersByBranch(UUID branchId) {
         return orderRepository.findByBranchIdAndStatus(branchId, OrderStatus.EATING).stream()
                 .map(this::toOrderDTO)

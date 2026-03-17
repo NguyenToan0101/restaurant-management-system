@@ -133,6 +133,13 @@ export const useCancelOrder = () => {
     mutationFn: (orderId: string) => waiterOrderApi.cancelOrder(orderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['waiter', 'order'] });
+      queryClient.removeQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'waiter' &&
+          q.queryKey[1] === 'order' &&
+          q.queryKey[2] === 'table',
+      });
       queryClient.invalidateQueries({ queryKey: ['waiter', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast({ title: 'Order cancelled' });
@@ -153,6 +160,13 @@ export const useConfirmPayment = () => {
     mutationFn: (request: ConfirmPaymentRequest) => waiterOrderApi.confirmPayment(request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['waiter', 'order'] });
+      queryClient.removeQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'waiter' &&
+          q.queryKey[1] === 'order' &&
+          q.queryKey[2] === 'table',
+      });
       queryClient.invalidateQueries({ queryKey: ['waiter', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast({ title: 'Payment confirmed successfully' });
@@ -179,6 +193,14 @@ export const useOrdersByBranch = (branchId: string) => {
   return useQuery({
     queryKey: ['waiter', 'orders', 'branch', branchId, 'all'],
     queryFn: () => waiterOrderApi.getOrdersByBranch(branchId),
+    enabled: !!branchId,
+  });
+};
+
+export const useOrderHistorySummaries = (branchId: string) => {
+  return useQuery({
+    queryKey: ['waiter', 'orders', 'branch', branchId, 'history'],
+    queryFn: () => waiterOrderApi.getOrderHistorySummaries(branchId),
     enabled: !!branchId,
   });
 };

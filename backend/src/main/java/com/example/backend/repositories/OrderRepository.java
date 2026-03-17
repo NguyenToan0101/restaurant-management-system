@@ -39,6 +39,17 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            "ORDER BY o.createdAt DESC")
     List<Order> findHistoryByBranchId(@Param("branchId") UUID branchId);
 
+    @Query("SELECT o FROM Order o JOIN FETCH o.areaTable t JOIN FETCH t.area a " +
+           "WHERE a.branch.branchId = :branchId " +
+           "AND (o.status = 'COMPLETED' OR o.status = 'CANCELLED') " +
+           "ORDER BY o.updatedAt DESC")
+    List<Order> findHistoryOrdersLightByBranchId(@Param("branchId") UUID branchId);
+
+    @Query("SELECT ol.order.orderId, COUNT(oi) FROM OrderItem oi JOIN oi.orderLine ol " +
+           "WHERE ol.order.orderId IN :orderIds AND oi.status = 'ACTIVE' " +
+           "GROUP BY ol.order.orderId")
+    List<Object[]> countActiveItemsByOrderIds(@Param("orderIds") List<UUID> orderIds);
+
     @EntityGraph(attributePaths = {"areaTable", "areaTable.area"})
     @Query("SELECT DISTINCT o FROM Order o JOIN o.areaTable t JOIN t.area a " +
            "WHERE a.branch.branchId = :branchId " +

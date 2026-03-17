@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -15,19 +17,37 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
     Search, ShoppingCart, Plus, Minus, Trash2, Loader2,
-    UtensilsCrossed, Star, X, ChevronRight, StickyNote,
+    UtensilsCrossed, Star, ChevronRight, StickyNote, Armchair, MapPin,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
-import { useWaiterMenu, useWaiterCategories, useCreateOrder, useAddItemsToOrder, useActiveOrderByTable } from "@/hooks/queries/useWaiterQueries";
+import {
+    useWaiterMenu,
+    useWaiterCategories,
+    useCreateOrder,
+    useAddItemsToOrder,
+    useActiveOrderByTable,
+    useUpdateOrderItem,
+    useRemoveOrderItem,
+} from "@/hooks/queries/useWaiterQueries";
 import { useCartStore } from "@/stores/cartStore";
-import type { WaiterMenuItemDTO, WaiterCustomizationDTO, AreaTableDTO } from "@/types/dto";
+import type { WaiterMenuItemDTO, OrderItemDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
+
+// Format currency to Vietnamese Dong (consistent with customer menu)
+const formatVND = (value: number): string => {
+    return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
+};
+
+/** Sentinel for Select when no table is chosen */
+const NO_TABLE_VALUE = "__no_table__";
 
 const WaiterOrderPage = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
@@ -40,48 +60,90 @@ const WaiterOrderPage = () => {
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
 
     const [selectedCategory, setSelectedCategory] = useState<string>("all");
+    const [bestSellerOnly, setBestSellerOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [customizeItem, setCustomizeItem] = useState<WaiterMenuItemDTO | null>(null);
     const [customizeQty, setCustomizeQty] = useState(1);
     const [customizeNote, setCustomizeNote] = useState("");
-    const [selectedCustomizations, setSelectedCustomizations] = useState<Record<string, number>>({});
-    const [cartOpen, setCartOpen] = useState(false);
-
+    /** At most one customization per dish */
+    const [selectedCustomizationId, setSelectedCustomizationId] = useState<string | null>(null);
     const cart = useCartStore();
     const createOrder = useCreateOrder();
     const addItemsToOrder = useAddItemsToOrder();
+    const updateOrderItemMutation = useUpdateOrderItem();
+    const removeOrderItemMutation = useRemoveOrderItem();
+    const { data: activeOrderForSelectedTable } = useActiveOrderByTable(cart.selectedTableId || "");
+    const [updatingServerItemId, setUpdatingServerItemId] = useState<string | null>(null);
+
+    /** Chỉ coi là có order trên bàn khi bàn OCCUPIED (tránh cache order cũ sau khi đã thanh toán → FREE). */
+    const selectedTableRow = useMemo(
+        () =>
+            cart.selectedTableId
+                ? allTables.find((t) => t.areaTableId === cart.selectedTableId)
+                : undefined,
+        [allTables, cart.selectedTableId]
+    );
+    const hasActiveDineInOnTable = selectedTableRow?.status === TableStatus.OCCUPIED;
+    const activeOrderOnTable = hasActiveDineInOnTable ? activeOrderForSelectedTable ?? null : null;
+
+    const serverOrderItems = useMemo(
+        () => activeOrderOnTable?.orderLines?.flatMap((l) => l.orderItems) ?? [],
+        [activeOrderOnTable]
+    );
+
+    const serverSubtotal = useMemo(
+        () => serverOrderItems.reduce((s, i) => s + Number(i.totalPrice), 0),
+        [serverOrderItems]
+    );
+    const cartTotal = cart.getTotal();
+    const grandTotal = serverSubtotal + cartTotal;
+    const totalLineCount = serverOrderItems.length + cart.items.length;
 
     const filteredItems = useMemo(() => {
         let items = menuItems;
         if (selectedCategory !== "all") {
-            items = items.filter(item => item.categoryId === selectedCategory);
+            items = items.filter((item) => item.categoryId === selectedCategory);
+        }
+        if (bestSellerOnly) {
+            items = items.filter((item) => item.isBestSeller);
         }
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
-            items = items.filter(item =>
-                item.name.toLowerCase().includes(q) ||
-                item.description?.toLowerCase().includes(q)
+            items = items.filter(
+                (item) =>
+                    item.name.toLowerCase().includes(q) ||
+                    item.description?.toLowerCase().includes(q)
             );
         }
         return items;
-    }, [menuItems, selectedCategory, searchQuery]);
+    }, [menuItems, selectedCategory, bestSellerOnly, searchQuery]);
 
     const handleOpenCustomize = (item: WaiterMenuItemDTO) => {
         setCustomizeItem(item);
         setCustomizeQty(1);
         setCustomizeNote("");
-        setSelectedCustomizations({});
+        setSelectedCustomizationId(null);
     };
 
     const handleAddToCart = () => {
         if (!customizeItem) return;
 
-        const custs = Object.entries(selectedCustomizations)
-            .filter(([, qty]) => qty > 0)
-            .map(([id, qty]) => {
-                const c = customizeItem.customizations.find(c => c.customizationId === id)!;
-                return { customizationId: id, name: c.name, price: c.price, quantity: qty };
-            });
+        const custs =
+            selectedCustomizationId == null
+                ? []
+                : (() => {
+                      const c = customizeItem.customizations.find(
+                          (x) => x.customizationId === selectedCustomizationId
+                      )!;
+                      return [
+                          {
+                              customizationId: selectedCustomizationId,
+                              name: c.name,
+                              price: c.price,
+                              quantity: 1,
+                          },
+                      ];
+                  })();
 
         const custTotal = custs.reduce((sum, c) => sum + c.price * c.quantity, 0);
         const totalPrice = (customizeItem.price + custTotal) * customizeQty;
@@ -99,30 +161,52 @@ const WaiterOrderPage = () => {
         });
 
         setCustomizeItem(null);
-        setCartOpen(true);
     };
 
     const handlePlaceOrder = async () => {
         if (!cart.selectedTableId || cart.items.length === 0) return;
 
-        const items = cart.items.map(item => ({
+        const items = cart.items.map((item) => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             note: item.note,
-            customizations: item.customizations.map(c => ({
+            customizations: item.customizations.map((c) => ({
                 customizationId: c.customizationId,
                 quantity: c.quantity,
             })),
         }));
 
         try {
-            await createOrder.mutateAsync({
-                areaTableId: cart.selectedTableId,
-                items,
-            });
+            if (activeOrderOnTable?.orderId) {
+                await addItemsToOrder.mutateAsync({
+                    orderId: activeOrderOnTable.orderId,
+                    request: { items },
+                });
+            } else {
+                await createOrder.mutateAsync({
+                    areaTableId: cart.selectedTableId,
+                    items,
+                });
+            }
             cart.clearCart();
-            setCartOpen(false);
         } catch {}
+    };
+
+    const handleServerItemQtyChange = async (item: OrderItemDTO, delta: number) => {
+        const newQty = item.quantity + delta;
+        setUpdatingServerItemId(item.orderItemId);
+        try {
+            if (newQty <= 0) {
+                await removeOrderItemMutation.mutateAsync(item.orderItemId);
+            } else {
+                await updateOrderItemMutation.mutateAsync({
+                    orderItemId: item.orderItemId,
+                    request: { quantity: newQty, note: item.note ?? "" },
+                });
+            }
+        } finally {
+            setUpdatingServerItemId(null);
+        }
     };
 
     const tableOptions = useMemo(() => {
@@ -132,6 +216,23 @@ const WaiterOrderPage = () => {
                 .map(t => ({ ...t, areaName: area.name }))
         );
     }, [activeAreas, allTables]);
+
+    const selectedTableInfo = useMemo(() => {
+        if (!cart.selectedTableId) return null;
+        const t = tableOptions.find((x) => x.areaTableId === cart.selectedTableId);
+        if (t) {
+            return {
+                areaName: t.areaName,
+                tag: t.tag,
+                status: t.status,
+            };
+        }
+        return {
+            areaName: null as string | null,
+            tag: cart.selectedTableName,
+            status: null as TableStatus | null,
+        };
+    }, [cart.selectedTableId, cart.selectedTableName, tableOptions]);
 
     if (!branchId) {
         return (
@@ -146,29 +247,62 @@ const WaiterOrderPage = () => {
     }
 
     return (
-        <div className="flex h-[calc(100vh-0px)]">
-            <div className="flex-1 overflow-auto p-6 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-display">Take Order</h1>
-                        <p className="text-sm text-muted-foreground">Select items from the menu</p>
+        <div className="flex h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] w-full min-h-0 flex-col overflow-hidden border-t border-border/40 bg-background lg:flex-row">
+            {/* Menu + search (always usable while order panel is open) */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:max-w-[calc(100%-420px)]">
+                <div className="shrink-0 space-y-3 border-b border-border/60 bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h1 className="text-xl font-display font-semibold tracking-tight sm:text-2xl">Take order</h1>
+                            <p className="text-xs text-muted-foreground sm:text-sm">Tap a dish to add — order updates on the right</p>
+                        </div>
+                        <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-xs font-medium">
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            {totalLineCount} in order
+                        </Badge>
                     </div>
-                    <Button
-                        variant="outline"
-                        className="relative"
-                        onClick={() => setCartOpen(true)}
+
+                    {/* Table context — always visible */}
+                    <div
+                        className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 sm:px-4 ${
+                            cart.selectedTableId
+                                ? "border-primary/30 bg-primary/5"
+                                : "border-amber-500/40 bg-amber-500/5"
+                        }`}
                     >
-                        <ShoppingCart className="w-5 h-5" />
-                        <span className="ml-2">Cart</span>
-                        {cart.getItemCount() > 0 && (
-                            <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                                {cart.getItemCount()}
-                            </Badge>
-                        )}
-                    </Button>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-background shadow-sm ring-1 ring-border/60">
+                            <Armchair className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Table for this order
+                            </p>
+                            {selectedTableInfo ? (
+                                <p className="truncate text-sm font-bold sm:text-base">
+                                    <MapPin className="mr-1 inline h-3.5 w-3.5 text-muted-foreground" />
+                                    {selectedTableInfo.areaName ? `${selectedTableInfo.areaName} · ` : ""}
+                                    <span className="text-primary">Table {selectedTableInfo.tag}</span>
+                                    {selectedTableInfo.status != null && (
+                                        <Badge variant="outline" className="ml-2 align-middle text-[10px]">
+                                            {selectedTableInfo.status === TableStatus.FREE
+                                                ? "Available"
+                                                : selectedTableInfo.status === TableStatus.OCCUPIED
+                                                  ? "Occupied"
+                                                  : "N/A"}
+                                        </Badge>
+                                    )}
+                                </p>
+                            ) : (
+                                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                                    Choose a table in the order panel →
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                <div className="relative">
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         className="pl-10"
@@ -178,28 +312,59 @@ const WaiterOrderPage = () => {
                     />
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                    <Button
-                        variant={selectedCategory === "all" ? "default" : "outline"}
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => setSelectedCategory("all")}
-                    >
-                        All
-                    </Button>
-                    {categories.map(cat => (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar sm:pb-0 sm:flex-1">
                         <Button
-                            key={cat.categoryId}
-                            variant={selectedCategory === cat.categoryId ? "default" : "outline"}
+                            variant={selectedCategory === "all" ? "default" : "outline"}
                             size="sm"
                             className="shrink-0"
-                            onClick={() => setSelectedCategory(cat.categoryId)}
+                            onClick={() => setSelectedCategory("all")}
                         >
-                            {cat.name}
+                            All
                         </Button>
-                    ))}
+                        {categories.map((cat) => (
+                            <Button
+                                key={cat.categoryId}
+                                variant={selectedCategory === cat.categoryId ? "default" : "outline"}
+                                size="sm"
+                                className="shrink-0"
+                                onClick={() => setSelectedCategory(cat.categoryId)}
+                            >
+                                {cat.name}
+                            </Button>
+                        ))}
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`shrink-0 gap-1.5 font-medium transition-all ${
+                            bestSellerOnly
+                                ? "border-yellow-500 bg-yellow-400 text-yellow-950 shadow-md shadow-yellow-500/35 ring-2 ring-yellow-300 hover:bg-yellow-500 hover:text-yellow-950 dark:bg-yellow-400 dark:text-yellow-950 dark:ring-yellow-400"
+                                : "border-yellow-500/40 text-yellow-800 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-950/30"
+                        }`}
+                        onClick={() => setBestSellerOnly((v) => !v)}
+                        title="Show only best sellers (works with category & search)"
+                    >
+                        <Star
+                            className={`h-3.5 w-3.5 ${
+                                bestSellerOnly
+                                    ? "fill-yellow-700 text-yellow-800"
+                                    : "fill-yellow-400 text-yellow-500"
+                            }`}
+                        />
+                        Best sellers
+                    </Button>
                 </div>
+                {bestSellerOnly && (
+                    <p className="text-xs text-muted-foreground">
+                        {selectedCategory === "all"
+                            ? "Showing best sellers in all categories."
+                            : `Best sellers in ${categories.find((c) => c.categoryId === selectedCategory)?.name ?? "this category"}.`}
+                    </p>
+                )}
 
+                <div className="mt-6 border-t border-border/30 pt-5">
                 {menuLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -211,7 +376,7 @@ const WaiterOrderPage = () => {
                         <p className="text-sm text-muted-foreground">Try changing the filter or search</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-3">
                         {filteredItems.map(item => (
                             <MenuCard
                                 key={item.menuItemId}
@@ -221,144 +386,303 @@ const WaiterOrderPage = () => {
                         ))}
                     </div>
                 )}
+                </div>
+                </div>
             </div>
 
-            <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-                <SheetContent className="w-[420px] sm:max-w-[420px] p-0 flex flex-col">
-                    <SheetHeader className="p-6 pb-4 border-b">
-                        <SheetTitle className="flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5" />
-                            Order Cart ({cart.getItemCount()} items)
-                        </SheetTitle>
-                    </SheetHeader>
-
-                    <div className="p-4 border-b">
-                        <label className="text-xs font-medium text-muted-foreground">Select Table</label>
-                        <Select
-                            value={cart.selectedTableId || ''}
-                            onValueChange={(val) => {
-                                const t = tableOptions.find(t => t.areaTableId === val);
-                                cart.setSelectedTable(val, t?.tag || null);
-                            }}
-                        >
-                            <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="Choose a table" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {tableOptions.map(t => (
-                                    <SelectItem key={t.areaTableId} value={t.areaTableId!}>
-                                        <div className="flex items-center gap-2">
-                                            <span>{t.areaName} - {t.tag}</span>
-                                            <Badge variant="secondary" className="text-xs">
-                                                {t.status === TableStatus.FREE ? 'Free' :
-                                                 t.status === TableStatus.OCCUPIED ? 'Occupied' : 'N/A'}
-                                            </Badge>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+            {/* Current order — fixed column (desktop) / bottom panel (mobile) */}
+            <aside className="flex h-[min(42vh,320px)] w-full shrink-0 flex-col border-t border-border/60 bg-muted/25 shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.12)] lg:h-full lg:max-h-none lg:w-[420px] lg:border-l lg:border-t-0 lg:shadow-none xl:w-[440px]">
+                <div className="shrink-0 border-b border-border/60 bg-muted/40 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                        <ShoppingCart className="h-5 w-5 text-primary" />
+                        <div>
+                            <h2 className="text-sm font-semibold leading-tight">Current order</h2>
+                            <p className="text-xs text-muted-foreground">
+                                {totalLineCount === 0
+                                    ? "No items yet"
+                                    : `${totalLineCount} line${totalLineCount !== 1 ? "s" : ""} · ${formatVND(grandTotal)}`}
+                            </p>
+                        </div>
                     </div>
+                </div>
 
-                    <div className="flex-1 overflow-auto p-4 space-y-3">
-                        {cart.items.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                <p className="text-sm">Your cart is empty</p>
-                                <p className="text-xs">Click on menu items to add them</p>
-                            </div>
-                        ) : (
-                            cart.items.map(item => (
-                                <Card key={item.cartItemId} className="border-border/60">
+                <div className="shrink-0 border-b border-border/60 p-4">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Table
+                    </label>
+                    <Select
+                        value={cart.selectedTableId || NO_TABLE_VALUE}
+                        onValueChange={(val) => {
+                            if (val === NO_TABLE_VALUE) {
+                                cart.setSelectedTable(null, null);
+                                return;
+                            }
+                            const t = tableOptions.find((x) => x.areaTableId === val);
+                            cart.setSelectedTable(val, t?.tag || null);
+                        }}
+                    >
+                        <SelectTrigger className="mt-1.5 h-11 bg-background">
+                            <SelectValue placeholder="Select table for this order" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NO_TABLE_VALUE} className="text-muted-foreground">
+                                <span className="italic">No table selected</span>
+                            </SelectItem>
+                            {tableOptions.map((t) => (
+                                <SelectItem key={t.areaTableId} value={t.areaTableId!}>
+                                    <div className="flex items-center gap-2">
+                                        <span>
+                                            {t.areaName} · Table {t.tag}
+                                        </span>
+                                        <Badge variant="secondary" className="text-[10px]">
+                                            {t.status === TableStatus.FREE
+                                                ? "Free"
+                                                : t.status === TableStatus.OCCUPIED
+                                                  ? "Occupied"
+                                                  : "N/A"}
+                                        </Badge>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                    {totalLineCount === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/50 py-10 text-center text-muted-foreground">
+                            <UtensilsCrossed className="mb-2 h-10 w-10 opacity-25" />
+                            <p className="text-sm font-medium">No items yet</p>
+                            <p className="mt-1 max-w-[220px] text-xs">
+                                Select a table, then choose dishes from the menu.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            {serverOrderItems.map((item) => {
+                                const busy = updatingServerItemId === item.orderItemId;
+                                return (
+                                    <Card key={`srv-${item.orderItemId}`} className="border-border/60 shadow-sm">
+                                        <CardContent className="p-3">
+                                            <div className="flex gap-3">
+                                                {item.menuItemImageUrl && (
+                                                    <img
+                                                        src={item.menuItemImageUrl}
+                                                        alt={item.menuItemName}
+                                                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                                                    />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h4 className="truncate text-sm font-medium">
+                                                            {item.menuItemName}
+                                                        </h4>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 shrink-0 text-destructive"
+                                                            onClick={() =>
+                                                                handleServerItemQtyChange(item, -item.quantity)
+                                                            }
+                                                            disabled={busy}
+                                                        >
+                                                            {busy ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                    {item.customizations?.length ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.customizations
+                                                                .map((c) =>
+                                                                    c.quantity > 1
+                                                                        ? `${c.customizationName} ×${c.quantity}`
+                                                                        : c.customizationName
+                                                                )
+                                                                .join(", ")}
+                                                        </p>
+                                                    ) : null}
+                                                    {item.note ? (
+                                                        <p className="mt-0.5 flex items-center gap-1 text-xs italic text-muted-foreground">
+                                                            <StickyNote className="h-3 w-3" />
+                                                            {item.note}
+                                                        </p>
+                                                    ) : null}
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        <div className="flex items-center gap-1">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                                onClick={() =>
+                                                                    handleServerItemQtyChange(item, -1)
+                                                                }
+                                                                disabled={busy}
+                                                            >
+                                                                <Minus className="h-3 w-3" />
+                                                            </Button>
+                                                            <span className="w-8 text-center text-sm font-medium">
+                                                                {busy ? (
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto" />
+                                                                ) : (
+                                                                    item.quantity
+                                                                )}
+                                                            </span>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                                onClick={() =>
+                                                                    handleServerItemQtyChange(item, 1)
+                                                                }
+                                                                disabled={busy}
+                                                            >
+                                                                <Plus className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                        <span className="text-sm font-semibold text-primary">
+                                                            {formatVND(item.totalPrice)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                            {cart.items.map((item) => (
+                                <Card key={item.cartItemId} className="border-border/60 shadow-sm">
                                     <CardContent className="p-3">
                                         <div className="flex gap-3">
                                             {item.imageUrl && (
                                                 <img
                                                     src={item.imageUrl}
                                                     alt={item.name}
-                                                    className="w-14 h-14 rounded-lg object-cover shrink-0"
+                                                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
                                                 />
                                             )}
-                                            <div className="flex-1 min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-2">
-                                                    <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                                                    <h4 className="truncate text-sm font-medium">{item.name}</h4>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-6 w-6 text-destructive shrink-0"
+                                                        className="h-6 w-6 shrink-0 text-destructive"
                                                         onClick={() => cart.removeItem(item.cartItemId)}
                                                     >
-                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
                                                 {item.customizations.length > 0 && (
                                                     <p className="text-xs text-muted-foreground">
-                                                        {item.customizations.map(c => `${c.name} x${c.quantity}`).join(', ')}
+                                                        {item.customizations
+                                                            .map((c) =>
+                                                                c.quantity > 1
+                                                                    ? `${c.name} ×${c.quantity}`
+                                                                    : c.name
+                                                            )
+                                                            .join(", ")}
                                                     </p>
                                                 )}
                                                 {item.note && (
-                                                    <p className="text-xs text-muted-foreground italic flex items-center gap-1">
-                                                        <StickyNote className="w-3 h-3" />
+                                                    <p className="mt-0.5 flex items-center gap-1 text-xs italic text-muted-foreground">
+                                                        <StickyNote className="h-3 w-3" />
                                                         {item.note}
                                                     </p>
                                                 )}
-                                                <div className="flex items-center justify-between mt-2">
+                                                <div className="mt-2 flex items-center justify-between">
                                                     <div className="flex items-center gap-1">
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
                                                             className="h-7 w-7"
-                                                            onClick={() => cart.updateQuantity(item.cartItemId, item.quantity - 1)}
+                                                            onClick={() =>
+                                                                cart.updateQuantity(
+                                                                    item.cartItemId,
+                                                                    item.quantity - 1
+                                                                )
+                                                            }
                                                         >
-                                                            <Minus className="w-3 h-3" />
+                                                            <Minus className="h-3 w-3" />
                                                         </Button>
-                                                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                                        <span className="w-8 text-center text-sm font-medium">
+                                                            {item.quantity}
+                                                        </span>
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
                                                             className="h-7 w-7"
-                                                            onClick={() => cart.updateQuantity(item.cartItemId, item.quantity + 1)}
+                                                            onClick={() =>
+                                                                cart.updateQuantity(
+                                                                    item.cartItemId,
+                                                                    item.quantity + 1
+                                                                )
+                                                            }
                                                         >
-                                                            <Plus className="w-3 h-3" />
+                                                            <Plus className="h-3 w-3" />
                                                         </Button>
                                                     </div>
-                                                    <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                    <span className="text-sm font-semibold text-primary">
+                                                        {formatVND(item.totalPrice)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
-                            ))
-                        )}
-                    </div>
+                            ))}
+                        </>
+                    )}
+                </div>
 
-                    {cart.items.length > 0 && (
-                        <div className="p-4 border-t space-y-3">
+                {totalLineCount > 0 && (
+                    <div className="shrink-0 space-y-3 border-t border-border/60 bg-background/95 p-4 backdrop-blur">
+                        {serverSubtotal > 0 && cart.items.length > 0 && (
+                            <div className="flex justify-between text-sm text-muted-foreground">
+                                <span>Already on order</span>
+                                <span>{formatVND(serverSubtotal)}</span>
+                            </div>
+                        )}
+                        {cart.items.length > 0 && (
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal</span>
-                                <span className="font-medium">${cart.getTotal().toFixed(2)}</span>
+                                <span className="text-muted-foreground">New items</span>
+                                <span className="font-medium">{formatVND(cartTotal)}</span>
                             </div>
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Total</span>
-                                <span>${cart.getTotal().toFixed(2)}</span>
-                            </div>
+                        )}
+                        <div className="flex justify-between border-t border-border/40 pt-2 text-base font-bold">
+                            <span>Total</span>
+                            <span className="text-primary">{formatVND(grandTotal)}</span>
+                        </div>
+                        {cart.items.length > 0 ? (
                             <Button
                                 className="w-full"
                                 size="lg"
                                 onClick={handlePlaceOrder}
-                                disabled={!cart.selectedTableId || createOrder.isPending || addItemsToOrder.isPending}
+                                disabled={
+                                    !cart.selectedTableId ||
+                                    createOrder.isPending ||
+                                    addItemsToOrder.isPending
+                                }
                             >
-                                {(createOrder.isPending || addItemsToOrder.isPending) ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {createOrder.isPending || addItemsToOrder.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
-                                    <ChevronRight className="w-4 h-4 mr-2" />
+                                    <ChevronRight className="mr-2 h-4 w-4" />
                                 )}
-                                Place Order
+                                {activeOrderOnTable?.orderId
+                                    ? "Add to order"
+                                    : "Place Order"}
                             </Button>
-                        </div>
-                    )}
-                </SheetContent>
-            </Sheet>
+                        ) : (
+                            <p className="text-center text-xs text-muted-foreground">
+                                Add dishes from the menu to send a new order line, or adjust quantities above.
+                            </p>
+                        )}
+                    </div>
+                )}
+            </aside>
 
             {customizeItem && (
                 <CustomizeDialog
@@ -367,8 +691,8 @@ const WaiterOrderPage = () => {
                     setQuantity={setCustomizeQty}
                     note={customizeNote}
                     setNote={setCustomizeNote}
-                    selectedCustomizations={selectedCustomizations}
-                    setSelectedCustomizations={setSelectedCustomizations}
+                    selectedCustomizationId={selectedCustomizationId}
+                    onSelectCustomization={setSelectedCustomizationId}
                     onAdd={handleAddToCart}
                     onClose={() => setCustomizeItem(null)}
                 />
@@ -386,8 +710,8 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
     <Card
         className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] overflow-hidden ${
             item.isBestSeller
-                ? 'border-amber-400/60 ring-1 ring-amber-400/30 shadow-sm shadow-amber-500/10'
-                : 'border-border/60'
+                ? "border-amber-400/50 ring-1 ring-amber-400/20"
+                : "border-border/60"
         }`}
         onClick={onClick}
     >
@@ -404,12 +728,14 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
                 </div>
             )}
             {item.isBestSeller && (
-                <Badge className="absolute top-2 left-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/30 border-0 px-2.5 py-1">
-                    <Star className="w-3.5 h-3.5 mr-1 fill-yellow-200 text-yellow-200 drop-shadow-sm" />
-                    Best Seller
-                </Badge>
+                <div
+                    className="pointer-events-none absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-400 shadow-md ring-2 ring-white/90"
+                    title="Best seller"
+                >
+                    <Star className="h-5 w-5 fill-yellow-600 text-yellow-700 drop-shadow-sm" />
+                </div>
             )}
-            <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
+            <Badge variant="secondary" className="absolute right-2 top-2 max-w-[calc(100%-3.25rem)] truncate text-xs">
                 {item.categoryName}
             </Badge>
         </div>
@@ -419,7 +745,7 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
             )}
             <div className="flex items-center justify-between mt-3">
-                <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
                 <Button size="sm" variant="outline" className="h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Add
@@ -429,49 +755,37 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
     </Card>
 );
 
+const CUSTOM_NONE = "__none__";
+
 interface CustomizeDialogProps {
     item: WaiterMenuItemDTO;
     quantity: number;
     setQuantity: (q: number) => void;
     note: string;
     setNote: (n: string) => void;
-    selectedCustomizations: Record<string, number>;
-    setSelectedCustomizations: (c: Record<string, number>) => void;
+    selectedCustomizationId: string | null;
+    onSelectCustomization: (id: string | null) => void;
     onAdd: () => void;
     onClose: () => void;
 }
 
 const CustomizeDialog = ({
     item, quantity, setQuantity, note, setNote,
-    selectedCustomizations, setSelectedCustomizations, onAdd, onClose,
+    selectedCustomizationId, onSelectCustomization, onAdd, onClose,
 }: CustomizeDialogProps) => {
-    const custTotal = Object.entries(selectedCustomizations)
-        .reduce((sum, [id, qty]) => {
-            const c = item.customizations.find(c => c.customizationId === id);
-            return sum + (c ? c.price * qty : 0);
-        }, 0);
+    const custTotal =
+        selectedCustomizationId == null
+            ? 0
+            : item.customizations.find((x) => x.customizationId === selectedCustomizationId)?.price ?? 0;
 
     const totalPrice = (item.price + custTotal) * quantity;
-
-    const updateCustomizationQuantity = (custId: string, quantity: number) => {
-        if (quantity <= 0) {
-            const newCustomizations = { ...selectedCustomizations };
-            delete newCustomizations[custId];
-            setSelectedCustomizations(newCustomizations);
-        } else {
-            setSelectedCustomizations({
-                ...selectedCustomizations,
-                [custId]: quantity,
-            });
-        }
-    };
 
     return (
         <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>{item.name}</DialogTitle>
-                    <DialogDescription>Customize your order</DialogDescription>
+                    <DialogDescription>Choose customization</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
@@ -484,7 +798,7 @@ const CustomizeDialog = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                        <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -507,43 +821,49 @@ const CustomizeDialog = ({
                     </div>
 
                     {item.customizations.length > 0 && (
-                        <div>
-                            <label className="text-sm font-medium">Options</label>
-                            <div className="space-y-2 mt-2">
-                                {item.customizations.map(c => {
-                                    const currentQty = selectedCustomizations[c.customizationId] || 0;
-                                    return (
-                                        <div
-                                            key={c.customizationId}
-                                            className="flex items-center justify-between p-3 border border-border rounded-lg"
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Choose customization</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Pick one option only (or none).
+                            </p>
+                            <RadioGroup
+                                value={selectedCustomizationId ?? CUSTOM_NONE}
+                                onValueChange={(v) =>
+                                    onSelectCustomization(v === CUSTOM_NONE ? null : v)
+                                }
+                                className="gap-2"
+                            >
+                                <div className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
+                                    <RadioGroupItem value={CUSTOM_NONE} id={`cust-none-${item.menuItemId}`} />
+                                    <Label
+                                        htmlFor={`cust-none-${item.menuItemId}`}
+                                        className="flex-1 cursor-pointer font-normal"
+                                    >
+                                        <span className="text-sm">None</span>
+                                        <span className="block text-xs text-muted-foreground">Base item only</span>
+                                    </Label>
+                                </div>
+                                {item.customizations.map((c) => (
+                                    <div
+                                        key={c.customizationId}
+                                        className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                                    >
+                                        <RadioGroupItem
+                                            value={c.customizationId}
+                                            id={`cust-${c.customizationId}`}
+                                        />
+                                        <Label
+                                            htmlFor={`cust-${c.customizationId}`}
+                                            className="min-w-0 flex-1 cursor-pointer font-normal"
                                         >
-                                            <div className="flex-1">
-                                                <span className="text-sm font-medium">{c.name}</span>
-                                                <span className="text-xs text-muted-foreground block">+${c.price.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={() => updateCustomizationQuantity(c.customizationId, currentQty - 1)}
-                                                >
-                                                    <Minus className="w-3 h-3" />
-                                                </Button>
-                                                <span className="w-8 text-center text-sm font-medium">{currentQty}</span>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={() => updateCustomizationQuantity(c.customizationId, currentQty + 1)}
-                                                >
-                                                    <Plus className="w-3 h-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                            <span className="text-sm font-medium">{c.name}</span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                +{formatVND(c.price)}
+                                            </span>
+                                        </Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
                         </div>
                     )}
 
@@ -563,7 +883,7 @@ const CustomizeDialog = ({
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={onAdd}>
                         <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Order - ${totalPrice.toFixed(2)}
+                                Add to Order - {formatVND(totalPrice)}
                     </Button>
                 </DialogFooter>
             </DialogContent>
