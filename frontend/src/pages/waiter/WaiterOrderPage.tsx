@@ -29,6 +29,16 @@ import { useCartStore } from "@/stores/cartStore";
 import type { WaiterMenuItemDTO, WaiterCustomizationDTO, AreaTableDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
 
+// Format currency to Vietnamese Dong (consistent with customer menu)
+const formatVND = (value: number): string => {
+    return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
+};
+
 const WaiterOrderPage = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
     const branchId = staffInfo?.branchId || '';
@@ -159,7 +169,7 @@ const WaiterOrderPage = () => {
                         onClick={() => setCartOpen(true)}
                     >
                         <ShoppingCart className="w-5 h-5" />
-                        <span className="ml-2">Cart</span>
+                        <span className="ml-2">Current order</span>
                         {cart.getItemCount() > 0 && (
                             <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
                                 {cart.getItemCount()}
@@ -228,7 +238,7 @@ const WaiterOrderPage = () => {
                     <SheetHeader className="p-6 pb-4 border-b">
                         <SheetTitle className="flex items-center gap-2">
                             <ShoppingCart className="w-5 h-5" />
-                            Order Cart ({cart.getItemCount()} items)
+                            Current Order ({cart.getItemCount()} items)
                         </SheetTitle>
                     </SheetHeader>
 
@@ -264,7 +274,7 @@ const WaiterOrderPage = () => {
                         {cart.items.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
                                 <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                <p className="text-sm">Your cart is empty</p>
+                                <p className="text-sm">No items in current order</p>
                                 <p className="text-xs">Click on menu items to add them</p>
                             </div>
                         ) : (
@@ -322,7 +332,9 @@ const WaiterOrderPage = () => {
                                                             <Plus className="w-3 h-3" />
                                                         </Button>
                                                     </div>
-                                                    <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                    <span className="font-semibold text-sm">
+                                                        {formatVND(item.totalPrice)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -336,11 +348,11 @@ const WaiterOrderPage = () => {
                         <div className="p-4 border-t space-y-3">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span className="font-medium">${cart.getTotal().toFixed(2)}</span>
+                                <span className="font-medium">{formatVND(cart.getTotal())}</span>
                             </div>
                             <div className="flex justify-between font-bold text-base">
                                 <span>Total</span>
-                                <span>${cart.getTotal().toFixed(2)}</span>
+                                <span>{formatVND(cart.getTotal())}</span>
                             </div>
                             <Button
                                 className="w-full"
@@ -419,7 +431,7 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
             )}
             <div className="flex items-center justify-between mt-3">
-                <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
                 <Button size="sm" variant="outline" className="h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Add
@@ -484,7 +496,7 @@ const CustomizeDialog = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">${item.price.toFixed(2)}</span>
+                        <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -563,7 +575,7 @@ const CustomizeDialog = ({
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={onAdd}>
                         <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Order - ${totalPrice.toFixed(2)}
+                                Add to Order - {formatVND(totalPrice)}
                     </Button>
                 </DialogFooter>
             </DialogContent>
