@@ -6,21 +6,13 @@ import java.util.UUID;
 
 import com.example.backend.dto.request.RestaurantCreateRequest;
 import com.example.backend.dto.RestaurantDTO;
-// import com.example.backend.dto.response.PageResponse;
 import com.example.backend.entities.Restaurant;
-import com.example.backend.entities.Subscription;
-import com.example.backend.entities.SubscriptionStatus;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.mapper.RestaurantMapper;
 import com.example.backend.repositories.RestaurantRepository;
-// import com.example.backend.repository.SubscriptionRepository;
 import com.example.backend.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.repositories.BranchRepository;
@@ -31,23 +23,24 @@ public class RestaurantService {
     private final RestaurantRepository restaurantRepository;
     private final RestaurantMapper restaurantMapper;
     private final UserRepository userRepository;
-    // private final SubscriptionRepository subscriptionRepository;
     private final BranchRepository branchRepository;
+    private final OwnershipValidationService ownershipValidationService;
 
     @Value("${frontend.base-url}")
-    private String webUrl; // 👈 lấy từ application.yml, ví dụ hilldevil.space
+    private String webUrl; // 👈 lấy từ application.yml
 
     public RestaurantService(
             RestaurantRepository restaurantRepository,
             RestaurantMapper restaurantMapper,
             UserRepository userRepository,
             // SubscriptionRepository subscriptionRepository,
-            BranchRepository branchRepository) {
+            BranchRepository branchRepository,
+            OwnershipValidationService ownershipValidationService) {
         this.restaurantRepository = restaurantRepository;
         this.restaurantMapper = restaurantMapper;
         this.userRepository = userRepository;
-        // this.subscriptionRepository = subscriptionRepository;
         this.branchRepository = branchRepository;
+        this.ownershipValidationService = ownershipValidationService;
     }
 
     public List<RestaurantDTO> getAll() {
@@ -59,7 +52,45 @@ public class RestaurantService {
     public RestaurantDTO getById(UUID id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+        
+        // Check ownership - only owner can access their restaurant details
+        ownershipValidationService.validateRestaurantOwnership(restaurant);
+        
         return restaurantMapper.toRestaurantDto(restaurant);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check ownership before allowing delete
+        ownershipValidationService.validateRestaurantOwnership(restaurant);
+
+        try {
+            branchRepository.deactivateAllByRestaurantId(id);
+
+            restaurant.setStatus(false);
+            restaurant.setUpdatedAt(Instant.now());
+            restaurantRepository.save(restaurant);
+
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.RESTAURANT_DELETE_FAILED);
+        }
+    }
+
+    public List<RestaurantDTO> getByOwner(UUID userId) {
+        return restaurantRepository.findByUser_UserId(userId).stream()
+                .map(restaurantMapper::toRestaurantDto)
+                .toList();
+    }
+
+    public void validateOwnership(UUID restaurantId) {
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
+    }
+
+    public boolean isOwner(UUID restaurantId) {
+        return ownershipValidationService.isRestaurantOwner(restaurantId);
     }
 
     @Transactional
@@ -115,6 +146,9 @@ public class RestaurantService {
         Restaurant exist = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
 
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(exist);
+
         if (dto.getName() != null) exist.setName(dto.getName());
         if (dto.getEmail() != null) exist.setEmail(dto.getEmail());
         if (dto.getRestaurantPhone() != null) exist.setRestaurantPhone(dto.getRestaurantPhone());
@@ -123,59 +157,12 @@ public class RestaurantService {
         Restaurant saved = restaurantRepository.save(exist);
         return restaurantMapper.toRestaurantDto(saved);
     }
-
-    @Transactional
-    public void delete(UUID id) {
-        Restaurant restaurant = restaurantRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-
-        try {
-            // List<Subscription> subs =
-            // subscriptionRepository.findAllByRestaurant_RestaurantId(id);
-            // for (Subscription s : subs) {
-            // if (s.getStatus() != SubscriptionStatus.CANCELED && s.getStatus() !=
-            // SubscriptionStatus.EXPIRED) {
-            // s.setStatus(SubscriptionStatus.CANCELED);
-            // s.setUpdatedAt(Instant.now());
-            // subscriptionRepository.save(s);
-            // }
-            // }
-
-            branchRepository.deactivateAllByRestaurantId(id);
-
-            restaurant.setStatus(false);
-            restaurant.setUpdatedAt(Instant.now());
-            restaurantRepository.save(restaurant);
-
-        } catch (Exception e) {
-            throw new AppException(ErrorCode.RESTAURANT_DELETE_FAILED);
-        }
-    }
-
-    public List<RestaurantDTO> getByOwner(UUID userId) {
-        return restaurantRepository.findByUser_UserId(userId).stream()
-                .map(restaurantMapper::toRestaurantDto)
-                .toList();
-    }
     public RestaurantDTO getBySlug(String slug) {
         return restaurantRepository.findByPublicUrl(slug)
                 .map(restaurantMapper::toRestaurantDtoWithFullUrl)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
     }
-
-    // public PageResponse<RestaurantDTO> getRestaurantPaginated(int page, int size)
-    // {
-    // Pageable pageable = PageRequest.of(page - 1, size,
-    // Sort.by("createdAt").descending());
-    // Page<Restaurant> pageData = restaurantRepository.findByStatus(pageable,
-    // true);
-    // PageResponse<RestaurantDTO> pageResponse = new PageResponse<>();
-    // pageResponse.setItems(pageData.map(restaurantMapper::toRestaurantDto).toList());
-    // pageResponse.setTotalElements(pageData.getTotalElements());
-    // pageResponse.setTotalPages(pageData.getTotalPages());
-    // return pageResponse;
-    // }
-    }
+}
 
 
 

@@ -6,6 +6,7 @@ import StaffLogin from "@/pages/StaffLogin";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import NotFound from "@/pages/NotFound";
+import { Unauthorized } from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
 import RestaurantSelection from "@/pages/owner/RestaurantSelection";
 import RestaurantDashboard from "@/pages/owner/RestaurantDashboard";
@@ -38,7 +39,6 @@ import ManagerPromotions from "@/pages/manager/ManagerPromotions";
 import ManagerStaff from "@/pages/manager/ManagerStaff";
 import ManagerMenuManagement from "@/pages/manager/ManagerMenuManagement";
 import ManagerOrders from "@/pages/manager/ManagerOrders";
-import ManagerKitchen from "@/pages/manager/ManagerKitchen";
 
 import WaiterLayout from "@/components/waiter/WaiterLayout";
 import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
@@ -119,16 +119,29 @@ const StaffRoute = ({ children }: { children: React.ReactNode }) => {
 // Guard for specific staff roles
 const StaffRoleRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: StaffRoleName[] }) => {
   const staffInfo = useAuthStore((state) => state.staffInfo);
+  const user = useAuthStore((state) => state.user);
 
-  if (!staffInfo) {
-    return <Navigate to="/staff-login" replace />;
+  // Allow if user is staff with allowed role
+  if (staffInfo && staffInfo.role && allowedRoles.includes(staffInfo.role)) {
+    return <>{children}</>;
   }
 
-  if (!staffInfo.role || !allowedRoles.includes(staffInfo.role)) {
+  // Also allow Restaurant Owners to access Branch Manager dashboard
+  // This enables owners to manage their branches directly
+  if (user && user.role?.name === 'RESTAURANT_OWNER' && allowedRoles.includes('BRANCH_MANAGER')) {
+    return <>{children}</>;
+  }
+
+  // Not authorized - redirect to appropriate dashboard
+  if (staffInfo) {
     return <Navigate to={getStaffDashboard(staffInfo.role)} replace />;
   }
 
-  return <>{children}</>;
+  if (user) {
+    return <Navigate to="/restaurants" replace />;
+  }
+
+  return <Navigate to="/staff-login" replace />;
 };
 
 
@@ -251,7 +264,6 @@ const AppRoutes = () => {
         <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
         <Route path="tables" element={<ManagerTableManagement />} />
         <Route path="orders" element={<ManagerOrders />} />
-        <Route path="kitchen" element={<ManagerKitchen />} />
         <Route path="menu" element={<ManagerMenuManagement />} />
         <Route path="bills" element={<ManagerBills />} />
         <Route path="promotions" element={<ManagerPromotions />} />
@@ -354,6 +366,9 @@ const AppRoutes = () => {
 
         } />
 
+      {/* Error pages */}
+      <Route path="/unauthorized" element={<Unauthorized />} />
+      
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

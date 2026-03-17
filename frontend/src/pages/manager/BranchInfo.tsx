@@ -13,11 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { Phone, Mail, MapPin, Store, Save, Loader2 } from "lucide-react";
 import { useBranch, useUpdateBranchContactInfo } from "@/hooks/queries/useBranchQueries";
-import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 
 export default function BranchInfo() {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId;
+  const { branchId } = useBranchContext();
 
   const { data: branch, isLoading } = useBranch(branchId ?? "");
   const updateContactInfo = useUpdateBranchContactInfo();

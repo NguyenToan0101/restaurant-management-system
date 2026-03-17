@@ -37,6 +37,16 @@ axiosClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Check for authorization error (code 1108)
+    if (error.response?.data && typeof error.response.data === 'object') {
+      const errorData = error.response.data as { code?: number };
+      if (errorData.code === 1108) {
+        console.log('[axiosClient] Access denied (1108), redirecting to unauthorized page');
+        window.location.href = '/unauthorized';
+        return Promise.reject(error);
+      }
+    }
+
     if (!error.response || error.response.status !== 401) {
       return Promise.reject(error);
     }

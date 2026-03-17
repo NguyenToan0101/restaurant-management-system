@@ -39,7 +39,7 @@ import {
 } from "@/hooks/queries/useTableQueries";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useRestaurantSlugByBranch } from "@/hooks/queries/useBranchQueries";
-import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import TableQrCodeDialog from "@/components/table/TableQrCodeDialog";
 import { getTableUrlWithSlug } from "@/utils/tableUrl";
 import type { AreaTableDTO } from "@/types/dto";
@@ -48,8 +48,7 @@ import { TableStatus, EntityStatus } from "@/types/dto";
 const ManagerTableManagement = () => {
     const { areaId } = useParams<{ areaId: string }>();
     const navigate = useNavigate();
-    const staffInfo = useAuthStore((state) => state.staffInfo);
-    const branchId = staffInfo?.branchId;
+    const { branchId } = useBranchContext();
 
     const { data: allAreas = [] } = useAreasByBranch(branchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);

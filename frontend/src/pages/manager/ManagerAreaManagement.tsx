@@ -30,14 +30,13 @@ import {
     useDeactivateArea,
 } from "@/hooks/queries/useAreaQueries";
 import { useTablesByArea } from "@/hooks/queries/useTableQueries";
-import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import type { AreaDTO } from "@/types/dto";
 import { EntityStatus } from "@/types/dto";
 
 const ManagerAreaManagement = () => {
     const navigate = useNavigate();
-    const staffInfo = useAuthStore((state) => state.staffInfo);
-    const branchId = staffInfo?.branchId;
+    const { branchId } = useBranchContext();
 
     const { data: areas = [], isLoading } = useAreasByBranch(branchId || '');
     const createArea = useCreateArea();

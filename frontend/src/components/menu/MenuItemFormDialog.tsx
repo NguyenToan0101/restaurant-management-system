@@ -280,13 +280,7 @@ export function MenuItemFormDialog({
               <p className="text-xs text-muted-foreground">
                 Select which customizations are available for this item. This includes both category-level and item-specific customizations.
               </p>
-              
-              {/* Debug info - remove this after testing */}
-              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                <div>Selected IDs: {Array.from(selectedCustIds).join(', ')}</div>
-                <div>Category Customizations: {categoryCustomizations.map(c => c.id).join(', ')}</div>
-                <div>All Customizations: {allCustomizations.map(c => c.id).join(', ')}</div>
-              </div>
+            
 
               {/* Category Customizations */}
               {categoryCustomizations.length > 0 && (
@@ -312,7 +306,7 @@ export function MenuItemFormDialog({
                         </div>
                         {c.price > 0 && (
                           <Badge variant="secondary" className="text-xs shrink-0">
-                            +${c.price.toFixed(2)}
+                            +{c.price.toFixed(2)}đ
                           </Badge>
                         )}
                       </label>
@@ -347,7 +341,7 @@ export function MenuItemFormDialog({
                         </div>
                         {c.price > 0 && (
                           <Badge variant="secondary" className="text-xs shrink-0">
-                            +${c.price.toFixed(2)}
+                            +{c.price.toFixed(2)}đ
                           </Badge>
                         )}
                       </label>

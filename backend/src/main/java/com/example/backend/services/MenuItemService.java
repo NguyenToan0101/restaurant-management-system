@@ -30,13 +30,15 @@ public class MenuItemService {
     private final MediaService mediaService;
     private final CustomizationMapper customizationMapper;
     private final FeatureLimitCheckerService featureLimitCheckerService;
+    private final OwnershipValidationService ownershipValidationService;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
                            CustomizationRepository customizationRepository, BranchMenuItemRepository branchMenuItemRepository,
                            MediaService mediaService,
                            CustomizationMapper customizationMapper,
-                           FeatureLimitCheckerService featureLimitCheckerService) {
+                           FeatureLimitCheckerService featureLimitCheckerService,
+                           OwnershipValidationService ownershipValidationService) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -46,9 +48,13 @@ public class MenuItemService {
         this.mediaService = mediaService;
         this.customizationMapper = customizationMapper;
         this.featureLimitCheckerService = featureLimitCheckerService;
+        this.ownershipValidationService = ownershipValidationService;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
+        
         List<EntityStatus> allowedStatuses = Arrays.asList(EntityStatus.ACTIVE, EntityStatus.INACTIVE);
         List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(restaurantId, allowedStatuses);
 
@@ -64,6 +70,10 @@ public class MenuItemService {
     public MenuItemDTO getById(UUID id) {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+        
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
+        
         MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
         dto.setImageUrl(mediaService.getImageUrlByTarget(id, "MENU_ITEM_IMAGE"));
         return dto;
@@ -73,6 +83,9 @@ public class MenuItemService {
     public MenuItemDTO create(MenuItemCreateRequest request, MultipartFile imageFile) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check ownership before allowing creation
+        ownershipValidationService.validateRestaurantOwnership(restaurant);
 
         featureLimitCheckerService.checkLimit(
                 request.getRestaurantId(),
@@ -134,6 +147,9 @@ public class MenuItemService {
         MenuItem existing = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(existing.getRestaurant());
+
         existing.setName(request.getName());
         existing.setDescription(request.getDescription());
         existing.setPrice(request.getPrice());
@@ -183,6 +199,9 @@ public class MenuItemService {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
+        // Check ownership before allowing status change
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
+
         item.setStatus(active ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
         item.setUpdatedAt(Instant.now());
 
@@ -214,6 +233,9 @@ public class MenuItemService {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
+        // Check ownership before allowing delete
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
+
         item.setStatus(EntityStatus.DELETED);
         item.setUpdatedAt(Instant.now());
         menuItemRepository.save(item);
@@ -236,6 +258,9 @@ public class MenuItemService {
     public MenuItemDTO updateBestSeller(UUID menuItemId, boolean bestSeller) {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
 
         item.setBestSeller(bestSeller);
         item.setUpdatedAt(Instant.now());
