@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.OrderDTO;
+import com.example.backend.dto.OrderHistorySummaryDTO;
 import com.example.backend.dto.request.AddItemsToOrderRequest;
 import com.example.backend.dto.request.CreateOrderRequest;
 import com.example.backend.dto.request.UpdateOrderItemRequest;
@@ -43,6 +44,11 @@ public class WaiterOrderController {
     @GetMapping("/table/{tableId}/active")
     public ApiResponse<OrderDTO> getActiveOrderByTable(@PathVariable UUID tableId) {
         return ApiResponse.success(orderService.getActiveOrderByTable(tableId));
+    }
+
+    @GetMapping("/branch/{branchId}/history")
+    public ApiResponse<List<OrderHistorySummaryDTO>> getOrderHistory(@PathVariable UUID branchId) {
+        return ApiResponse.success(orderService.getOrderHistorySummaries(branchId));
     }
 
     @GetMapping("/branch/{branchId}")

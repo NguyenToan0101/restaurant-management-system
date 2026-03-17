@@ -23,9 +23,17 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
-import { useWaiterMenu, useWaiterCategories, useCreateOrder, useAddItemsToOrder } from "@/hooks/queries/useWaiterQueries";
+import {
+    useWaiterMenu,
+    useWaiterCategories,
+    useCreateOrder,
+    useAddItemsToOrder,
+    useActiveOrderByTable,
+    useUpdateOrderItem,
+    useRemoveOrderItem,
+} from "@/hooks/queries/useWaiterQueries";
 import { useCartStore } from "@/stores/cartStore";
-import type { WaiterMenuItemDTO, WaiterCustomizationDTO, AreaTableDTO } from "@/types/dto";
+import type { WaiterMenuItemDTO, OrderItemDTO } from "@/types/dto";
 import { TableStatus, EntityStatus } from "@/types/dto";
 
 // Format currency to Vietnamese Dong (consistent with customer menu)
@@ -62,6 +70,34 @@ const WaiterOrderPage = () => {
     const cart = useCartStore();
     const createOrder = useCreateOrder();
     const addItemsToOrder = useAddItemsToOrder();
+    const updateOrderItemMutation = useUpdateOrderItem();
+    const removeOrderItemMutation = useRemoveOrderItem();
+    const { data: activeOrderForSelectedTable } = useActiveOrderByTable(cart.selectedTableId || "");
+    const [updatingServerItemId, setUpdatingServerItemId] = useState<string | null>(null);
+
+    /** Chỉ coi là có order trên bàn khi bàn OCCUPIED (tránh cache order cũ sau khi đã thanh toán → FREE). */
+    const selectedTableRow = useMemo(
+        () =>
+            cart.selectedTableId
+                ? allTables.find((t) => t.areaTableId === cart.selectedTableId)
+                : undefined,
+        [allTables, cart.selectedTableId]
+    );
+    const hasActiveDineInOnTable = selectedTableRow?.status === TableStatus.OCCUPIED;
+    const activeOrderOnTable = hasActiveDineInOnTable ? activeOrderForSelectedTable ?? null : null;
+
+    const serverOrderItems = useMemo(
+        () => activeOrderOnTable?.orderLines?.flatMap((l) => l.orderItems) ?? [],
+        [activeOrderOnTable]
+    );
+
+    const serverSubtotal = useMemo(
+        () => serverOrderItems.reduce((s, i) => s + Number(i.totalPrice), 0),
+        [serverOrderItems]
+    );
+    const cartTotal = cart.getTotal();
+    const grandTotal = serverSubtotal + cartTotal;
+    const totalLineCount = serverOrderItems.length + cart.items.length;
 
     const filteredItems = useMemo(() => {
         let items = menuItems;
@@ -130,23 +166,47 @@ const WaiterOrderPage = () => {
     const handlePlaceOrder = async () => {
         if (!cart.selectedTableId || cart.items.length === 0) return;
 
-        const items = cart.items.map(item => ({
+        const items = cart.items.map((item) => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             note: item.note,
-            customizations: item.customizations.map(c => ({
+            customizations: item.customizations.map((c) => ({
                 customizationId: c.customizationId,
                 quantity: c.quantity,
             })),
         }));
 
         try {
-            await createOrder.mutateAsync({
-                areaTableId: cart.selectedTableId,
-                items,
-            });
+            if (activeOrderOnTable?.orderId) {
+                await addItemsToOrder.mutateAsync({
+                    orderId: activeOrderOnTable.orderId,
+                    request: { items },
+                });
+            } else {
+                await createOrder.mutateAsync({
+                    areaTableId: cart.selectedTableId,
+                    items,
+                });
+            }
             cart.clearCart();
         } catch {}
+    };
+
+    const handleServerItemQtyChange = async (item: OrderItemDTO, delta: number) => {
+        const newQty = item.quantity + delta;
+        setUpdatingServerItemId(item.orderItemId);
+        try {
+            if (newQty <= 0) {
+                await removeOrderItemMutation.mutateAsync(item.orderItemId);
+            } else {
+                await updateOrderItemMutation.mutateAsync({
+                    orderItemId: item.orderItemId,
+                    request: { quantity: newQty, note: item.note ?? "" },
+                });
+            }
+        } finally {
+            setUpdatingServerItemId(null);
+        }
     };
 
     const tableOptions = useMemo(() => {
@@ -198,7 +258,7 @@ const WaiterOrderPage = () => {
                         </div>
                         <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-xs font-medium">
                             <ShoppingCart className="h-3.5 w-3.5" />
-                            {cart.getItemCount()} in order
+                            {totalLineCount} in order
                         </Badge>
                     </div>
 
@@ -338,8 +398,9 @@ const WaiterOrderPage = () => {
                         <div>
                             <h2 className="text-sm font-semibold leading-tight">Current order</h2>
                             <p className="text-xs text-muted-foreground">
-                                {cart.getItemCount()} item{cart.getItemCount() !== 1 ? "s" : ""}
-                                {cart.items.length > 0 ? ` · ${formatVND(cart.getTotal())}` : ""}
+                                {totalLineCount === 0
+                                    ? "No items yet"
+                                    : `${totalLineCount} line${totalLineCount !== 1 ? "s" : ""} · ${formatVND(grandTotal)}`}
                             </p>
                         </div>
                     </div>
@@ -388,104 +449,237 @@ const WaiterOrderPage = () => {
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                    {cart.items.length === 0 ? (
+                    {totalLineCount === 0 ? (
                         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-background/50 py-10 text-center text-muted-foreground">
                             <UtensilsCrossed className="mb-2 h-10 w-10 opacity-25" />
                             <p className="text-sm font-medium">No items yet</p>
-                            <p className="mt-1 max-w-[220px] text-xs">Choose dishes from the menu.</p>
+                            <p className="mt-1 max-w-[220px] text-xs">
+                                Select a table, then choose dishes from the menu.
+                            </p>
                         </div>
                     ) : (
-                        cart.items.map((item) => (
-                            <Card key={item.cartItemId} className="border-border/60 shadow-sm">
-                                <CardContent className="p-3">
-                                    <div className="flex gap-3">
-                                        {item.imageUrl && (
-                                            <img
-                                                src={item.imageUrl}
-                                                alt={item.name}
-                                                className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                                            />
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <h4 className="truncate text-sm font-medium">{item.name}</h4>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 shrink-0 text-destructive"
-                                                    onClick={() => cart.removeItem(item.cartItemId)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
+                        <>
+                            {serverOrderItems.map((item) => {
+                                const busy = updatingServerItemId === item.orderItemId;
+                                return (
+                                    <Card key={`srv-${item.orderItemId}`} className="border-border/60 shadow-sm">
+                                        <CardContent className="p-3">
+                                            <div className="flex gap-3">
+                                                {item.menuItemImageUrl && (
+                                                    <img
+                                                        src={item.menuItemImageUrl}
+                                                        alt={item.menuItemName}
+                                                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                                                    />
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h4 className="truncate text-sm font-medium">
+                                                            {item.menuItemName}
+                                                        </h4>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 shrink-0 text-destructive"
+                                                            onClick={() =>
+                                                                handleServerItemQtyChange(item, -item.quantity)
+                                                            }
+                                                            disabled={busy}
+                                                        >
+                                                            {busy ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                    {item.customizations?.length ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.customizations
+                                                                .map((c) =>
+                                                                    c.quantity > 1
+                                                                        ? `${c.customizationName} ×${c.quantity}`
+                                                                        : c.customizationName
+                                                                )
+                                                                .join(", ")}
+                                                        </p>
+                                                    ) : null}
+                                                    {item.note ? (
+                                                        <p className="mt-0.5 flex items-center gap-1 text-xs italic text-muted-foreground">
+                                                            <StickyNote className="h-3 w-3" />
+                                                            {item.note}
+                                                        </p>
+                                                    ) : null}
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        <div className="flex items-center gap-1">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                                onClick={() =>
+                                                                    handleServerItemQtyChange(item, -1)
+                                                                }
+                                                                disabled={busy}
+                                                            >
+                                                                <Minus className="h-3 w-3" />
+                                                            </Button>
+                                                            <span className="w-8 text-center text-sm font-medium">
+                                                                {busy ? (
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto" />
+                                                                ) : (
+                                                                    item.quantity
+                                                                )}
+                                                            </span>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                                onClick={() =>
+                                                                    handleServerItemQtyChange(item, 1)
+                                                                }
+                                                                disabled={busy}
+                                                            >
+                                                                <Plus className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                        <span className="text-sm font-semibold text-primary">
+                                                            {formatVND(item.totalPrice)}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            {item.customizations.length > 0 && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {item.customizations
-                                                .map((c) => (c.quantity > 1 ? `${c.name} ×${c.quantity}` : c.name))
-                                                .join(", ")}
-                                                </p>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                            {cart.items.map((item) => (
+                                <Card key={item.cartItemId} className="border-border/60 shadow-sm">
+                                    <CardContent className="p-3">
+                                        <div className="flex gap-3">
+                                            {item.imageUrl && (
+                                                <img
+                                                    src={item.imageUrl}
+                                                    alt={item.name}
+                                                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                                                />
                                             )}
-                                            {item.note && (
-                                                <p className="mt-0.5 flex items-center gap-1 text-xs italic text-muted-foreground">
-                                                    <StickyNote className="h-3 w-3" />
-                                                    {item.note}
-                                                </p>
-                                            )}
-                                            <div className="mt-2 flex items-center justify-between">
-                                                <div className="flex items-center gap-1">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h4 className="truncate text-sm font-medium">{item.name}</h4>
                                                     <Button
-                                                        variant="outline"
+                                                        variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7"
-                                                        onClick={() => cart.updateQuantity(item.cartItemId, item.quantity - 1)}
+                                                        className="h-6 w-6 shrink-0 text-destructive"
+                                                        onClick={() => cart.removeItem(item.cartItemId)}
                                                     >
-                                                        <Minus className="h-3 w-3" />
-                                                    </Button>
-                                                    <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-7 w-7"
-                                                        onClick={() => cart.updateQuantity(item.cartItemId, item.quantity + 1)}
-                                                    >
-                                                        <Plus className="h-3 w-3" />
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
-                                                <span className="text-sm font-semibold text-primary">
-                                                    {formatVND(item.totalPrice)}
-                                                </span>
+                                                {item.customizations.length > 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.customizations
+                                                            .map((c) =>
+                                                                c.quantity > 1
+                                                                    ? `${c.name} ×${c.quantity}`
+                                                                    : c.name
+                                                            )
+                                                            .join(", ")}
+                                                    </p>
+                                                )}
+                                                {item.note && (
+                                                    <p className="mt-0.5 flex items-center gap-1 text-xs italic text-muted-foreground">
+                                                        <StickyNote className="h-3 w-3" />
+                                                        {item.note}
+                                                    </p>
+                                                )}
+                                                <div className="mt-2 flex items-center justify-between">
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() =>
+                                                                cart.updateQuantity(
+                                                                    item.cartItemId,
+                                                                    item.quantity - 1
+                                                                )
+                                                            }
+                                                        >
+                                                            <Minus className="h-3 w-3" />
+                                                        </Button>
+                                                        <span className="w-8 text-center text-sm font-medium">
+                                                            {item.quantity}
+                                                        </span>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            onClick={() =>
+                                                                cart.updateQuantity(
+                                                                    item.cartItemId,
+                                                                    item.quantity + 1
+                                                                )
+                                                            }
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-primary">
+                                                        {formatVND(item.totalPrice)}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </>
                     )}
                 </div>
 
-                {cart.items.length > 0 && (
+                {totalLineCount > 0 && (
                     <div className="shrink-0 space-y-3 border-t border-border/60 bg-background/95 p-4 backdrop-blur">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Subtotal</span>
-                            <span className="font-medium">{formatVND(cart.getTotal())}</span>
-                        </div>
+                        {serverSubtotal > 0 && cart.items.length > 0 && (
+                            <div className="flex justify-between text-sm text-muted-foreground">
+                                <span>Already on order</span>
+                                <span>{formatVND(serverSubtotal)}</span>
+                            </div>
+                        )}
+                        {cart.items.length > 0 && (
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">New items</span>
+                                <span className="font-medium">{formatVND(cartTotal)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between border-t border-border/40 pt-2 text-base font-bold">
                             <span>Total</span>
-                            <span className="text-primary">{formatVND(cart.getTotal())}</span>
+                            <span className="text-primary">{formatVND(grandTotal)}</span>
                         </div>
-                        <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={handlePlaceOrder}
-                            disabled={!cart.selectedTableId || createOrder.isPending || addItemsToOrder.isPending}
-                        >
-                            {createOrder.isPending || addItemsToOrder.isPending ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <ChevronRight className="mr-2 h-4 w-4" />
-                            )}
-                            Place Order
-                        </Button>
+                        {cart.items.length > 0 ? (
+                            <Button
+                                className="w-full"
+                                size="lg"
+                                onClick={handlePlaceOrder}
+                                disabled={
+                                    !cart.selectedTableId ||
+                                    createOrder.isPending ||
+                                    addItemsToOrder.isPending
+                                }
+                            >
+                                {createOrder.isPending || addItemsToOrder.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <ChevronRight className="mr-2 h-4 w-4" />
+                                )}
+                                {activeOrderOnTable?.orderId
+                                    ? "Add to order"
+                                    : "Place Order"}
+                            </Button>
+                        ) : (
+                            <p className="text-center text-xs text-muted-foreground">
+                                Add dishes from the menu to send a new order line, or adjust quantities above.
+                            </p>
+                        )}
                     </div>
                 )}
             </aside>

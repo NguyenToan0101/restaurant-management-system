@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   AreaTableDTO,
   OrderDTO,
+  OrderHistorySummaryDTO,
   BillDTO,
   CreateOrderRequest,
   AddItemsToOrderRequest,
@@ -31,6 +32,13 @@ class WaiterOrderApi {
 
   async getActiveOrderByTable(tableId: string): Promise<OrderDTO | null> {
     const response = await axiosClient.get<ApiResponse<OrderDTO | null>>(`/waiter/orders/table/${tableId}/active`);
+    return response.data.result;
+  }
+
+  async getOrderHistorySummaries(branchId: string): Promise<OrderHistorySummaryDTO[]> {
+    const response = await axiosClient.get<ApiResponse<OrderHistorySummaryDTO[]>>(
+      `/waiter/orders/branch/${branchId}/history`
+    );
     return response.data.result;
   }
 

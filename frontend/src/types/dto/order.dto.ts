@@ -69,6 +69,19 @@ export interface OrderSummaryDTO {
   createdAt: string;
 }
 
+/** Waiter history list row — no order lines (loaded on detail). */
+export interface OrderHistorySummaryDTO {
+  orderId: string;
+  areaTableId: string;
+  tableName: string;
+  areaName: string;
+  status: OrderStatus;
+  totalPrice: number;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+}
+
 export interface BillDTO {
   billId: string;
   orderId: string;

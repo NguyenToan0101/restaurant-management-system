@@ -67,30 +67,31 @@ public class BillService {
                 bill.setPaidTime(Instant.now());
                 bill = billRepository.save(bill);
 
-                return toBillDTO(bill);
+                return toBillDTO(bill, true);
         }
 
+        /** Bill without nested full order (avoids duplicate heavy load when order is fetched separately). */
         public BillDTO getBillByOrderId(UUID orderId) {
                 Bill bill = billRepository.findByOrder_OrderId(orderId)
                                 .orElseThrow(() -> new AppException(ErrorCode.BILL_NOT_FOUND));
-                return toBillDTO(bill);
+                return toBillDTO(bill, false);
         }
 
         public List<BillDTO> getBillsByBranch(UUID branchId) {
                 return billRepository.findByBranch_BranchIdOrderByPaidTimeDesc(branchId).stream()
-                                .map(this::toBillDTO)
+                                .map(b -> toBillDTO(b, true))
                                 .collect(Collectors.toList());
         }
 
         public BillDTO getBillById(UUID billId) {
                 Bill bill = billRepository.findById(billId)
                                 .orElseThrow(() -> new AppException(ErrorCode.BILL_NOT_FOUND));
-                return toBillDTO(bill);
+                return toBillDTO(bill, true);
         }
 
         public List<BillDTO> getBillingHistory(UUID branchId, Instant startDate, Instant endDate) {
                 return billRepository.findByBranchAndDateRange(branchId, startDate, endDate).stream()
-                                .map(this::toBillDTO)
+                                .map(b -> toBillDTO(b, true))
                                 .collect(Collectors.toList());
         }
 
@@ -103,7 +104,7 @@ public class BillService {
                                 .map(this::toBillSummaryDTO);
         }
 
-        private BillDTO toBillDTO(Bill bill) {
+        private BillDTO toBillDTO(Bill bill, boolean includeFullOrder) {
                 Branch branch = bill.getBranch();
                 return BillDTO.builder()
                                 .billId(bill.getBillId())
@@ -120,7 +121,8 @@ public class BillService {
                                 .paymentMethod(bill.getPaymentMethod())
                                 .paidTime(bill.getPaidTime())
                                 .createdAt(bill.getCreatedAt())
-                                .order(bill.getOrder() != null ? orderService.getOrderById(bill.getOrder().getOrderId())
+                                .order(includeFullOrder && bill.getOrder() != null
+                                                ? orderService.getOrderById(bill.getOrder().getOrderId())
                                                 : null)
                                 .restaurantName(branch.getRestaurant() != null ? branch.getRestaurant().getName()
                                                 : null)
