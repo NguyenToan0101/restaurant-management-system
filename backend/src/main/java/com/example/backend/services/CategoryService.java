@@ -50,6 +50,16 @@ public class CategoryService {
                 .toList();
     }
 
+    // Public version without ownership validation for customer access
+    public List<CategoryDTO> getByRestaurant(UUID restaurantId) {
+        List<Category> categories = categoryRepository
+                .findAllByRestaurantAndStatus(restaurantId, EntityStatus.ACTIVE);
+
+        return categories.stream()
+                .map(categoryMapper::toCategoryDTO)
+                .toList();
+    }
+
     public CategoryDTO getById(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));

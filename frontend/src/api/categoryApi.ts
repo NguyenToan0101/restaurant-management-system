@@ -3,7 +3,7 @@ import { ApiResponse, CategoryDTO, CategoryCreateRequest } from '@/types/dto';
 
 export const categoryApi = {
   getAllByRestaurant: (restaurantId: string) =>
-    axiosClient.get<ApiResponse<CategoryDTO[]>>('/categories', {
+    axiosClient.get<ApiResponse<CategoryDTO[]>>('/public/categories', {
       params: { restaurantId },
     }),
 
