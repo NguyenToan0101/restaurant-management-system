@@ -58,6 +58,15 @@ public class Reservation {
     @Column(name = "status")
     private ReservationStatus status;
 
+    @Column(name = "arrival_time")
+    private Instant arrivalTime;
+
+    @Column(name = "completion_time")
+    private Instant completionTime;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;
@@ -160,6 +169,30 @@ public class Reservation {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Instant getArrivalTime() {
+        return arrivalTime;
+    }
+
+    public void setArrivalTime(Instant arrivalTime) {
+        this.arrivalTime = arrivalTime;
+    }
+
+    public Instant getCompletionTime() {
+        return completionTime;
+    }
+
+    public void setCompletionTime(Instant completionTime) {
+        this.completionTime = completionTime;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 
     

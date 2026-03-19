@@ -102,6 +102,11 @@ public enum ErrorCode {
     ORDER_ALREADY_CANCELLED(3602, "Order already cancelled", HttpStatus.BAD_REQUEST),
     BILL_NOT_FOUND(3610, "Bill not found", HttpStatus.NOT_FOUND),
 
+    // Reservation errors (3700-3799)
+    RESERVATION_NOT_FOUND(3700, "Reservation not found", HttpStatus.NOT_FOUND),
+    INVALID_STATUS_TRANSITION(3701, "Invalid status transition", HttpStatus.BAD_REQUEST),
+    RESERVATION_VALIDATION_ERROR(3702, "Reservation validation error", HttpStatus.BAD_REQUEST),
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;

@@ -1,5 +1,12 @@
 import axiosClient from './axiosClient';
-import type { ApiResponse, ReservationDTO, ReservationCreateRequest } from '@/types/dto';
+import type { 
+    ApiResponse, 
+    ReservationDTO, 
+    CreateReservationRequest,
+    RejectReservationRequest,
+    ReservationAnalyticsDTO,
+    ReservationFilterParams
+} from '@/types/dto';
 
 class ReservationApi {
     async getAll(): Promise<ReservationDTO[]> {
@@ -22,8 +29,49 @@ class ReservationApi {
         return response.data.result;
     }
 
-    async create(data: ReservationCreateRequest): Promise<ReservationDTO> {
+    async filter(branchId: string, params: ReservationFilterParams): Promise<ReservationDTO[]> {
+        const response = await axiosClient.get<ApiResponse<ReservationDTO[]>>(
+            `/reservations/branch/${branchId}/filter`,
+            { params }
+        );
+        return response.data.result;
+    }
+
+    async create(data: CreateReservationRequest): Promise<ReservationDTO> {
         const response = await axiosClient.post<ApiResponse<ReservationDTO>>('/reservations', data);
+        return response.data.result;
+    }
+
+    async approve(id: string): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>(`/reservations/${id}/approve`);
+        return response.data.result;
+    }
+
+    async reject(id: string, data: RejectReservationRequest): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>(`/reservations/${id}/reject`, data);
+        return response.data.result;
+    }
+
+    async markArrived(id: string): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>(`/reservations/${id}/arrive`);
+        return response.data.result;
+    }
+
+    async complete(id: string): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>(`/reservations/${id}/complete`);
+        return response.data.result;
+    }
+
+    async markNoShow(id: string): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>(`/reservations/${id}/no-show`);
+        return response.data.result;
+    }
+
+    async getAnalytics(branchId: string, startDate: string, endDate: string): Promise<ReservationAnalyticsDTO> {
+        const response = await axiosClient.get<ApiResponse<ReservationAnalyticsDTO>>(
+            `/reservations/branch/${branchId}/analytics`,
+            { params: { startDate, endDate } }
+        );
         return response.data.result;
     }
 

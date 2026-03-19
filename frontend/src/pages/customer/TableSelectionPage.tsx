@@ -463,7 +463,7 @@ export default function TableSelectionPage() {
                   </div>
 
                   <div className="space-y-4 mb-8">
-                    {areas.map((area, index) => (
+                    {areas.map((area) => (
                       <div
                         key={area.areaId}
                         onClick={() => {
@@ -475,13 +475,6 @@ export default function TableSelectionPage() {
                             : 'border-gray-200 hover:border-orange-300 bg-white hover:bg-orange-50'
                           }`}
                       >
-                        <div className="w-24 h-16 bg-gray-200 rounded-lg overflow-hidden shrink-0">
-                          <img
-                            src={`https://images.unsplash.com/photo-${1544025162 + index}-d76694265947?q=80&w=400&auto=format&fit=crop`}
-                            alt={area.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedArea?.areaId === area.areaId
@@ -494,11 +487,6 @@ export default function TableSelectionPage() {
                             </div>
                             <h3 className="font-semibold text-gray-900">{area.name}</h3>
                           </div>
-                          <p className="text-sm text-gray-600 line-clamp-1">
-                            {index === 0 && 'Warm, rustic setting near the open kitchen.'}
-                            {index === 1 && 'Surrounded by herbs and jasmine vines.'}
-                            {index === 2 && 'Panoramic views with fire pits.'}
-                          </p>
                         </div>
                       </div>
                     ))}
@@ -541,7 +529,7 @@ export default function TableSelectionPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                       {tables.map(table => {
                         const isEnoughCapacity = table.capacity >= reservationData.guestNumber;
-                        const isAvailable = table.status === 'ACTIVE' && isEnoughCapacity;
+                        const isAvailable = table.status === 'FREE' && isEnoughCapacity;
                         const isSelected = selectedTable?.areaTableId === table.areaTableId;
 
                         return (
@@ -562,17 +550,12 @@ export default function TableSelectionPage() {
                               {table.tag}
                             </div>
                             <div className="text-sm font-medium text-gray-500">{table.capacity} SEATS</div>
-                            {!isEnoughCapacity && table.status === 'ACTIVE' && (
+                            {!isEnoughCapacity && table.status === 'FREE' && (
                               <div className="text-[10px] text-red-500 mt-1 mt-auto">Too small</div>
                             )}
                           </div>
                         )
                       })}
-                    </div>
-
-                    {/* Kitchen Area Indicator */}
-                    <div className="bg-gray-100 rounded-lg p-4 text-center mb-8 border border-gray-200">
-                      <span className="text-gray-500 text-sm font-medium tracking-wider">OPEN HEARTH KITCHEN</span>
                     </div>
 
                     {/* Action Buttons */}
