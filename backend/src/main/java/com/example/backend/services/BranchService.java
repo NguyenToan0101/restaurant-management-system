@@ -81,9 +81,6 @@ public class BranchService {
         Branch b = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
         
-        // Check ownership - only restaurant owner can access branch details
-        checkRestaurantOwnership(b.getRestaurant().getRestaurantId());
-        
         return toDtoWithStaffCount(b);
     }
 

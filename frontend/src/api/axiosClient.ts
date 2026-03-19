@@ -31,11 +31,15 @@ const isPublicEndpoint = (url?: string): boolean => {
     '/users/mail',
     '/users/forgetpass',
     '/packages/active',
-    '/reservations',
     '/waiter/orders',
-    '/branch-menu-items/guest/'
+    '/branch-menu-items/guest/',
+    '/available-tables'
   ];
-  return publicPaths.some(path => url.includes(path));
+  // Check for exact match or path prefix match
+  // Note: /reservations without any path after it is public (for customer booking)
+  // but /reservations/* (with sub-paths) requires authentication
+  return publicPaths.some(path => url.includes(path)) || 
+         (url === '/reservations' || url.startsWith('/reservations?'));
 };
 
 axiosClient.interceptors.request.use(

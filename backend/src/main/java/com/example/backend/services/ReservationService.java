@@ -2,8 +2,9 @@ package com.example.backend.services;
 
 import com.example.backend.dto.ReservationAnalyticsDTO;
 import com.example.backend.dto.ReservationDTO;
-
+import com.example.backend.dto.TableAvailabilityDTO;
 import com.example.backend.dto.request.ReservationApprovalMailRequest;
+import com.example.backend.dto.request.ReservationConfirmationMailRequest;
 import com.example.backend.dto.request.ReservationNoShowMailRequest;
 import com.example.backend.dto.request.ReservationRejectionMailRequest;
 import com.example.backend.entities.Reservation;
@@ -36,6 +37,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
+
+    private static final int DEFAULT_DURATION = 120; // 2 hours
+    private static final int BUFFER_MINUTES = 15;
+    private static final int RISKY_GAP_MINUTES = 30;
 
     private final ReservationRepository reservationRepository;
     private final BranchRepository branchRepository;
@@ -93,22 +98,85 @@ public class ReservationService {
         if (dto.getAreaTableId() != null) {
             table = areaTableRepository.findById(dto.getAreaTableId())
                     .orElseThrow(() -> new RuntimeException("Table not found"));
+            
+            // Validate table availability using time-based logic
+            boolean conflict = hasTableConflict(dto.getBranchId(), dto.getAreaTableId(), 
+                    dto.getStartTime(), dto.getEstimatedDurationMinutes());
+            if (conflict) {
+                throw new RuntimeException("TABLE_NOT_AVAILABLE");
+            }
         }
 
         Reservation reservation = ReservationMapper.toEntity(dto);
 
         reservation.setBranch(branch);
         reservation.setAreaTable(table);
-        reservation.setStatus(ReservationStatus.APPROVED);
+        // Set default duration if not provided
+        if (reservation.getEstimatedDurationMinutes() == null) {
+            reservation.setEstimatedDurationMinutes(DEFAULT_DURATION);
+        }
+        // Customer reservations start as PENDING and need receptionist approval
+        reservation.setStatus(ReservationStatus.PENDING);
         reservation = reservationRepository.save(reservation);
+        
+        // Send confirmation email to customer about pending reservation
         if (reservation.getCustomerEmail() != null
                 && !reservation.getCustomerEmail().isBlank()) {
+            ReservationConfirmationMailRequest mailRequest =
+                    ReservationMapper.toMailRequest(reservation);
+            mailService.sendReservationConfirmationMail(mailRequest);
+        }
+        
+        return ReservationMapper.toDTO(reservation);
+    }
 
+    public ReservationDTO createByStaff(ReservationDTO dto) {
+
+        if (dto.getStartTime() != null && dto.getStartTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("START_TIME_MUST_BE_IN_FUTURE");
+        }
+
+        if (dto.getGuestNumber() <= 0) {
+            throw new IllegalArgumentException("GUEST_NUMBER_MUST_BE_POSITIVE");
+        }
+
+        Branch branch = branchRepository.findById(dto.getBranchId())
+                .orElseThrow(() -> new RuntimeException("Branch not found"));
+
+        AreaTable table = null;
+
+        if (dto.getAreaTableId() != null) {
+            table = areaTableRepository.findById(dto.getAreaTableId())
+                    .orElseThrow(() -> new RuntimeException("Table not found"));
+            
+            // Validate table availability using time-based logic
+            boolean conflict = hasTableConflict(dto.getBranchId(), dto.getAreaTableId(), 
+                    dto.getStartTime(), dto.getEstimatedDurationMinutes());
+            if (conflict) {
+                throw new RuntimeException("TABLE_NOT_AVAILABLE");
+            }
+        }
+
+        Reservation reservation = ReservationMapper.toEntity(dto);
+
+        reservation.setBranch(branch);
+        reservation.setAreaTable(table);
+        // Set default duration if not provided
+        if (reservation.getEstimatedDurationMinutes() == null) {
+            reservation.setEstimatedDurationMinutes(DEFAULT_DURATION);
+        }
+        // Staff-created reservations are auto-approved
+        reservation.setStatus(ReservationStatus.APPROVED);
+        reservation = reservationRepository.save(reservation);
+        
+        // Send approval email to customer
+        if (reservation.getCustomerEmail() != null
+                && !reservation.getCustomerEmail().isBlank()) {
             ReservationApprovalMailRequest mailRequest =
                     ReservationMapper.toApprovalMailRequest(reservation);
-
             mailService.sendReservationApprovalMail(mailRequest);
         }
+        
         return ReservationMapper.toDTO(reservation);
     }
 
@@ -314,6 +382,118 @@ public class ReservationService {
                 .sorted(Comparator.comparing(Reservation::getStartTime))
                 .map(ReservationMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    // ============ TIME-BASED AVAILABILITY LOGIC ============
+
+    private boolean isOverlapping(LocalDateTime start1, LocalDateTime end1,
+                                   LocalDateTime start2, LocalDateTime end2) {
+        return start1.isBefore(end2) && end1.isAfter(start2);
+    }
+
+    private boolean hasTableConflict(UUID branchId, UUID tableId, LocalDateTime requestedStart, Integer estimatedDuration) {
+        if (tableId == null) {
+            return false;
+        }
+
+        int duration = estimatedDuration != null ? estimatedDuration : DEFAULT_DURATION;
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(duration + BUFFER_MINUTES);
+
+        List<Reservation> reservations = reservationRepository
+                .findByBranch_BranchIdAndStatusIn(
+                        branchId,
+                        Arrays.asList(ReservationStatus.APPROVED, ReservationStatus.CONFIRMED)
+                );
+
+        for (Reservation r : reservations) {
+            if (r.getAreaTable() == null) continue;
+            if (!r.getAreaTable().getAreaTableId().equals(tableId)) continue;
+
+            LocalDateTime existingStart = r.getStartTime();
+            int existingDuration = r.getEstimatedDurationMinutes() != null
+                    ? r.getEstimatedDurationMinutes()
+                    : DEFAULT_DURATION;
+            LocalDateTime existingEnd = existingStart.plusMinutes(existingDuration + BUFFER_MINUTES);
+
+            if (isOverlapping(existingStart, existingEnd, requestedStart, requestedEnd)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public List<TableAvailabilityDTO> getAvailableTables(UUID branchId,
+                                                          LocalDateTime requestedStart,
+                                                          int guestCount,
+                                                          Integer estimatedDuration) {
+        int duration = estimatedDuration != null ? estimatedDuration : DEFAULT_DURATION;
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(duration + BUFFER_MINUTES);
+
+        List<AreaTable> tables = areaTableRepository.findByArea_Branch_BranchId(branchId);
+
+        List<Reservation> reservations = reservationRepository
+                .findByBranch_BranchIdAndStatusIn(
+                        branchId,
+                        Arrays.asList(ReservationStatus.APPROVED, ReservationStatus.CONFIRMED)
+                );
+
+        List<TableAvailabilityDTO> result = new ArrayList<>();
+
+        for (AreaTable table : tables) {
+            if (table.getCapacity() < guestCount) continue;
+
+            boolean hasConflict = false;
+            boolean risky = false;
+            String reason = null;
+
+            for (Reservation r : reservations) {
+                if (r.getAreaTable() == null) continue;
+                if (!r.getAreaTable().getAreaTableId().equals(table.getAreaTableId())) continue;
+
+                LocalDateTime existingStart = r.getStartTime();
+                int existingDuration = r.getEstimatedDurationMinutes() != null
+                        ? r.getEstimatedDurationMinutes()
+                        : DEFAULT_DURATION;
+                LocalDateTime existingEnd = existingStart.plusMinutes(existingDuration + BUFFER_MINUTES);
+
+                if (isOverlapping(existingStart, existingEnd, requestedStart, requestedEnd)) {
+                    hasConflict = true;
+                    reason = "Overlaps with existing reservation";
+                    break;
+                }
+
+                // Check if risky: gap < 30 minutes
+                long gapBefore = Duration.between(existingEnd, requestedStart).toMinutes();
+                long gapAfter = Duration.between(requestedEnd, existingStart).toMinutes();
+                
+                if (gapBefore >= 0 && gapBefore <= RISKY_GAP_MINUTES) {
+                    risky = true;
+                    reason = "Less than 30 minutes after previous reservation";
+                } else if (gapAfter >= 0 && gapAfter <= RISKY_GAP_MINUTES) {
+                    risky = true;
+                    reason = "Less than 30 minutes before next reservation";
+                }
+            }
+
+            TableAvailabilityDTO dto = new TableAvailabilityDTO();
+            dto.setTableId(table.getAreaTableId());
+            dto.setTableTag(table.getTag());
+            dto.setCapacity(table.getCapacity());
+            dto.setReason(reason);
+
+            if (hasConflict) {
+                dto.setStatus("UNAVAILABLE");
+            } else if (risky) {
+                dto.setStatus("RISKY");
+            } else {
+                dto.setStatus("AVAILABLE");
+            }
+
+            result.add(dto);
+        }
+
+        return result;
     }
 
     public ReservationAnalyticsDTO getAnalytics(UUID branchId, LocalDate startDate, LocalDate endDate) {

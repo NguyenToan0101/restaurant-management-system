@@ -92,6 +92,8 @@ export function ReservationList({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [arrivalDialogOpen, setArrivalDialogOpen] = useState(false);
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
 
   const approveMutation = useApproveReservation();
   const rejectMutation = useRejectReservation();
@@ -127,16 +129,40 @@ export function ReservationList({
     }
   };
 
-  const handleMarkArrived = (id: string) => {
-    arriveMutation.mutate(id);
+  const handleMarkArrivedClick = (id: string) => {
+    setSelectedReservationId(id);
+    setArrivalDialogOpen(true);
+  };
+
+  const handleMarkArrivedConfirm = () => {
+    if (selectedReservationId) {
+      arriveMutation.mutate(selectedReservationId, {
+        onSuccess: () => {
+          setArrivalDialogOpen(false);
+          setSelectedReservationId(null);
+        },
+      });
+    }
   };
 
   const handleComplete = (id: string) => {
     completeMutation.mutate(id);
   };
 
-  const handleMarkNoShow = (id: string) => {
-    noShowMutation.mutate(id);
+  const handleMarkNoShowClick = (id: string) => {
+    setSelectedReservationId(id);
+    setNoShowDialogOpen(true);
+  };
+
+  const handleMarkNoShowConfirm = () => {
+    if (selectedReservationId) {
+      noShowMutation.mutate(selectedReservationId, {
+        onSuccess: () => {
+          setNoShowDialogOpen(false);
+          setSelectedReservationId(null);
+        },
+      });
+    }
   };
 
   const formatDateTime = (dateString: string) => {
@@ -203,7 +229,7 @@ export function ReservationList({
               variant="default"
               onClick={(e) => {
                 e.stopPropagation();
-                handleMarkArrived(reservation.reservationId);
+                handleMarkArrivedClick(reservation.reservationId);
               }}
               disabled={isProcessing}
               className="bg-teal-600 hover:bg-teal-700 text-white"
@@ -220,7 +246,7 @@ export function ReservationList({
               variant="outline"
               onClick={(e) => {
                 e.stopPropagation();
-                handleMarkNoShow(reservation.reservationId);
+                handleMarkNoShowClick(reservation.reservationId);
               }}
               disabled={isProcessing}
             >
@@ -398,6 +424,66 @@ export function ReservationList({
                 </>
               ) : (
                 'Reject Reservation'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={arrivalDialogOpen} onOpenChange={setArrivalDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Customer Arrival</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this customer as arrived? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={arriveMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkArrivedConfirm}
+              disabled={arriveMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              {arriveMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm Arrival'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={noShowDialogOpen} onOpenChange={setNoShowDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm No-Show</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this customer as a no-show? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={noShowMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkNoShowConfirm}
+              disabled={noShowMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {noShowMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm No-Show'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

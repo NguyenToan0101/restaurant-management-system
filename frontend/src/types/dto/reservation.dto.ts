@@ -28,6 +28,7 @@ export interface ReservationDTO {
   tableTag?: string;
   tableCapacity?: number;
   serviceDurationMinutes?: number;
+  estimatedDurationMinutes?: number;
 }
 
 export interface CreateReservationRequest {
@@ -39,6 +40,7 @@ export interface CreateReservationRequest {
   customerEmail?: string;
   guestNumber: number;
   note?: string;
+  estimatedDurationMinutes?: number;
 }
 
 export interface RejectReservationRequest {
@@ -65,4 +67,21 @@ export interface ReservationFilterParams {
   startDate?: string;
   endDate?: string;
   search?: string;
+}
+
+export type TableAvailabilityStatus = 'AVAILABLE' | 'RISKY' | 'UNAVAILABLE';
+
+export interface TableAvailabilityDTO {
+  tableId: string;
+  tableTag: string;
+  capacity: number;
+  status: TableAvailabilityStatus;
+  reason?: string;
+}
+
+export interface GetAvailableTablesParams {
+  branchId: string;
+  time: string; // ISO datetime
+  guests: number;
+  duration?: number; // minutes
 }

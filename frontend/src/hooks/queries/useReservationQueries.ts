@@ -6,6 +6,7 @@ import type {
   CreateReservationRequest,
   RejectReservationRequest,
   ReservationFilterParams,
+  GetAvailableTablesParams,
 } from '@/types/dto';
 
 const RESERVATION_KEYS = {
@@ -15,8 +16,11 @@ const RESERVATION_KEYS = {
     [...RESERVATION_KEYS.lists(), branchId, filters] as const,
   details: () => [...RESERVATION_KEYS.all, 'detail'] as const,
   detail: (id: string) => [...RESERVATION_KEYS.details(), id] as const,
+  byTable: (tableId: string) => [...RESERVATION_KEYS.all, 'by-table', tableId] as const,
   analytics: (branchId: string, startDate: string, endDate: string) =>
     [...RESERVATION_KEYS.all, 'analytics', branchId, startDate, endDate] as const,
+  availableTables: (params: GetAvailableTablesParams) =>
+    [...RESERVATION_KEYS.all, 'available-tables', params] as const,
 };
 
 export const useReservations = (
@@ -42,7 +46,7 @@ export const useCreateReservation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateReservationRequest) => reservationApi.create(data),
+    mutationFn: (data: CreateReservationRequest) => reservationApi.createByStaff(data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: RESERVATION_KEYS.lists() });
       toast.success('Reservation created successfully', {
@@ -179,5 +183,21 @@ export const useReservationAnalytics = (
     queryKey: RESERVATION_KEYS.analytics(branchId, startDate, endDate),
     queryFn: () => reservationApi.getAnalytics(branchId, startDate, endDate),
     enabled: !!branchId && !!startDate && !!endDate,
+  });
+};
+
+export const useAvailableTables = (params: GetAvailableTablesParams) => {
+  return useQuery({
+    queryKey: RESERVATION_KEYS.availableTables(params),
+    queryFn: () => reservationApi.getAvailableTables(params),
+    enabled: !!params.branchId && !!params.time && params.guests > 0,
+  });
+};
+
+export const useReservationsByTable = (tableId: string) => {
+  return useQuery({
+    queryKey: RESERVATION_KEYS.byTable(tableId),
+    queryFn: () => reservationApi.getByTable(tableId),
+    enabled: !!tableId,
   });
 };
