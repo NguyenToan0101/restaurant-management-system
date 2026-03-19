@@ -72,12 +72,9 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/health/**",
                                 "/api/public/**",
-                                "/api/areas/**",
-                                "/api/area-tables/**",
-                                "/api/categories/**",
-                                "/api/menu-items/**",
-                                "api/reservations",
-                                "/api/waiter/orders/**"
+                                "/api/reservations",
+                                "/api/waiter/orders/**",
+                                "/api/branch-menu-items/guest/**"
                                 )
                         .permitAll()
                         // OAuth2 endpoints (handled by Spring Security)

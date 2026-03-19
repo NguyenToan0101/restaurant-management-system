@@ -3,12 +3,16 @@ package com.example.backend.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.backend.dto.ReservationAnalyticsDTO;
 import com.example.backend.dto.ReservationDTO;
+import com.example.backend.dto.request.RejectReservationRequest;
 import com.example.backend.dto.response.ApiResponse;
+import com.example.backend.entities.ReservationStatus;
 import com.example.backend.services.ReservationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,5 +72,64 @@ public class ReservationController {
     public ApiResponse<Void> delete(@PathVariable UUID id) {
         reservationService.delete(id);
         return new ApiResponse<>();
+    }
+
+    @PostMapping("/{id}/approve")
+    public ApiResponse<ReservationDTO> approve(@PathVariable UUID id) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.approve(id));
+        return res;
+    }
+
+    @PostMapping("/{id}/reject")
+    public ApiResponse<ReservationDTO> reject(
+            @PathVariable UUID id,
+            @RequestBody RejectReservationRequest request) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.reject(id, request.getReason()));
+        return res;
+    }
+
+    @PostMapping("/{id}/arrive")
+    public ApiResponse<ReservationDTO> markArrived(@PathVariable UUID id) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.markArrived(id));
+        return res;
+    }
+
+    @PostMapping("/{id}/complete")
+    public ApiResponse<ReservationDTO> complete(@PathVariable UUID id) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.complete(id));
+        return res;
+    }
+
+    @PostMapping("/{id}/no-show")
+    public ApiResponse<ReservationDTO> markNoShow(@PathVariable UUID id) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.markNoShow(id));
+        return res;
+    }
+
+    @GetMapping("/branch/{branchId}/filter")
+    public ApiResponse<List<ReservationDTO>> filterReservations(
+            @PathVariable UUID branchId,
+            @RequestParam(required = false) List<ReservationStatus> statuses,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) String search) {
+        ApiResponse<List<ReservationDTO>> res = new ApiResponse<>();
+        res.setResult(reservationService.filterReservations(branchId, statuses, startDate, endDate, search));
+        return res;
+    }
+
+    @GetMapping("/branch/{branchId}/analytics")
+    public ApiResponse<ReservationAnalyticsDTO> getAnalytics(
+            @PathVariable UUID branchId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+        ApiResponse<ReservationAnalyticsDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.getAnalytics(branchId, startDate, endDate));
+        return res;
     }
 }

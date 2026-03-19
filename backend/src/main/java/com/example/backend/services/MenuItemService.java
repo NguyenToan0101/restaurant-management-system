@@ -67,6 +67,23 @@ public class MenuItemService {
         }).toList();
     }
 
+    // Public version without ownership validation for customer access
+    public List<MenuItemDTO> getByRestaurant(UUID restaurantId) {
+        // Only show ACTIVE items to customers
+        List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(
+            restaurantId, 
+            Collections.singletonList(EntityStatus.ACTIVE)
+        );
+
+        if (list.isEmpty()) return Collections.emptyList();
+
+        return list.stream().map(item -> {
+            MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
+            dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            return dto;
+        }).toList();
+    }
+
     public MenuItemDTO getById(UUID id) {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));

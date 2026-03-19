@@ -1,6 +1,9 @@
 package com.example.backend.services;
 
 import com.example.backend.dto.request.ReservationConfirmationMailRequest;
+import com.example.backend.dto.request.ReservationApprovalMailRequest;
+import com.example.backend.dto.request.ReservationRejectionMailRequest;
+import com.example.backend.dto.request.ReservationNoShowMailRequest;
 
 import org.springframework.web.client.RestClient;
 import org.thymeleaf.TemplateEngine;
@@ -27,6 +30,12 @@ public class MailService {
             "[BentoX] Subscription Renewal Reminder";
     private static final String RESERVATION_CONFIRMATION_SUBJECT =
             "Xác nhận đặt bàn thành công";
+    private static final String RESERVATION_APPROVAL_SUBJECT =
+            "Đặt bàn được chấp nhận";
+    private static final String RESERVATION_REJECTION_SUBJECT =
+            "Cập nhật đặt bàn";
+    private static final String RESERVATION_NO_SHOW_SUBJECT =
+            "Cập nhật đặt bàn";
     private final RestClient restClient;
     private final OTPService otpService;
     private final TemplateEngine templateEngine;
@@ -152,6 +161,76 @@ public class MailService {
                 request.getMail(),
                 request.getCustomerName(),
                 RESERVATION_CONFIRMATION_SUBJECT,
+                htmlContent
+        );
+    }
+
+    public void sendReservationApprovalMail(
+            ReservationApprovalMailRequest request) {
+
+        Context context = new Context();
+        context.setVariable("restaurantName", request.getRestaurantName());
+        context.setVariable("customerName",   request.getCustomerName());
+        context.setVariable("reservationId",  request.getReservationId());
+        context.setVariable("startTime",      request.getStartTime());
+        context.setVariable("guestNumber",    request.getGuestNumber());
+        context.setVariable("branchAddress",  request.getBranchAddress());
+        context.setVariable("tableTag",       request.getTableTag());
+        context.setVariable("tableCapacity",  request.getTableCapacity());
+        context.setVariable("note",           request.getNote());
+
+        String htmlContent =
+                templateEngine.process("reservationApproval", context);
+
+        sendMail(
+                request.getMail(),
+                request.getCustomerName(),
+                RESERVATION_APPROVAL_SUBJECT,
+                htmlContent
+        );
+    }
+
+    public void sendReservationRejectionMail(
+            ReservationRejectionMailRequest request) {
+
+        Context context = new Context();
+        context.setVariable("restaurantName", request.getRestaurantName());
+        context.setVariable("customerName",   request.getCustomerName());
+        context.setVariable("reservationId",  request.getReservationId());
+        context.setVariable("startTime",      request.getStartTime());
+        context.setVariable("reason",         request.getReason());
+        context.setVariable("branchPhone",    request.getBranchPhone());
+        context.setVariable("branchEmail",    request.getBranchEmail());
+
+        String htmlContent =
+                templateEngine.process("reservationRejection", context);
+
+        sendMail(
+                request.getMail(),
+                request.getCustomerName(),
+                RESERVATION_REJECTION_SUBJECT,
+                htmlContent
+        );
+    }
+
+    public void sendReservationNoShowMail(
+            ReservationNoShowMailRequest request) {
+
+        Context context = new Context();
+        context.setVariable("restaurantName", request.getRestaurantName());
+        context.setVariable("customerName",   request.getCustomerName());
+        context.setVariable("reservationId",  request.getReservationId());
+        context.setVariable("startTime",      request.getStartTime());
+        context.setVariable("branchPhone",    request.getBranchPhone());
+        context.setVariable("branchEmail",    request.getBranchEmail());
+
+        String htmlContent =
+                templateEngine.process("reservationNoShow", context);
+
+        sendMail(
+                request.getMail(),
+                request.getCustomerName(),
+                RESERVATION_NO_SHOW_SUBJECT,
                 htmlContent
         );
     }

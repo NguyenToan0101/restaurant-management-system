@@ -31,7 +31,23 @@ public class ReservationDTO {
 
     private ReservationStatus status;
 
+    private Instant arrivalTime;
+
+    private Instant completionTime;
+
+    private String rejectionReason;
+
     private Instant createdAt;
 
     private Instant updatedAt;
+
+    private String branchName;
+
+    private String branchAddress;
+
+    private String tableTag;
+
+    private Integer tableCapacity;
+
+    private Long serviceDurationMinutes;
 }

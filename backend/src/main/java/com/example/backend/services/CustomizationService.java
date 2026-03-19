@@ -135,4 +135,26 @@ public class CustomizationService {
         return customizationRepository.findAllByCategories_CategoryIdAndStatus(categoryId, EntityStatus.ACTIVE)
                                     .stream().map(Customization::getCustomizationId).toList();
     }
+
+    // Public version for customer access - get customizations by menu item
+    public List<CustomizationDTO> getByMenuItem(UUID menuItemId) {
+        var menuItem = menuItemRepository.findById(menuItemId)
+                .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+        
+        Set<Customization> customizations = new LinkedHashSet<>();
+        
+        // Add customizations from the menu item's category (if hasCustomization = true)
+        if (menuItem.isHasCustomization() && menuItem.getCategory() != null) {
+            customizations.addAll(menuItem.getCategory().getCustomizations());
+        }
+        
+        // Add specific customizations assigned directly to this menu item
+        customizations.addAll(menuItem.getCustomizations());
+        
+        // Filter only ACTIVE customizations and return
+        return customizations.stream()
+                .filter(c -> c.getStatus() == EntityStatus.ACTIVE)
+                .map(customizationMapper::toCustomizationDTO)
+                .toList();
+    }
 }

@@ -49,6 +49,7 @@ import WaiterHistory from "@/pages/waiter/WaiterHistory";
 import ReceptionistLayout from "@/components/receptionist/ReceptionistLayout";
 import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
 import ReceptionistTableView from "@/pages/receptionist/ReceptionistTableView";
+import ReservationManagement from "@/pages/receptionist/ReservationManagement";
 
 import ComingSoon from "@/components/ComingSoon";
 import { StaffRoleName } from "@/types/dto";
@@ -292,7 +293,7 @@ const AppRoutes = () => {
       }>
         <Route path="dashboard" element={<ReceptionistDashboard />} />
         <Route path="tables" element={<ReceptionistTableView />} />
-        <Route path="reservations" element={<ComingSoon title="Reservations" description="Manage table reservations and bookings." />} />
+        <Route path="reservations" element={<ReservationManagement />} />
         <Route index element={<Navigate to="dashboard" replace />} />
       </Route>
 
