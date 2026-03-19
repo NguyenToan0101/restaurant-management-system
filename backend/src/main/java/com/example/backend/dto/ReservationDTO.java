@@ -50,4 +50,6 @@ public class ReservationDTO {
     private Integer tableCapacity;
 
     private Long serviceDurationMinutes;
+
+    private Integer estimatedDurationMinutes;
 }

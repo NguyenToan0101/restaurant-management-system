@@ -28,6 +28,8 @@ public interface AreaTableRepository extends JpaRepository<AreaTable, UUID> {
     @Query("SELECT t FROM AreaTable t WHERE t.area.branch.branchId = :branchId")
     List<AreaTable> findByBranchId(@Param("branchId") UUID branchId);
     
+    List<AreaTable> findByArea_Branch_BranchId(UUID branchId);
+    
     @Query("SELECT t FROM AreaTable t WHERE t.area.branch.branchId = :branchId")
     Page<AreaTable> findByBranchId(@Param("branchId") UUID branchId, Pageable pageable);
     

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const defaultStatuses = [
 
 export function ReservationFilters({ filters, onFiltersChange }: ReservationFiltersProps) {
   const [search, setSearch] = useState(filters.search || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search || '');
   const [selectedStatuses, setSelectedStatuses] = useState<ReservationStatus[]>(
     filters.statuses || defaultStatuses
   );
@@ -38,15 +39,25 @@ export function ReservationFilters({ filters, onFiltersChange }: ReservationFilt
     filters.endDate ? new Date(filters.endDate) : undefined
   );
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Only trigger filter change when debounced search changes
   useEffect(() => {
     const newFilters: ReservationFilterParams = {
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
       startDate: startDate ? startDate.toISOString().split('T')[0] : undefined,
       endDate: endDate ? endDate.toISOString().split('T')[0] : undefined
     };
     onFiltersChange(newFilters);
-  }, [search, selectedStatuses, startDate, endDate, onFiltersChange]);
+  }, [debouncedSearch, selectedStatuses, startDate, endDate, onFiltersChange]);
 
   const handleStatusToggle = (status: ReservationStatus) => {
     setSelectedStatuses(prev =>
@@ -58,6 +69,7 @@ export function ReservationFilters({ filters, onFiltersChange }: ReservationFilt
 
   const handleClearFilters = () => {
     setSearch('');
+    setDebouncedSearch('');
     setSelectedStatuses(defaultStatuses);
     setStartDate(undefined);
     setEndDate(undefined);
@@ -77,6 +89,7 @@ export function ReservationFilters({ filters, onFiltersChange }: ReservationFilt
               placeholder="Search by name, phone, or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              autoComplete="off"
               className="pl-10"
             />
           </div>

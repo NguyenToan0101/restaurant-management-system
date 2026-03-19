@@ -5,7 +5,9 @@ import type {
     CreateReservationRequest,
     RejectReservationRequest,
     ReservationAnalyticsDTO,
-    ReservationFilterParams
+    ReservationFilterParams,
+    TableAvailabilityDTO,
+    GetAvailableTablesParams
 } from '@/types/dto';
 
 class ReservationApi {
@@ -39,6 +41,11 @@ class ReservationApi {
 
     async create(data: CreateReservationRequest): Promise<ReservationDTO> {
         const response = await axiosClient.post<ApiResponse<ReservationDTO>>('/reservations', data);
+        return response.data.result;
+    }
+
+    async createByStaff(data: CreateReservationRequest): Promise<ReservationDTO> {
+        const response = await axiosClient.post<ApiResponse<ReservationDTO>>('/reservations/staff', data);
         return response.data.result;
     }
 
@@ -82,6 +89,15 @@ class ReservationApi {
 
     async delete(id: string): Promise<void> {
         await axiosClient.delete<ApiResponse<void>>(`/reservations/${id}`);
+    }
+
+    async getAvailableTables(params: GetAvailableTablesParams): Promise<TableAvailabilityDTO[]> {
+        const { branchId, time, guests, duration } = params;
+        const response = await axiosClient.get<ApiResponse<TableAvailabilityDTO[]>>(
+            `/reservations/branch/${branchId}/available-tables`,
+            { params: { time, guests, duration } }
+        );
+        return response.data.result;
     }
 }
 

@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.ReservationAnalyticsDTO;
 import com.example.backend.dto.ReservationDTO;
+import com.example.backend.dto.TableAvailabilityDTO;
 import com.example.backend.dto.request.RejectReservationRequest;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.entities.ReservationStatus;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,6 +57,13 @@ public class ReservationController {
     public ApiResponse<ReservationDTO> create(@RequestBody ReservationDTO dto) {
         ApiResponse<ReservationDTO> res = new ApiResponse<>();
         res.setResult(reservationService.create(dto));
+        return res;
+    }
+
+    @PostMapping("/staff")
+    public ApiResponse<ReservationDTO> createByStaff(@RequestBody ReservationDTO dto) {
+        ApiResponse<ReservationDTO> res = new ApiResponse<>();
+        res.setResult(reservationService.createByStaff(dto));
         return res;
     }
 
@@ -130,6 +139,17 @@ public class ReservationController {
             @RequestParam(required = false) LocalDate endDate) {
         ApiResponse<ReservationAnalyticsDTO> res = new ApiResponse<>();
         res.setResult(reservationService.getAnalytics(branchId, startDate, endDate));
+        return res;
+    }
+
+    @GetMapping("/branch/{branchId}/available-tables")
+    public ApiResponse<List<TableAvailabilityDTO>> getAvailableTables(
+            @PathVariable UUID branchId,
+            @RequestParam LocalDateTime time,
+            @RequestParam int guests,
+            @RequestParam(required = false) Integer duration) {
+        ApiResponse<List<TableAvailabilityDTO>> res = new ApiResponse<>();
+        res.setResult(reservationService.getAvailableTables(branchId, time, guests, duration));
         return res;
     }
 }

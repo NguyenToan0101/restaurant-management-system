@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { restaurantApi, branchApi, areaApi, tableApi, reservationApi } from '@/api'
 import { useToast } from '@/hooks/use-toast'
 import CustomerHeader from '@/components/customer/CustomerHeader'
-import type { RestaurantDTO, BranchDTO, AreaDTO, AreaTableDTO } from '@/types/dto'
+import type { RestaurantDTO, BranchDTO, AreaDTO, AreaTableDTO, TableAvailabilityDTO } from '@/types/dto'
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { setHours, setMinutes } from "date-fns"
@@ -17,12 +17,14 @@ export default function TableSelectionPage() {
   const [branches, setBranches] = useState<BranchDTO[]>([])
   const [areas, setAreas] = useState<AreaDTO[]>([])
   const[tables, setTables] = useState<AreaTableDTO[]>([])
+  const [tableAvailability, setTableAvailability] = useState<Map<string, TableAvailabilityDTO>>(new Map())
 
   const [selectedBranch, setSelectedBranch] = useState<BranchDTO | null>(null)
   const [selectedArea, setSelectedArea] = useState<AreaDTO | null>(null)
   const [selectedTable, setSelectedTable] = useState<AreaTableDTO | null>(null)
 
   const [loading, setLoading] = useState(true)
+  const [loadingAvailability, setLoadingAvailability] = useState(false)
   const [step, setStep] = useState<'branch' | 'details' | 'area' | 'table'>('branch')
 
   const[reservationData, setReservationData] = useState({
@@ -107,6 +109,48 @@ export default function TableSelectionPage() {
 
     fetchTables()
   }, [selectedArea])
+
+  // Fetch table availability when reservation details or area changes
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      if (!selectedBranch || !reservationData.reservationDate || !reservationData.reservationTime) {
+        return
+      }
+
+      try {
+        setLoadingAvailability(true)
+        const dateTime = `${reservationData.reservationDate}T${reservationData.reservationTime}:00`
+        
+        const availableTables = await reservationApi.getAvailableTables({
+          branchId: selectedBranch.branchId || '',
+          time: dateTime,
+          guests: reservationData.guestNumber,
+          duration: undefined
+        })
+
+        // Convert array to Map for quick lookup
+        const availabilityMap = new Map<string, TableAvailabilityDTO>()
+        availableTables.forEach(table => {
+          availabilityMap.set(table.tableId, table)
+        })
+        setTableAvailability(availabilityMap)
+
+        // Clear selected table if it's no longer available
+        if (selectedTable) {
+          const selectedAvailability = availabilityMap.get(selectedTable.areaTableId || '')
+          if (!selectedAvailability || selectedAvailability.status !== 'AVAILABLE') {
+            setSelectedTable(null)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching table availability:', err)
+      } finally {
+        setLoadingAvailability(false)
+      }
+    }
+
+    fetchAvailability()
+  }, [selectedBranch, reservationData.reservationDate, reservationData.reservationTime, reservationData.guestNumber])
 
   const validateReservationDetails = (): boolean => {
     const { customerName, customerPhone, customerEmail, guestNumber, reservationDate, reservationTime } = reservationData
@@ -521,15 +565,47 @@ export default function TableSelectionPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-                        <span className="text-gray-600">OCCUPIED / TOO SMALL</span>
+                        <span className="text-gray-600">RESERVED / UNAVAILABLE</span>
                       </div>
                     </div>
 
                     {/* Table Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                       {tables.map(table => {
+                        const availability = tableAvailability.get(table.areaTableId || '');
                         const isEnoughCapacity = table.capacity >= reservationData.guestNumber;
-                        const isAvailable = table.status === 'FREE' && isEnoughCapacity;
+                        
+                        // Determine availability based on backend response
+                        let isAvailable = false;
+                        let statusLabel = '';
+                        let statusColor = '';
+                        
+                        if (availability) {
+                          // Backend has checked reservation conflicts
+                          isAvailable = availability.status === 'AVAILABLE' && isEnoughCapacity;
+                          
+                          if (availability.status === 'UNAVAILABLE') {
+                            statusLabel = availability.reason || 'Reserved';
+                            statusColor = 'text-red-500';
+                          } else if (availability.status === 'RISKY') {
+                            statusLabel = availability.reason || 'Tight schedule';
+                            statusColor = 'text-orange-500';
+                          } else if (!isEnoughCapacity) {
+                            statusLabel = 'Too small';
+                            statusColor = 'text-red-500';
+                          }
+                        } else {
+                          // Fallback: check basic capacity and table status
+                          isAvailable = table.status === 'FREE' && isEnoughCapacity;
+                          if (!isEnoughCapacity && table.status === 'FREE') {
+                            statusLabel = 'Too small';
+                            statusColor = 'text-red-500';
+                          } else if (table.status !== 'FREE') {
+                            statusLabel = 'Occupied';
+                            statusColor = 'text-gray-500';
+                          }
+                        }
+                        
                         const isSelected = selectedTable?.areaTableId === table.areaTableId;
 
                         return (
@@ -550,8 +626,11 @@ export default function TableSelectionPage() {
                               {table.tag}
                             </div>
                             <div className="text-sm font-medium text-gray-500">{table.capacity} SEATS</div>
-                            {!isEnoughCapacity && table.status === 'FREE' && (
-                              <div className="text-[10px] text-red-500 mt-1 mt-auto">Too small</div>
+                            {statusLabel && (
+                              <div className={`text-[10px] ${statusColor} mt-1 mt-auto`}>{statusLabel}</div>
+                            )}
+                            {loadingAvailability && !availability && (
+                              <div className="text-[10px] text-gray-400 mt-1">Checking...</div>
                             )}
                           </div>
                         )

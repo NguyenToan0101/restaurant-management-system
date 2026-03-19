@@ -67,6 +67,9 @@ public class Reservation {
     @Column(name = "rejection_reason")
     private String rejectionReason;
 
+    @Column(name = "estimated_duration_minutes")
+    private Integer estimatedDurationMinutes;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;
@@ -193,6 +196,14 @@ public class Reservation {
 
     public void setRejectionReason(String rejectionReason) {
         this.rejectionReason = rejectionReason;
+    }
+
+    public Integer getEstimatedDurationMinutes() {
+        return estimatedDurationMinutes;
+    }
+
+    public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) {
+        this.estimatedDurationMinutes = estimatedDurationMinutes;
     }
 
     

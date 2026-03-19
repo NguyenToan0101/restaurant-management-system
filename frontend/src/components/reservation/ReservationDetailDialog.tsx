@@ -98,6 +98,8 @@ export function ReservationDetailDialog({
 }: ReservationDetailDialogProps) {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [arrivalDialogOpen, setArrivalDialogOpen] = useState(false);
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
 
   const approveMutation = useApproveReservation();
   const rejectMutation = useRejectReservation();
@@ -154,9 +156,16 @@ export function ReservationDetailDialog({
     );
   };
 
-  const handleMarkArrived = () => {
+  const handleMarkArrivedClick = () => {
+    setArrivalDialogOpen(true);
+  };
+
+  const handleMarkArrivedConfirm = () => {
     arriveMutation.mutate(reservation.reservationId, {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        setArrivalDialogOpen(false);
+        onClose();
+      },
     });
   };
 
@@ -166,9 +175,16 @@ export function ReservationDetailDialog({
     });
   };
 
-  const handleMarkNoShow = () => {
+  const handleMarkNoShowClick = () => {
+    setNoShowDialogOpen(true);
+  };
+
+  const handleMarkNoShowConfirm = () => {
     noShowMutation.mutate(reservation.reservationId, {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        setNoShowDialogOpen(false);
+        onClose();
+      },
     });
   };
 
@@ -212,7 +228,7 @@ export function ReservationDetailDialog({
         return (
           <div className="flex gap-2">
             <Button
-              onClick={handleMarkArrived}
+              onClick={handleMarkArrivedClick}
               disabled={isProcessing}
               className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
             >
@@ -225,7 +241,7 @@ export function ReservationDetailDialog({
             </Button>
             <Button
               variant="outline"
-              onClick={handleMarkNoShow}
+              onClick={handleMarkNoShowClick}
               disabled={isProcessing}
               className="flex-1"
             >
@@ -506,6 +522,66 @@ export function ReservationDetailDialog({
                 </>
               ) : (
                 'Reject Reservation'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={arrivalDialogOpen} onOpenChange={setArrivalDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Customer Arrival</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this customer as arrived? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={arriveMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkArrivedConfirm}
+              disabled={arriveMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              {arriveMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm Arrival'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={noShowDialogOpen} onOpenChange={setNoShowDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm No-Show</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this customer as a no-show? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={noShowMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkNoShowConfirm}
+              disabled={noShowMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {noShowMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm No-Show'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

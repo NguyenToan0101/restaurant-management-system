@@ -22,7 +22,7 @@ import {
 import {
     CheckCircle, XCircle, Users, Armchair, Loader2,
     CreditCard, DollarSign, Minus, Plus, Trash2, Receipt, X, Printer, Search,
-    UtensilsCrossed, Settings2, ChevronLeft,
+    UtensilsCrossed, Settings2, ChevronLeft, Calendar, Clock,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
@@ -32,10 +32,12 @@ import {
     useActiveOrderByTable, useUpdateOrderItem, useRemoveOrderItem,
     useConfirmPayment, useWaiterSetTableStatus, useCancelOrder,
 } from "@/hooks/queries/useWaiterQueries";
+import { useReservationsByTable } from "@/hooks/queries/useReservationQueries";
 import type { AreaTableDTO, OrderDTO, BillDTO } from "@/types/dto";
-import { TableStatus, EntityStatus, PaymentMethod } from "@/types/dto";
+import { TableStatus, EntityStatus, PaymentMethod, ReservationStatus } from "@/types/dto";
 import InvoiceView from "@/components/waiter/InvoiceView";
 import { useReactToPrint } from "react-to-print";
+import { format } from "date-fns";
 
 const formatVND = (value: number): string =>
     new Intl.NumberFormat("vi-VN", {
@@ -444,6 +446,14 @@ interface TableCardProps {
 }
 
 const TableCard = ({ table, onClick }: TableCardProps) => {
+    const { data: reservations = [] } = useReservationsByTable(table.areaTableId || '');
+    const [reservationDialogOpen, setReservationDialogOpen] = useState(false);
+    
+    // Find all active reservations (APPROVED or CONFIRMED status)
+    const activeReservations = reservations.filter(
+        r => r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
+    );
+
     const getStyles = () => {
         switch (table.status) {
             case TableStatus.FREE:
@@ -479,26 +489,128 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
         : table.status === TableStatus.INACTIVE ? 'Out of Order' : 'Unknown';
 
     return (
-        <Card
-            className={`${styles.card} transition-all duration-300 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02]`}
-            onClick={onClick}
-        >
-            <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-2">
-                    <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
-                        <Armchair className="w-8 h-8" />
+        <>
+            <Card
+                className={`${styles.card} transition-all duration-300 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02] relative`}
+                onClick={onClick}
+            >
+                <CardContent className="p-4">
+                    <div className="flex flex-col items-center gap-2">
+                        <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
+                            <Armchair className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-bold text-lg">{table.tag}</h3>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="w-3.5 h-3.5" />
+                            <span>{table.capacity} seats</span>
+                        </div>
+                        <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
+                            {statusText}
+                        </Badge>
+                        
+                        {/* Reservation Badge */}
+                        {activeReservations.length > 0 && (
+                            <Badge 
+                                variant="outline" 
+                                className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mt-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReservationDialogOpen(true);
+                                }}
+                            >
+                                <Calendar className="w-3 h-3 mr-1" />
+                                {activeReservations.length} Reserved
+                            </Badge>
+                        )}
                     </div>
-                    <h3 className="font-bold text-lg">{table.tag}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="w-3.5 h-3.5" />
-                        <span>{table.capacity} seats</span>
-                    </div>
-                    <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
-                        {statusText}
-                    </Badge>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+
+            {/* Reservation Detail Dialog */}
+            {activeReservations.length > 0 && (
+                <Dialog open={reservationDialogOpen} onOpenChange={setReservationDialogOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Reservations for Table {table.tag}</DialogTitle>
+                            <DialogDescription>
+                                {table.areaName} - {activeReservations.length} active reservation(s)
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                            {activeReservations.map((reservation, index) => (
+                                <Card key={reservation.reservationId} className="border-border/60">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <h4 className="font-semibold">Reservation #{index + 1}</h4>
+                                            <Badge variant={reservation.status === ReservationStatus.CONFIRMED ? 'default' : 'secondary'}>
+                                                {reservation.status}
+                                            </Badge>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Customer Name</p>
+                                                <p className="font-medium">{reservation.customerName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                                                <p className="font-medium">{reservation.customerPhone}</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.customerEmail && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                                <p className="font-medium">{reservation.customerEmail}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-4 mt-3">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.startTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Guests</p>
+                                                <p className="font-medium">{reservation.guestNumber} people</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.estimatedDurationMinutes && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                                                <p className="font-medium">{reservation.estimatedDurationMinutes} minutes</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.note && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                                <p className="text-sm">{reservation.note}</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.arrivalTime && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Arrival Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.arrivalTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setReservationDialogOpen(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </>
     );
 };
 
