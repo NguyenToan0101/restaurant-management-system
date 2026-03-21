@@ -78,6 +78,7 @@ export interface OrderHistorySummaryDTO {
   areaName: string;
   status: OrderStatus;
   totalPrice: number;
+  paidAmount?: number;
   createdAt: string;
   updatedAt: string;
   itemCount: number;
@@ -177,6 +178,7 @@ export interface CartItem {
   menuItemId: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   imageUrl: string | null;
   quantity: number;
   note: string;

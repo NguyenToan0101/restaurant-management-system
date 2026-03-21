@@ -163,4 +163,44 @@ public class PromotionService {
 
         return discountedPrice.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : discountedPrice;
     }
+
+    public BigDecimal calculateItemDiscountedPriceByRestaurant(UUID restaurantId, MenuItem menuItem) {
+        BigDecimal maxDiscountAmount = BigDecimal.ZERO;
+        List<Promotion> activeItemPromotions = promotionRepository
+                .findAllByRestaurant_RestaurantIdAndPromotionTypeAndStatus(
+                        restaurantId, PromotionType.MENU_ITEM, PromotionStatus.ACTIVE);
+
+        Instant now = Instant.now();
+        for (Promotion promotion : activeItemPromotions) {
+            if (promotion.getStartDate().isAfter(now) || promotion.getEndDate().isBefore(now)) {
+                continue;
+            }
+            if (!promotion.getMenuItems().contains(menuItem)) {
+                continue;
+            }
+            BigDecimal currentDiscount = computeDiscountAmount(menuItem.getPrice(), promotion);
+            if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
+                maxDiscountAmount = currentDiscount;
+            }
+        }
+        BigDecimal discountedPrice = menuItem.getPrice().subtract(maxDiscountAmount);
+        return discountedPrice.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : discountedPrice;
+    }
+
+    public BigDecimal computeDiscountAmount(BigDecimal baseAmount, Promotion promotion) {
+        BigDecimal discountAmount;
+        if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
+            discountAmount = baseAmount.multiply(promotion.getDiscountValue())
+                    .divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
+        } else {
+            discountAmount = promotion.getDiscountValue();
+        }
+
+        if (promotion.getMaxDiscountValue() != null
+                && promotion.getMaxDiscountValue().compareTo(BigDecimal.ZERO) > 0
+                && discountAmount.compareTo(promotion.getMaxDiscountValue()) > 0) {
+            discountAmount = promotion.getMaxDiscountValue();
+        }
+        return discountAmount.max(BigDecimal.ZERO);
+    }
 }

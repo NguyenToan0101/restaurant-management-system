@@ -28,6 +28,8 @@ public class OrderService {
     private final MenuItemRepository menuItemRepository;
     private final CustomizationRepository customizationRepository;
     private final MediaService mediaService;
+    private final PromotionService promotionService;
+    private final BillRepository billRepository;
 
     public OrderService(OrderRepository orderRepository,
                         OrderLineRepository orderLineRepository,
@@ -36,7 +38,9 @@ public class OrderService {
                         AreaTableRepository areaTableRepository,
                         MenuItemRepository menuItemRepository,
                         CustomizationRepository customizationRepository,
-                        MediaService mediaService) {
+                        MediaService mediaService,
+                        PromotionService promotionService,
+                        BillRepository billRepository) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.orderItemRepository = orderItemRepository;
@@ -45,6 +49,8 @@ public class OrderService {
         this.menuItemRepository = menuItemRepository;
         this.customizationRepository = customizationRepository;
         this.mediaService = mediaService;
+        this.promotionService = promotionService;
+        this.billRepository = billRepository;
     }
 
     @Transactional
@@ -107,12 +113,17 @@ public class OrderService {
             MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
                     .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
-            BigDecimal itemPrice = menuItem.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            BigDecimal unitPrice = menuItem.getPrice();
+            BigDecimal discountedUnitPrice = promotionService.calculateItemDiscountedPriceByRestaurant(
+                    menuItem.getRestaurant().getRestaurantId(), menuItem);
+            BigDecimal itemPrice = discountedUnitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrderLine(orderLine);
             orderItem.setMenuItem(menuItem);
             orderItem.setQuantity(itemReq.getQuantity());
+            orderItem.setUnitPrice(unitPrice);
+            orderItem.setDiscountedUnitPrice(discountedUnitPrice);
             orderItem.setNote(itemReq.getNote());
             orderItem.setStatus(EntityStatus.ACTIVE);
             orderItem.setTotalPrice(itemPrice);
@@ -154,7 +165,9 @@ public class OrderService {
         OrderItem orderItem = orderItemRepository.findById(orderItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
 
-        BigDecimal basePrice = orderItem.getMenuItem().getPrice();
+        BigDecimal basePrice = orderItem.getDiscountedUnitPrice() != null
+                ? orderItem.getDiscountedUnitPrice()
+                : orderItem.getMenuItem().getPrice();
         BigDecimal custTotal = orderItem.getOrderItemCustomizations().stream()
                 .map(OrderItemCustomization::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -235,9 +248,15 @@ public class OrderService {
         for (Object[] row : countRows) {
             itemCountByOrder.put((UUID) row[0], (Long) row[1]);
         }
+        Map<UUID, BigDecimal> paidAmountByOrder = billRepository.findByOrder_OrderIdIn(ids).stream()
+                .collect(Collectors.toMap(
+                        b -> b.getOrder().getOrderId(),
+                        Bill::getFinalPrice,
+                        (a, b) -> a));
         List<OrderHistorySummaryDTO> out = new ArrayList<>(orders.size());
         for (Order o : orders) {
             long cnt = itemCountByOrder.getOrDefault(o.getOrderId(), 0L);
+            BigDecimal paidAmount = paidAmountByOrder.getOrDefault(o.getOrderId(), o.getTotalPrice());
             out.add(OrderHistorySummaryDTO.builder()
                     .orderId(o.getOrderId())
                     .areaTableId(o.getAreaTable().getAreaTableId())
@@ -245,6 +264,7 @@ public class OrderService {
                     .areaName(o.getAreaTable().getArea().getName())
                     .status(o.getStatus())
                     .totalPrice(o.getTotalPrice())
+                    .paidAmount(paidAmount)
                     .createdAt(o.getCreatedAt())
                     .updatedAt(o.getUpdatedAt())
                     .itemCount(cnt)
@@ -343,11 +363,16 @@ public class OrderService {
                                 .menuItemId(item.getMenuItem().getMenuItemId())
                                 .menuItemName(item.getMenuItem().getName())
                                 .menuItemImageUrl(imageUrl)
-                                .menuItemPrice(item.getMenuItem().getPrice())
+                                .menuItemPrice(item.getUnitPrice() != null
+                                        ? item.getUnitPrice()
+                                        : item.getMenuItem().getPrice())
+                                .discountedPrice(item.getDiscountedUnitPrice() != null
+                                        ? item.getDiscountedUnitPrice()
+                                        : item.getMenuItem().getPrice())
                                 .quantity(item.getQuantity())
                                 .totalPrice(item.getTotalPrice())
                                 .note(item.getNote())
-//                                .customizations(custDTOs)
+                                .customizations(custDTOs)
                                 .build());
                     }
                 }

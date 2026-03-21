@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { managerApi } from "@/api/managerApi";
@@ -60,13 +60,13 @@ const ManagerBills = () => {
   const [pageSize] = useState(10);
 
   // Debounce search term
-  useState(() => {
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
       setPage(0);
     }, 500);
     return () => clearTimeout(handler);
-  });
+  }, [searchTerm]);
 
   const { data: searchResponse, isLoading } = useQuery({
     queryKey: ["manager-billing-search", branchId, startDate, endDate, paymentMethodFilter, debouncedSearchTerm, page, pageSize],
@@ -276,7 +276,14 @@ const ManagerBills = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-bold text-primary">
-                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(bill.finalPrice)}
+                      <div className="flex flex-col items-end">
+                        <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(bill.finalPrice)}</span>
+                        {bill.discountAmount > 0 && (
+                          <span className="text-[10px] text-blue-600">
+                            -{new Intl.NumberFormat("vi-VN").format(bill.discountAmount)} promo
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

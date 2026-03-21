@@ -5,6 +5,7 @@ import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
 import com.example.backend.entities.OrderStatus;
 import com.example.backend.entities.ReportType;
+import com.example.backend.repositories.BillRepository;
 import com.example.backend.repositories.BranchRepository;
 import com.example.backend.repositories.OrderRepository;
 import org.springframework.stereotype.Service;
@@ -18,8 +19,12 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,10 +34,14 @@ public class RestaurantReportService {
 
     private final OrderRepository orderRepository;
     private final BranchRepository branchRepository;
+    private final BillRepository billRepository;
 
-    public RestaurantReportService(OrderRepository orderRepository, BranchRepository branchRepository) {
+    public RestaurantReportService(OrderRepository orderRepository,
+                                   BranchRepository branchRepository,
+                                   BillRepository billRepository) {
         this.orderRepository = orderRepository;
         this.branchRepository = branchRepository;
+        this.billRepository = billRepository;
     }
 
     /**
@@ -70,7 +79,6 @@ public class RestaurantReportService {
         List<com.example.backend.entities.Branch> branches = branchRepository.findByRestaurant_RestaurantIdAndIsActiveTrue(restaurantId);
         
         // Aggregate data from all branches
-        BigDecimal totalRevenue = BigDecimal.ZERO;
         int totalOrders = 0;
         int completedOrders = 0;
         int cancelledOrders = 0;
@@ -86,18 +94,21 @@ public class RestaurantReportService {
             cancelledOrders += orderRepository.countOrdersByBranchAndStatusAndTimeframe(
                     branchId, OrderStatus.CANCELLED, startDate, endDate);
             
-            BigDecimal branchRevenue = orderRepository.sumRevenueByBranchAndTimeframe(
-                    branchId, OrderStatus.COMPLETED, startDate, endDate);
-            totalRevenue = totalRevenue.add(branchRevenue);
         }
 
         totalOrders = eatingOrders + completedOrders + cancelledOrders;
 
+        // Revenue/average should reflect paid bills after promotions
+        BigDecimal totalRevenue = billRepository.sumFinalPriceByRestaurantAndDateRange(
+                restaurantId, startDate, endDate);
+        long paidBillCount = billRepository.countByRestaurantAndDateRange(
+                restaurantId, startDate, endDate);
+
         // Calculate average order value
         BigDecimal avgOrderValue = BigDecimal.ZERO;
-        if (completedOrders > 0) {
+        if (paidBillCount > 0) {
             avgOrderValue = totalRevenue.divide(
-                    BigDecimal.valueOf(completedOrders), 2, RoundingMode.HALF_UP);
+                    BigDecimal.valueOf(paidBillCount), 2, RoundingMode.HALF_UP);
         }
 
         // Build and return DTO
@@ -154,15 +165,17 @@ public class RestaurantReportService {
         // Calculate total orders
         int totalOrders = eatingOrders + completedOrders + cancelledOrders;
 
-        // Get total revenue (COMPLETED orders only)
-        BigDecimal totalRevenue = orderRepository.sumRevenueByBranchAndTimeframe(
-                branchId, OrderStatus.COMPLETED, startDate, endDate);
+        // Revenue/average should reflect paid bills after promotions
+        BigDecimal totalRevenue = billRepository.sumFinalPriceByBranchAndDateRange(
+                branchId, startDate, endDate);
+        long paidBillCount = billRepository.countByBranchAndDateRange(
+                branchId, startDate, endDate);
 
         // Calculate average order value (handle zero division)
         BigDecimal avgOrderValue = BigDecimal.ZERO;
-        if (completedOrders > 0) {
+        if (paidBillCount > 0) {
             avgOrderValue = totalRevenue.divide(
-                    BigDecimal.valueOf(completedOrders), 2, RoundingMode.HALF_UP);
+                    BigDecimal.valueOf(paidBillCount), 2, RoundingMode.HALF_UP);
         }
 
         // Build and return DTO
@@ -208,14 +221,9 @@ public class RestaurantReportService {
                 throw new IllegalArgumentException("Invalid timeframe: " + timeframe);
         }
 
-        // Call repository method to get top selling items across all branches
-        List<TopSellingItemDTO> allItems = orderRepository.findTopSellingItemsByRestaurant(
+        List<Object[]> rows = orderRepository.findTopSellingItemRowsByRestaurant(
                 restaurantId, OrderStatus.COMPLETED, startDate, endDate);
-
-        // Limit results
-        return allItems.stream()
-                .limit(limit)
-                .collect(Collectors.toList());
+        return aggregateNetTopSelling(rows, limit);
     }
 
     @Transactional(readOnly = true)
@@ -227,27 +235,9 @@ public class RestaurantReportService {
         Instant startDate = startOfDay.toInstant();
         Instant endDate = endOfDay.toInstant();
 
-        // Call repository method to get order counts by hour across all branches
-        List<OrderDistributionDTO> distribution = orderRepository.findOrderDistributionByRestaurantAndDate(
+        List<Instant> createdTimes = orderRepository.findOrderCreatedTimesByRestaurantAndDate(
                 restaurantId, startDate, endDate);
-
-        // Fill in missing hours with zero counts
-        List<OrderDistributionDTO> completeDistribution = new ArrayList<>();
-        for (int hour = 0; hour < 24; hour++) {
-            final int currentHour = hour;
-            OrderDistributionDTO existingData = distribution.stream()
-                    .filter(d -> d.getHour() == currentHour)
-                    .findFirst()
-                    .orElse(null);
-
-            if (existingData != null) {
-                completeDistribution.add(existingData);
-            } else {
-                completeDistribution.add(new OrderDistributionDTO(hour, 0));
-            }
-        }
-
-        return completeDistribution;
+        return buildHourlyDistribution(createdTimes);
     }
 
     @Transactional(readOnly = true)
@@ -278,14 +268,9 @@ public class RestaurantReportService {
                 throw new IllegalArgumentException("Invalid timeframe: " + timeframe);
         }
 
-        // Call repository method to get top selling items
-        List<TopSellingItemDTO> allItems = orderRepository.findTopSellingItemsByBranch(
+        List<Object[]> rows = orderRepository.findTopSellingItemRowsByBranch(
                 branchId, OrderStatus.COMPLETED, startDate, endDate);
-
-        // Limit results
-        return allItems.stream()
-                .limit(limit)
-                .collect(Collectors.toList());
+        return aggregateNetTopSelling(rows, limit);
     }
 
     @Transactional(readOnly = true)
@@ -297,26 +282,59 @@ public class RestaurantReportService {
         Instant startDate = startOfDay.toInstant();
         Instant endDate = endOfDay.toInstant();
 
-        // Call repository method to get order counts by hour
-        List<OrderDistributionDTO> distribution = orderRepository.findOrderDistributionByBranchAndDate(
+        List<Instant> createdTimes = orderRepository.findOrderCreatedTimesByBranchAndDate(
                 branchId, startDate, endDate);
+        return buildHourlyDistribution(createdTimes);
+    }
 
-        // Fill in missing hours with zero counts
-        List<OrderDistributionDTO> completeDistribution = new ArrayList<>();
-        for (int hour = 0; hour < 24; hour++) {
-            final int currentHour = hour;
-            OrderDistributionDTO existingData = distribution.stream()
-                    .filter(d -> d.getHour() == currentHour)
-                    .findFirst()
-                    .orElse(null);
+    private List<OrderDistributionDTO> buildHourlyDistribution(List<Instant> createdTimes) {
+        Map<Integer, Long> countByHour = createdTimes.stream()
+                .collect(Collectors.groupingBy(
+                        instant -> instant.atZone(VIETNAM_TIMEZONE).getHour(),
+                        Collectors.counting()));
 
-            if (existingData != null) {
-                completeDistribution.add(existingData);
-            } else {
-                completeDistribution.add(new OrderDistributionDTO(hour, 0));
-            }
+        return IntStream.range(0, 24)
+                .mapToObj(hour -> new OrderDistributionDTO(hour, countByHour.getOrDefault(hour, 0L).intValue()))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private List<TopSellingItemDTO> aggregateNetTopSelling(List<Object[]> rows, int limit) {
+        class Agg {
+            String name;
+            int qty;
+            BigDecimal revenue = BigDecimal.ZERO;
         }
 
-        return completeDistribution;
+        Map<UUID, Agg> map = new HashMap<>();
+
+        for (Object[] row : rows) {
+            UUID menuItemId = (UUID) row[0];
+            String menuItemName = (String) row[1];
+            int quantity = ((Number) row[2]).intValue();
+            BigDecimal itemTotal = (BigDecimal) row[3];
+            BigDecimal orderTotal = (BigDecimal) row[4];
+            BigDecimal billFinal = (BigDecimal) row[5];
+
+            BigDecimal effectiveItemRevenue = itemTotal;
+            if (orderTotal != null && orderTotal.compareTo(BigDecimal.ZERO) > 0 && billFinal != null) {
+                effectiveItemRevenue = itemTotal.multiply(billFinal)
+                        .divide(orderTotal, 2, RoundingMode.HALF_UP);
+            }
+
+            Agg agg = map.computeIfAbsent(menuItemId, ignored -> new Agg());
+            agg.name = menuItemName;
+            agg.qty += quantity;
+            agg.revenue = agg.revenue.add(effectiveItemRevenue);
+        }
+
+        return map.entrySet().stream()
+                .map(e -> new TopSellingItemDTO(
+                        e.getKey(),
+                        e.getValue().name,
+                        e.getValue().qty,
+                        e.getValue().revenue))
+                .sorted(Comparator.comparing(TopSellingItemDTO::getTotalRevenue).reversed())
+                .limit(limit)
+                .collect(Collectors.toList());
     }
 }

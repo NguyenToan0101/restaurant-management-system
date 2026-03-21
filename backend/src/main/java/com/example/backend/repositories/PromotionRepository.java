@@ -1,6 +1,7 @@
 package com.example.backend.repositories;
 
 import com.example.backend.entities.Promotion;
+import com.example.backend.entities.PromotionType;
 import com.example.backend.entities.PromotionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -35,7 +36,14 @@ public interface PromotionRepository extends JpaRepository<Promotion, UUID> {
     @Query("SELECT p FROM Promotion p JOIN p.menuItems m " +
            "WHERE m.menuItemId = :menuItemId " +
            "AND p.status = 'ACTIVE' " +
+           "AND p.promotionType = 'MENU_ITEM' " +
            "AND p.startDate <= :now " +
            "AND p.endDate >= :now")
     Optional<Promotion> findActivePromotionForMenuItem(UUID menuItemId, Instant now);
+
+    Optional<Promotion> findByRestaurant_RestaurantIdAndCodeIgnoreCaseAndStatus(
+            UUID restaurantId, String code, PromotionStatus status);
+
+    List<Promotion> findAllByRestaurant_RestaurantIdAndPromotionTypeAndStatus(
+            UUID restaurantId, PromotionType promotionType, PromotionStatus status);
 }

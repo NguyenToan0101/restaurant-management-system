@@ -15,6 +15,8 @@ const formatVND = (value: number): string => {
     maximumFractionDigits: 0
   }).format(value)
 }
+const getEffectivePrice = (item: { price: number; discountedPrice?: number }) =>
+  item.discountedPrice ?? item.price
 
 export default function MenuPage() {
   const navigate = useNavigate()
@@ -120,7 +122,7 @@ export default function MenuPage() {
       return sum + (customization ? customization.price * quantity : 0)
     }, 0)
 
-    const totalItemPrice = item.price + customizationPrice
+    const totalItemPrice = getEffectivePrice(item) + customizationPrice
 
     // Check if same item with same customizations exists
     const existingItemIndex = basket.findIndex(b => 
@@ -170,7 +172,7 @@ export default function MenuPage() {
       setBasket(
         basket.map(item => {
           if (item.basketId === basketId) {
-            const basePrice = item.price + (item.customizationPrice || 0)
+            const basePrice = (item.discountedPrice ?? item.price) + (item.customizationPrice || 0)
             return { ...item, qty, totalPrice: basePrice * qty }
           }
           return item
@@ -362,7 +364,7 @@ export default function MenuPage() {
                 <div className="p-5 flex flex-col grow">
                   <div className="flex justify-between items-start gap-3 mb-2">
                     <h3 className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-tight line-clamp-2">{item.name}</h3>
-                    <span className="text-orange-600 font-bold text-base whitespace-nowrap bg-orange-50 px-2 py-0.5 rounded-md">{formatVND(item.price)}</span>
+                    <span className="text-orange-600 font-bold text-base whitespace-nowrap bg-orange-50 px-2 py-0.5 rounded-md">{formatVND(getEffectivePrice(item))}</span>
                   </div>
                   
                   <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">{item.description}</p>
@@ -552,7 +554,16 @@ export default function MenuPage() {
               </div>
               <div className="mt-2">
                 <h4 className="font-semibold text-gray-800">{selectedMenuItem.name}</h4>
-                <p className="text-sm text-gray-500">{formatVND(selectedMenuItem.price)}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedMenuItem.discountedPrice != null && selectedMenuItem.discountedPrice < selectedMenuItem.price ? (
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold text-orange-600">{formatVND(selectedMenuItem.discountedPrice)}</span>
+                      <span className="line-through text-gray-400">{formatVND(selectedMenuItem.price)}</span>
+                    </span>
+                  ) : (
+                    formatVND(selectedMenuItem.price)
+                  )}
+                </p>
               </div>
             </div>
 
@@ -609,7 +620,7 @@ export default function MenuPage() {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-semibold text-gray-800">Total Price:</span>
                 <span className="text-lg font-bold text-orange-600">
-                  {formatVND(selectedMenuItem.price + getCustomizationTotal())}
+                  {formatVND(getEffectivePrice(selectedMenuItem) + getCustomizationTotal())}
                 </span>
               </div>
               <button

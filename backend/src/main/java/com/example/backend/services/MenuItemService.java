@@ -31,6 +31,7 @@ public class MenuItemService {
     private final CustomizationMapper customizationMapper;
     private final FeatureLimitCheckerService featureLimitCheckerService;
     private final OwnershipValidationService ownershipValidationService;
+    private final PromotionService promotionService;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
@@ -38,7 +39,8 @@ public class MenuItemService {
                            MediaService mediaService,
                            CustomizationMapper customizationMapper,
                            FeatureLimitCheckerService featureLimitCheckerService,
-                           OwnershipValidationService ownershipValidationService) {
+                           OwnershipValidationService ownershipValidationService,
+                           PromotionService promotionService) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -49,6 +51,7 @@ public class MenuItemService {
         this.customizationMapper = customizationMapper;
         this.featureLimitCheckerService = featureLimitCheckerService;
         this.ownershipValidationService = ownershipValidationService;
+        this.promotionService = promotionService;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
@@ -63,6 +66,8 @@ public class MenuItemService {
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            dto.setDiscountedPrice(
+                    promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, item));
             return dto;
         }).toList();
     }
@@ -80,6 +85,8 @@ public class MenuItemService {
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            dto.setDiscountedPrice(
+                    promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, item));
             return dto;
         }).toList();
     }
