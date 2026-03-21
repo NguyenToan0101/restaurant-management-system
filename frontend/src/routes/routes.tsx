@@ -110,6 +110,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 // Guard for staff-only routes (WAITER, BRANCH_MANAGER, RECEPTIONIST)
 const StaffRoute = ({ children }: { children: React.ReactNode }) => {
   const staffInfo = useAuthStore((state) => state.staffInfo);
+  const hydrated = useAuthStore((state) => state.hydrated);
+
+  if (!hydrated) {
+    return null;
+  }
 
   if (!staffInfo) {
     return <Navigate to="/staff-login" replace />;
@@ -122,6 +127,11 @@ const StaffRoute = ({ children }: { children: React.ReactNode }) => {
 const StaffRoleRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: StaffRoleName[] }) => {
   const staffInfo = useAuthStore((state) => state.staffInfo);
   const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
+
+  if (!hydrated) {
+    return null;
+  }
 
   // Allow if user is staff with allowed role
   if (staffInfo && staffInfo.role && allowedRoles.includes(staffInfo.role)) {

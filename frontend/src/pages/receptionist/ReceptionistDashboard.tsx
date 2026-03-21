@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/authStore";
+import { useMemo } from "react";
+import { useReservations } from "@/hooks/queries/useReservationQueries";
 import {
     UtensilsCrossed,
     Table,
@@ -9,6 +11,23 @@ import {
 
 const ReceptionistDashboard = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
+    const branchId = staffInfo?.branchId || "";
+
+    const todayFilters = useMemo(() => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return {
+            startDate: start.toISOString(),
+            endDate: end.toISOString(),
+        };
+    }, []);
+
+    const { data: reservationsToday = [], isLoading: isLoadingReservationsToday } = useReservations(
+        branchId,
+        todayFilters
+    );
 
     const getWelcomeMessage = () => {
         const time = new Date().getHours();
@@ -91,7 +110,9 @@ const ReceptionistDashboard = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">--</div>
+                        <div className="text-2xl font-bold">
+                            {branchId ? (isLoadingReservationsToday ? "..." : reservationsToday.length) : "--"}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                             Reservations today
                         </p>

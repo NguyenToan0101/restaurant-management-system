@@ -28,6 +28,16 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
     // Find staff with role eagerly loaded to avoid LazyInitializationException
     @Query("SELECT s FROM StaffAccount s JOIN FETCH s.role WHERE s.staffAccountId = :staffId")
     Optional<StaffAccount> findByIdWithRole(@Param("staffId") UUID staffId);
+
+    @Query("""
+           SELECT s
+           FROM StaffAccount s
+           JOIN FETCH s.role
+           JOIN FETCH s.branch b
+           JOIN FETCH b.restaurant
+           WHERE s.staffAccountId = :staffId
+           """)
+    Optional<StaffAccount> findByIdWithRoleBranchAndRestaurant(@Param("staffId") UUID staffId);
     
     // Lấy nhân viên theo chi nhánh, loại bỏ vai trò Manager (cho Branch Manager)
     @Query("SELECT s FROM StaffAccount s WHERE s.branch = :branch AND s.role.name != :excludeRole " +
