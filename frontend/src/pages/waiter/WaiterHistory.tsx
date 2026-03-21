@@ -75,7 +75,10 @@ const WaiterHistory = () => {
     const stats = useMemo(() => {
         const completed = summaries.filter((o) => o.status === OrderStatus.COMPLETED);
         const cancelled = summaries.filter((o) => o.status === OrderStatus.CANCELLED);
-        const totalRevenue = completed.reduce((sum, o) => sum + Number(o.totalPrice), 0);
+        const totalRevenue = completed.reduce(
+            (sum, o) => sum + Number(o.paidAmount ?? o.totalPrice),
+            0
+        );
         return { completed: completed.length, cancelled: cancelled.length, totalRevenue };
     }, [summaries]);
 
@@ -87,12 +90,12 @@ const WaiterHistory = () => {
                 const existing = map.get(o.areaTableId);
                 if (existing) {
                     existing.count++;
-                    existing.revenue += Number(o.totalPrice);
+                    existing.revenue += Number(o.paidAmount ?? o.totalPrice);
                 } else {
                     map.set(o.areaTableId, {
                         tableName: o.tableName,
                         count: 1,
-                        revenue: Number(o.totalPrice),
+                        revenue: Number(o.paidAmount ?? o.totalPrice),
                     });
                 }
             });
@@ -370,7 +373,7 @@ const OrderRow = ({
                     </div>
 
                     <div className="shrink-0 text-right">
-                        <p className="text-sm font-bold">{formatVND(Number(row.totalPrice))}</p>
+                        <p className="text-sm font-bold">{formatVND(Number(row.paidAmount ?? row.totalPrice))}</p>
                         <p className="text-[10px] text-muted-foreground">
                             #{row.orderId.slice(0, 8)}
                         </p>
@@ -412,6 +415,15 @@ const OrderDetailDialog = ({
 
     const allItems = order?.orderLines?.flatMap((line) => line.orderItems) ?? [];
     const isCompleted = order?.status === OrderStatus.COMPLETED;
+    const itemDiscountTotal = allItems.reduce((sum, item) => {
+        const discounted = item.discountedPrice ?? item.menuItemPrice;
+        return sum + Math.max(item.menuItemPrice - discounted, 0) * item.quantity;
+    }, 0);
+    const grossTotal = allItems.reduce((sum, item) => {
+        const discounted = item.discountedPrice ?? item.menuItemPrice;
+        const savings = Math.max(item.menuItemPrice - discounted, 0) * item.quantity;
+        return sum + item.totalPrice + savings;
+    }, 0);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -498,14 +510,25 @@ const OrderDetailDialog = ({
                                             </div>
                                             <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
                                                 <span>Qty {item.quantity}</span>
-                                                <span>@ {formatVND(item.menuItemPrice)}</span>
+                                                {item.discountedPrice != null && item.discountedPrice < item.menuItemPrice ? (
+                                                    <span>
+                                                        @ <span className="line-through">{formatVND(item.menuItemPrice)}</span>{" "}
+                                                        <span className="font-semibold text-primary">{formatVND(item.discountedPrice)}</span>
+                                                    </span>
+                                                ) : (
+                                                    <span>@ {formatVND(item.menuItemPrice)}</span>
+                                                )}
                                             </div>
                                             {item.customizations?.length ? (
-                                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                                    {item.customizations
-                                                        .map((c) => c.customizationName)
-                                                        .join(", ")}
-                                                </p>
+                                                <div className="mt-0.5 text-xs text-muted-foreground">
+                                                    {item.customizations.map((c) => (
+                                                        <p key={c.orderItemCustomizationId}>
+                                                            + {c.customizationName}
+                                                            {c.quantity > 1 ? ` x${c.quantity}` : ""} (
+                                                            {formatVND(c.totalPrice)})
+                                                        </p>
+                                                    ))}
+                                                </div>
                                             ) : null}
                                             {item.note ? (
                                                 <p className="mt-0.5 text-xs italic text-muted-foreground">
@@ -520,14 +543,37 @@ const OrderDetailDialog = ({
 
                         <div className="space-y-1 border-t pt-3">
                             <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Gross total</span>
+                                <span>{formatVND(grossTotal)}</span>
+                            </div>
+                            {itemDiscountTotal > 0 && (
+                                <div className="flex justify-between text-sm text-teal">
+                                    <span>Item discounts</span>
+                                    <span>-{formatVND(itemDiscountTotal)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
                                 <span>{formatVND(order.totalPrice)}</span>
                             </div>
                             {isCompleted && bill && !billError ? (
-                                <div className="flex justify-between text-base font-bold">
-                                    <span>Total paid</span>
-                                    <span className="text-teal">{formatVND(bill.finalPrice)}</span>
-                                </div>
+                                <>
+                                    {bill.discountAmount > 0 && (
+                                        <div className="flex justify-between text-sm text-blue-600">
+                                            <div className="flex flex-col">
+                                                <span>Order discount</span>
+                                                <span className="text-[10px] opacity-70">
+                                                    {bill.promotionName || bill.promotionCode || "Promotion"}
+                                                </span>
+                                            </div>
+                                            <span>-{formatVND(bill.discountAmount)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-base font-bold">
+                                        <span>Total paid</span>
+                                        <span className="text-teal">{formatVND(bill.finalPrice)}</span>
+                                    </div>
+                                </>
                             ) : (
                                 <div className="flex justify-between text-base font-bold">
                                     <span>Total</span>

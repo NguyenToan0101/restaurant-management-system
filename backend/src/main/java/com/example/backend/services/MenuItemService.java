@@ -31,6 +31,7 @@ public class MenuItemService {
     private final CustomizationMapper customizationMapper;
     private final FeatureLimitCheckerService featureLimitCheckerService;
     private final OwnershipValidationService ownershipValidationService;
+    private final PromotionService promotionService;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
@@ -38,7 +39,8 @@ public class MenuItemService {
                            MediaService mediaService,
                            CustomizationMapper customizationMapper,
                            FeatureLimitCheckerService featureLimitCheckerService,
-                           OwnershipValidationService ownershipValidationService) {
+                           OwnershipValidationService ownershipValidationService,
+                           PromotionService promotionService) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -49,12 +51,13 @@ public class MenuItemService {
         this.customizationMapper = customizationMapper;
         this.featureLimitCheckerService = featureLimitCheckerService;
         this.ownershipValidationService = ownershipValidationService;
+        this.promotionService = promotionService;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
         // Check ownership before allowing access
         ownershipValidationService.validateRestaurantOwnership(restaurantId);
-        
+
         List<EntityStatus> allowedStatuses = Arrays.asList(EntityStatus.ACTIVE, EntityStatus.INACTIVE);
         List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(restaurantId, allowedStatuses);
 
@@ -63,6 +66,8 @@ public class MenuItemService {
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            dto.setDiscountedPrice(
+                    promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, item));
             return dto;
         }).toList();
     }
@@ -71,7 +76,7 @@ public class MenuItemService {
     public List<MenuItemDTO> getByRestaurant(UUID restaurantId) {
         // Only show ACTIVE items to customers
         List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(
-            restaurantId, 
+            restaurantId,
             Collections.singletonList(EntityStatus.ACTIVE)
         );
 
@@ -80,6 +85,8 @@ public class MenuItemService {
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            dto.setDiscountedPrice(
+                    promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, item));
             return dto;
         }).toList();
     }
@@ -87,10 +94,10 @@ public class MenuItemService {
     public MenuItemDTO getById(UUID id) {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
-        
+
         // Check ownership before allowing access
         ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
-        
+
         MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
         dto.setImageUrl(mediaService.getImageUrlByTarget(id, "MENU_ITEM_IMAGE"));
         return dto;
@@ -130,9 +137,9 @@ public class MenuItemService {
                     .collect(Collectors.toSet());
             item.setCustomizations(customizations);
         }
-        
+
         // Set hasCustomization based on whether item has customizations OR inherits from category
-        boolean hasCustomizations = (custIds != null && !custIds.isEmpty()) || 
+        boolean hasCustomizations = (custIds != null && !custIds.isEmpty()) ||
                                    (category.getCustomizations() != null && !category.getCustomizations().isEmpty());
         item.setHasCustomization(hasCustomizations);
 
@@ -191,11 +198,11 @@ public class MenuItemService {
                     .collect(Collectors.toSet());
             existing.getCustomizations().addAll(customizations);
         }
-        
+
         // Update hasCustomization based on whether item has customizations OR inherits from category
-        boolean hasCustomizations = (!existing.getCustomizations().isEmpty()) || 
-                                   (existing.getCategory() != null && 
-                                    existing.getCategory().getCustomizations() != null && 
+        boolean hasCustomizations = (!existing.getCustomizations().isEmpty()) ||
+                                   (existing.getCategory() != null &&
+                                    existing.getCategory().getCustomizations() != null &&
                                     !existing.getCategory().getCustomizations().isEmpty());
         existing.setHasCustomization(hasCustomizations);
 

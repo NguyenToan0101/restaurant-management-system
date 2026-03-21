@@ -46,6 +46,13 @@ public class Bill {
     @Column(name = "paid_time")
     private Instant paidTime = Instant.now();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promotion_id")
+    private Promotion promotion;
+
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     public UUID getBillId() {
         return billId;
     }
@@ -118,5 +125,19 @@ public class Bill {
         this.paidTime = paidTime;
     }
 
+    public Promotion getPromotion() {
+        return promotion;
+    }
 
+    public void setPromotion(Promotion promotion) {
+        this.promotion = promotion;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
+    }
 }

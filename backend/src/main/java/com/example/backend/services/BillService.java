@@ -14,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,17 +28,26 @@ public class BillService {
         private final BranchRepository branchRepository;
         private final AreaTableRepository areaTableRepository;
         private final OrderService orderService;
+        private final PromotionRepository promotionRepository;
+        private final PromotionUsageRepository promotionUsageRepository;
+        private final PromotionService promotionService;
 
         public BillService(BillRepository billRepository,
                         OrderRepository orderRepository,
                         BranchRepository branchRepository,
                         AreaTableRepository areaTableRepository,
-                        OrderService orderService) {
+                        OrderService orderService,
+                        PromotionRepository promotionRepository,
+                        PromotionUsageRepository promotionUsageRepository,
+                        PromotionService promotionService) {
                 this.billRepository = billRepository;
                 this.orderRepository = orderRepository;
                 this.branchRepository = branchRepository;
                 this.areaTableRepository = areaTableRepository;
                 this.orderService = orderService;
+                this.promotionRepository = promotionRepository;
+                this.promotionUsageRepository = promotionUsageRepository;
+                this.promotionService = promotionService;
         }
 
         @Transactional
@@ -58,14 +69,56 @@ public class BillService {
                 table.setStatus(TableStatus.FREE);
                 areaTableRepository.save(table);
 
+                BigDecimal discountAmount = BigDecimal.ZERO;
+                Promotion appliedPromotion = null;
+                String promoCode = request.getPromotionCode() == null ? null : request.getPromotionCode().trim();
+                if (promoCode != null && !promoCode.isEmpty()) {
+                        Optional<Promotion> found = promotionRepository
+                                        .findByRestaurant_RestaurantIdAndCodeIgnoreCaseAndStatus(
+                                                        branch.getRestaurant().getRestaurantId(),
+                                                        promoCode,
+                                                        PromotionStatus.ACTIVE);
+                        if (found.isEmpty()) {
+                                throw new AppException(ErrorCode.PROMOTION_NOT_FOUND);
+                        }
+                        Promotion promotion = found.get();
+                        Instant now = Instant.now();
+                        if (promotion.getPromotionType() != PromotionType.ORDER
+                                        || promotion.getStartDate().isAfter(now)
+                                        || promotion.getEndDate().isBefore(now)) {
+                                throw new AppException(ErrorCode.PROMOTION_EXPIRED);
+                        }
+                        if (promotion.getMinOrderValue() != null
+                                        && order.getTotalPrice().compareTo(promotion.getMinOrderValue()) < 0) {
+                                throw new AppException(ErrorCode.PROMOTION_MIN_ORDER_NOT_MET);
+                        }
+                        discountAmount = promotionService.computeDiscountAmount(order.getTotalPrice(), promotion);
+                        appliedPromotion = promotion;
+                }
+
+                BigDecimal finalPrice = order.getTotalPrice().subtract(discountAmount);
+                if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
+                        finalPrice = BigDecimal.ZERO;
+                }
+
                 Bill bill = new Bill();
                 bill.setOrder(order);
                 bill.setBranch(branch);
-                bill.setFinalPrice(order.getTotalPrice());
+                bill.setFinalPrice(finalPrice);
+                bill.setDiscountAmount(discountAmount);
+                bill.setPromotion(appliedPromotion);
                 bill.setPaymentMethod(request.getPaymentMethod());
                 bill.setNote(request.getNote());
                 bill.setPaidTime(Instant.now());
                 bill = billRepository.save(bill);
+
+                if (appliedPromotion != null) {
+                        PromotionUsage usage = new PromotionUsage();
+                        usage.setPromotion(appliedPromotion);
+                        usage.setOrder(order);
+                        usage.setDiscountAmount(discountAmount);
+                        promotionUsageRepository.save(usage);
+                }
 
                 return toBillDTO(bill, true);
         }
@@ -117,6 +170,9 @@ public class BillService {
                                                 ? bill.getOrder().getAreaTable().getArea().getName()
                                                 : "N/A")
                                 .finalPrice(bill.getFinalPrice())
+                                .discountAmount(bill.getDiscountAmount())
+                                .promotionCode(bill.getPromotion() != null ? bill.getPromotion().getCode() : null)
+                                .promotionName(bill.getPromotion() != null ? bill.getPromotion().getName() : null)
                                 .note(bill.getNote())
                                 .paymentMethod(bill.getPaymentMethod())
                                 .paidTime(bill.getPaidTime())
@@ -151,7 +207,7 @@ public class BillService {
                 LocalDate today = LocalDate.now();
                 Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
                 Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-                
+
                 return billRepository.countByBranchAndDateRange(branchId, startOfDay, endOfDay);
         }
 }

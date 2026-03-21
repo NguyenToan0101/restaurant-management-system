@@ -19,8 +19,9 @@ public class OrderItemDTO {
     private String menuItemName;
     private String menuItemImageUrl;
     private BigDecimal menuItemPrice;
+    private BigDecimal discountedPrice;
     private int quantity;
     private BigDecimal totalPrice;
     private String note;
-//    private List<OrderItemCustomizationDTO> customizations;
+    private List<OrderItemCustomizationDTO> customizations;
 }

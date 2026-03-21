@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public interface BillRepository extends JpaRepository<Bill, UUID> {
 
     Optional<Bill> findByOrder_OrderId(UUID orderId);
+    List<Bill> findByOrder_OrderIdIn(List<UUID> orderIds);
 
     @Query("SELECT b FROM Bill b WHERE b.branch.branchId = :branchId ORDER BY b.paidTime DESC")
     List<Bill> findByBranch_BranchIdOrderByPaidTimeDesc(@Param("branchId") UUID branchId);
@@ -50,4 +52,25 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
     long countByBranchAndDateRange(@Param("branchId") UUID branchId, 
                                    @Param("startDate") Instant startDate, 
                                    @Param("endDate") Instant endDate);
+
+    @Query("SELECT COALESCE(SUM(b.finalPrice), 0) FROM Bill b " +
+           "WHERE b.branch.branchId = :branchId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate")
+    BigDecimal sumFinalPriceByBranchAndDateRange(@Param("branchId") UUID branchId,
+                                                 @Param("startDate") Instant startDate,
+                                                 @Param("endDate") Instant endDate);
+
+    @Query("SELECT COALESCE(SUM(b.finalPrice), 0) FROM Bill b " +
+           "WHERE b.branch.restaurant.restaurantId = :restaurantId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate")
+    BigDecimal sumFinalPriceByRestaurantAndDateRange(@Param("restaurantId") UUID restaurantId,
+                                                     @Param("startDate") Instant startDate,
+                                                     @Param("endDate") Instant endDate);
+
+    @Query("SELECT COUNT(b) FROM Bill b " +
+           "WHERE b.branch.restaurant.restaurantId = :restaurantId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate")
+    long countByRestaurantAndDateRange(@Param("restaurantId") UUID restaurantId,
+                                       @Param("startDate") Instant startDate,
+                                       @Param("endDate") Instant endDate);
 }

@@ -107,6 +107,12 @@ public enum ErrorCode {
     INVALID_STATUS_TRANSITION(3701, "Invalid status transition", HttpStatus.BAD_REQUEST),
     RESERVATION_VALIDATION_ERROR(3702, "Reservation validation error", HttpStatus.BAD_REQUEST),
 
+    // Promotion errors (3800-3899)
+    PROMOTION_NOT_FOUND(3800, "Promotion not found", HttpStatus.NOT_FOUND),
+    PROMOTION_EXPIRED(3801, "Promotion is expired or not yet active", HttpStatus.BAD_REQUEST),
+    PROMOTION_MIN_ORDER_NOT_MET(3802, "Minimum order value for this promotion is not met", HttpStatus.BAD_REQUEST),
+    PROMOTION_OVERLAP(3803, "One or more items are already in another active promotion during this period", HttpStatus.BAD_REQUEST),
+
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private int code;

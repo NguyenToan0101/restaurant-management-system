@@ -32,3 +32,9 @@ databaseChangeLog:
   - include:
       file: V011-add-estimated-duration.sql
       relativeToChangelogFile: true
+  - include:
+      file: V012-add-promotion-tables.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V013-add-order-item-price-snapshot.sql
+      relativeToChangelogFile: true

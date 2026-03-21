@@ -22,6 +22,7 @@ public class OrderHistorySummaryDTO {
     private String areaName;
     private OrderStatus status;
     private BigDecimal totalPrice;
+    private BigDecimal paidAmount;
     private Instant createdAt;
     private Instant updatedAt;
     private long itemCount;

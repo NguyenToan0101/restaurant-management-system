@@ -39,6 +39,7 @@ import ManagerPromotions from "@/pages/manager/ManagerPromotions";
 import ManagerStaff from "@/pages/manager/ManagerStaff";
 import ManagerMenuManagement from "@/pages/manager/ManagerMenuManagement";
 import ManagerOrders from "@/pages/manager/ManagerOrders";
+import ManagerKitchen from "@/pages/manager/ManagerKitchen";
 
 import WaiterLayout from "@/components/waiter/WaiterLayout";
 import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
@@ -109,6 +110,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 // Guard for staff-only routes (WAITER, BRANCH_MANAGER, RECEPTIONIST)
 const StaffRoute = ({ children }: { children: React.ReactNode }) => {
   const staffInfo = useAuthStore((state) => state.staffInfo);
+  const hydrated = useAuthStore((state) => state.hydrated);
+
+  if (!hydrated) {
+    return null;
+  }
 
   if (!staffInfo) {
     return <Navigate to="/staff-login" replace />;
@@ -121,6 +127,11 @@ const StaffRoute = ({ children }: { children: React.ReactNode }) => {
 const StaffRoleRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: StaffRoleName[] }) => {
   const staffInfo = useAuthStore((state) => state.staffInfo);
   const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
+
+  if (!hydrated) {
+    return null;
+  }
 
   // Allow if user is staff with allowed role
   if (staffInfo && staffInfo.role && allowedRoles.includes(staffInfo.role)) {
@@ -264,6 +275,7 @@ const AppRoutes = () => {
         <Route path="areas" element={<ManagerAreaManagement />} />
         <Route path="areas/:areaId/tables" element={<ManagerTableManagement />} />
         <Route path="tables" element={<ManagerTableManagement />} />
+        <Route path="kitchen" element={<ManagerKitchen />} />
         <Route path="orders" element={<ManagerOrders />} />
         <Route path="menu" element={<ManagerMenuManagement />} />
         <Route path="bills" element={<ManagerBills />} />

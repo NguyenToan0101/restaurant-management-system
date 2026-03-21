@@ -48,6 +48,7 @@ const formatVND = (value: number): string => {
 
 /** Sentinel for Select when no table is chosen */
 const NO_TABLE_VALUE = "__no_table__";
+const getEffectivePrice = (price: number, discountedPrice?: number) => discountedPrice ?? price;
 
 const WaiterOrderPage = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
@@ -146,13 +147,15 @@ const WaiterOrderPage = () => {
                   })();
 
         const custTotal = custs.reduce((sum, c) => sum + c.price * c.quantity, 0);
-        const totalPrice = (customizeItem.price + custTotal) * customizeQty;
+        const unitPrice = getEffectivePrice(customizeItem.price, customizeItem.discountedPrice);
+        const totalPrice = (unitPrice + custTotal) * customizeQty;
 
         cart.addItem({
             cartItemId: `${customizeItem.menuItemId}-${Date.now()}`,
             menuItemId: customizeItem.menuItemId,
             name: customizeItem.name,
             price: customizeItem.price,
+            discountedPrice: customizeItem.discountedPrice,
             imageUrl: customizeItem.imageUrl,
             quantity: customizeQty,
             note: customizeNote,
@@ -745,7 +748,16 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
             )}
             <div className="flex items-center justify-between mt-3">
-                <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
+                <div className="flex flex-col">
+                    {item.discountedPrice != null && item.discountedPrice < item.price ? (
+                        <>
+                            <span className="text-lg font-bold text-primary">{formatVND(item.discountedPrice)}</span>
+                            <span className="text-xs text-muted-foreground line-through">{formatVND(item.price)}</span>
+                        </>
+                    ) : (
+                        <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
+                    )}
+                </div>
                 <Button size="sm" variant="outline" className="h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Add
@@ -778,7 +790,8 @@ const CustomizeDialog = ({
             ? 0
             : item.customizations.find((x) => x.customizationId === selectedCustomizationId)?.price ?? 0;
 
-    const totalPrice = (item.price + custTotal) * quantity;
+    const effectiveItemPrice = getEffectivePrice(item.price, item.discountedPrice);
+    const totalPrice = (effectiveItemPrice + custTotal) * quantity;
 
     return (
         <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -798,7 +811,16 @@ const CustomizeDialog = ({
                     )}
 
                     <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
+                        <div className="flex flex-col">
+                            {item.discountedPrice != null && item.discountedPrice < item.price ? (
+                                <>
+                                    <span className="text-lg font-bold text-primary">{formatVND(item.discountedPrice)}</span>
+                                    <span className="text-xs text-muted-foreground line-through">{formatVND(item.price)}</span>
+                                </>
+                            ) : (
+                                <span className="text-lg font-bold text-primary">{formatVND(item.price)}</span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"

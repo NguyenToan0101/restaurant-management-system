@@ -1,7 +1,7 @@
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, UtensilsCrossed, BarChart3, Users, Settings,
-  Store, ChevronLeft, MapPin, LogOut,
+  Store, ChevronLeft, MapPin, LogOut, Tag
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -30,6 +30,7 @@ const menuItems = [
     ]
   },
   { title: "Areas & Tables", description: "Manage areas & tables", url: "/areas", icon: MapPin },
+  { title: "Promotions", description: "Manage offers & discounts", url: "/promotions", icon: Tag },
   { title: "Analytics", description: "Revenue & insights", url: "/analytics", icon: BarChart3 },
   { title: "Staff", description: "Manage staff", url: "/staff", icon: Users },
 ];
@@ -43,7 +44,7 @@ export function DashboardSidebar() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useLogout();
-  
+
   // Restaurant Owners can access branch dashboard
   const isRestaurantOwner = user?.role?.name === 'RESTAURANT_OWNER';
 

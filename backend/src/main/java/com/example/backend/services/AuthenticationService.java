@@ -88,7 +88,8 @@ public class AuthenticationService {
                 staff.getStaffAccountId(),
                 staff.getUsername(),
                 staff.getRole().getName().name(),
-                staff.getBranch().getBranchId()
+                staff.getBranch().getBranchId(),
+                staff.getBranch().getRestaurant().getRestaurantId()
         );
         
         log.info("Staff login successful for username: {}", request.getUsername());
@@ -131,7 +132,8 @@ public class AuthenticationService {
                 staff.getStaffAccountId(),
                 staff.getUsername(),
                 staff.getRole().getName().name(),
-                staff.getBranch().getBranchId()
+                staff.getBranch().getBranchId(),
+                staff.getBranch().getRestaurant().getRestaurantId()
         );
 
         log.info("Staff token refresh successful for: {}", staff.getUsername());

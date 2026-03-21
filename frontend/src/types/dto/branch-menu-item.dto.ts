@@ -12,6 +12,7 @@ export interface BranchMenuItemDTO {
   categoryName: string;
   imageUrl: string | null;
   available: boolean;
+  discountedPrice?: number;
   branchId: string;
   branchMenuItemId: string | null;
   customizations: CustomizationInfo[];

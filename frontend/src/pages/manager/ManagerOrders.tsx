@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { managerApi } from "@/api/managerApi";
@@ -102,6 +102,27 @@ const ManagerOrders = () => {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const selectedOrderItems = useMemo(
+    () => selectedOrder?.orderLines?.flatMap((line) => line.orderItems ?? []) ?? [],
+    [selectedOrder]
+  );
+
+  const selectedOrderItemDiscount = useMemo(() => {
+    return selectedOrderItems.reduce((sum, item) => {
+      const discounted = item.discountedPrice ?? item.menuItemPrice;
+      const unitSavings = Math.max(item.menuItemPrice - discounted, 0);
+      return sum + unitSavings * item.quantity;
+    }, 0);
+  }, [selectedOrderItems]);
+
+  const selectedOrderGross = useMemo(() => {
+    return selectedOrderItems.reduce((sum, item) => {
+      const discounted = item.discountedPrice ?? item.menuItemPrice;
+      const unitSavings = Math.max(item.menuItemPrice - discounted, 0);
+      return sum + item.totalPrice + unitSavings * item.quantity;
+    }, 0);
+  }, [selectedOrderItems]);
 
   return (
     <div className="p-6 space-y-6">
@@ -362,9 +383,21 @@ const ManagerOrders = () => {
                                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
                                   x{item.quantity}
                                 </Badge>
-                                <span className="text-[10px] text-muted-foreground italic">
-                                  {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)} / item
-                                </span>
+                                {item.discountedPrice != null && item.discountedPrice < item.menuItemPrice ? (
+                                  <span className="text-[10px] italic">
+                                    <span className="text-muted-foreground line-through mr-1">
+                                      {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)}
+                                    </span>
+                                    <span className="font-semibold text-primary">
+                                      {new Intl.NumberFormat("vi-VN").format(item.discountedPrice)}
+                                    </span>
+                                    <span className="text-muted-foreground ml-1">/ item</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">
+                                    {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)} / item
+                                  </span>
+                                )}
                               </div>
                               {item.note && (
                                 <p className="text-[10px] italic text-destructive mt-1.5 bg-destructive/5 p-1 rounded border border-destructive/10">
@@ -374,8 +407,20 @@ const ManagerOrders = () => {
                               {item.customizations && item.customizations.length > 0 && (
                                 <div className="mt-1.5 flex flex-wrap gap-1">
                                   {item.customizations.map(c => (
-                                    <Badge key={c.orderItemCustomizationId} variant="outline" className="text-[9px] font-normal py-0 leading-tight border-primary/20 bg-primary/5">
-                                      {c.customizationName} {c.quantity > 1 ? `x${c.quantity}` : ''}
+                                    <Badge
+                                      key={c.orderItemCustomizationId}
+                                      variant="outline"
+                                      className="text-[10px] font-medium py-0.5 leading-tight border-cyan-400/35 bg-cyan-500/10 text-cyan-100"
+                                    >
+                                      <span>{c.customizationName}{c.quantity > 1 ? ` x${c.quantity}` : ""}</span>
+                                      <span className="ml-1 text-emerald-300">
+                                        (+{new Intl.NumberFormat("vi-VN", {
+                                          style: "currency",
+                                          currency: "VND",
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 0,
+                                        }).format(c.totalPrice)})
+                                      </span>
                                     </Badge>
                                   ))}
                                 </div>
@@ -394,6 +439,16 @@ const ManagerOrders = () => {
               </div>
 
               <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Gross total</span>
+                  <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedOrderGross)}</span>
+                </div>
+                {selectedOrderItemDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-teal-600">
+                    <span>Item discounts</span>
+                    <span>-{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedOrderItemDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold">
                   <span>Grand Total</span>
                   <span className="text-primary">

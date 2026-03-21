@@ -84,7 +84,7 @@ const CustomizationManagement = () => {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="w-full p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-display">Customizations</h1>

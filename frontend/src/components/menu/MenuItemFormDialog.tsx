@@ -66,7 +66,7 @@ export function MenuItemFormDialog({
     if (!fCatId) return [];
     const selectedCategory = categories.find((c) => c.id === fCatId);
     if (!selectedCategory) return [];
-    
+
     // Get customizations that belong to this category
     const categoryCustomizationIds = selectedCategory.customizationIds || [];
     return customizations.filter((cust) =>
@@ -280,7 +280,7 @@ export function MenuItemFormDialog({
               <p className="text-xs text-muted-foreground">
                 Select which customizations are available for this item. This includes both category-level and item-specific customizations.
               </p>
-            
+
 
               {/* Category Customizations */}
               {categoryCustomizations.length > 0 && (

@@ -31,6 +31,7 @@ export interface OrderItemDTO {
   menuItemName: string;
   menuItemImageUrl: string | null;
   menuItemPrice: number;
+  discountedPrice: number;
   quantity: number;
   totalPrice: number;
   note: string | null;
@@ -77,6 +78,7 @@ export interface OrderHistorySummaryDTO {
   areaName: string;
   status: OrderStatus;
   totalPrice: number;
+  paidAmount?: number;
   createdAt: string;
   updatedAt: string;
   itemCount: number;
@@ -89,6 +91,9 @@ export interface BillDTO {
   tableName: string;
   areaName: string;
   finalPrice: number;
+  discountAmount: number;
+  promotionCode: string | null;
+  promotionName: string | null;
   note: string | null;
   paymentMethod: PaymentMethod;
   paidTime: string;
@@ -153,6 +158,7 @@ export interface WaiterMenuItemDTO {
   isBestSeller: boolean;
   hasCustomization: boolean;
   imageUrl: string | null;
+  discountedPrice?: number;
   customizations: WaiterCustomizationDTO[];
 }
 
@@ -172,6 +178,7 @@ export interface CartItem {
   menuItemId: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   imageUrl: string | null;
   quantity: number;
   note: string;

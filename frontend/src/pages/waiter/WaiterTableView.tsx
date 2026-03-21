@@ -448,7 +448,7 @@ interface TableCardProps {
 const TableCard = ({ table, onClick }: TableCardProps) => {
     const { data: reservations = [] } = useReservationsByTable(table.areaTableId || '');
     const [reservationDialogOpen, setReservationDialogOpen] = useState(false);
-    
+
     // Find all active reservations (APPROVED or CONFIRMED status)
     const activeReservations = reservations.filter(
         r => r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
@@ -507,11 +507,11 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                         <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
                             {statusText}
                         </Badge>
-                        
+
                         {/* Reservation Badge */}
                         {activeReservations.length > 0 && (
-                            <Badge 
-                                variant="outline" 
+                            <Badge
+                                variant="outline"
                                 className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mt-1"
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -536,7 +536,7 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                                 {table.areaName} - {activeReservations.length} active reservation(s)
                             </DialogDescription>
                         </DialogHeader>
-                        
+
                         <div className="space-y-4">
                             {activeReservations.map((reservation, index) => (
                                 <Card key={reservation.reservationId} className="border-border/60">
@@ -547,7 +547,7 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                                                 {reservation.status}
                                             </Badge>
                                         </div>
-                                        
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <p className="text-xs text-muted-foreground mb-1">Customer Name</p>
