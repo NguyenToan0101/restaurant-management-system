@@ -2,6 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/authApi';
 
+// Helper: check if current path is a public customer page
+const isPublicCustomerPage = (): boolean => {
+  const path = window.location.pathname;
+  // Customer pages follow pattern: /:slug/home, /:slug/menu, /:slug/reservations, /:slug/checkout
+  const publicPagePatterns = ['/home', '/menu', '/reservations', '/checkout'];
+  return publicPagePatterns.some(pattern => path.includes(pattern));
+};
+
 export const useAuthInit = () => {
   const setAuthData = useAuthStore((state) => state.setAuthData);
   const clearAuthData = useAuthStore((state) => state.clearAuthData);
@@ -11,6 +19,12 @@ export const useAuthInit = () => {
     // Chỉ fetch một lần duy nhất khi app khởi động
     if (hasFetched.current) return;
     hasFetched.current = true;
+
+    // Skip auth check for public customer pages
+    if (isPublicCustomerPage()) {
+      console.log('[useAuthInit] Skipping auth check for public customer page');
+      return;
+    }
 
     const initAuth = async () => {
       try {

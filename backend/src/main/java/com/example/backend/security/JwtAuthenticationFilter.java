@@ -34,9 +34,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         // Skip JWT filter for OAuth2 endpoints and public auth endpoints only
-        return path.startsWith("/oauth2/") 
+        return path.startsWith("/oauth2/")
             || path.startsWith("/login/oauth2/")
-            || path.equals("/api/auth/login")
+                || path.equals("/api/auth/login")
             || path.equals("/api/auth/staff-login")
             || path.equals("/api/auth/refresh")
             || path.equals("/api/auth/staff-refresh")
@@ -101,7 +101,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private String extractTokenFromRequest(HttpServletRequest request) {
         // First, try to get token from Authorization header (for API clients)
         String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")){
             return bearerToken.substring(7);
         }
 

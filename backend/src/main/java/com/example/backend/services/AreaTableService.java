@@ -125,6 +125,12 @@ public class AreaTableService {
                 .map(areaTableMapper::toDto)
                 .toList();
     }
+    public List<AreaTableDTO> getByPublicArea(UUID areaId) {
+
+        return areaTableRepository.findByArea_AreaId(areaId).stream()
+                .map(areaTableMapper::toDto)
+                .toList();
+    }
 
     public Page<AreaTableDTO> getByAreaPaginated(UUID areaId, Pageable pageable) {
         checkAreaAccess(areaId);
@@ -275,4 +281,10 @@ public class AreaTableService {
                 .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
         return areaTableMapper.toDto(table);
     }
+//    public String getSlugByTableId(UUID id){
+//        AreaTable table = areaTableRepository.findById(id)
+//                .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
+//        Area area = table.getArea();
+//       return area.getBranch().getRestaurant().getPublicUrl();
+//    }
 }

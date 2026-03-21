@@ -44,4 +44,10 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
             @Param("paymentMethod") PaymentMethod paymentMethod,
             @Param("searchTerm") String searchTerm,
             Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM Bill b WHERE b.branch.branchId = :branchId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate")
+    long countByBranchAndDateRange(@Param("branchId") UUID branchId, 
+                                   @Param("startDate") Instant startDate, 
+                                   @Param("endDate") Instant endDate);
 }

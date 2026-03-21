@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { useAuthStore } from "@/stores/authStore";
 import {
   UtensilsCrossed,
@@ -7,10 +9,13 @@ import {
   ShoppingCart,
   Users,
   Clock,
+  Building2,
+  Info,
 } from "lucide-react";
 
 const ManagerDashboard = () => {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
+  const { user, staffInfo } = useAuthStore();
+  const { branchId, isOwner, isStaff } = useBranchContext();
 
   const getWelcomeMessage = () => {
     const time = new Date().getHours();
@@ -18,7 +23,8 @@ const ManagerDashboard = () => {
     if (time >= 12 && time < 18) greeting = "Good afternoon";
     if (time >= 18) greeting = "Good evening";
 
-    return `${greeting}, ${staffInfo?.username}!`;
+    const name = isOwner ? user?.username : staffInfo?.username;
+    return `${greeting}, ${name}!`;
   };
 
   const quickActions = [
@@ -54,6 +60,27 @@ const ManagerDashboard = () => {
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
+      {/* Restaurant Owner Access Alert */}
+      {isOwner && (
+        <Alert className="border-primary/20 bg-primary/5">
+          <Building2 className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-primary">
+            You are accessing this branch dashboard as a <strong>Restaurant Owner</strong>. 
+            You have full access to manage this branch's operations.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Branch ID Missing Alert */}
+      {!branchId && (
+        <Alert className="border-destructive/20 bg-destructive/5">
+          <Info className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-destructive">
+            No branch selected. Please select a branch from your restaurant dashboard to access branch management features.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Welcome Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-display">{getWelcomeMessage()}</h1>
@@ -92,9 +119,11 @@ const ManagerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Branch Manager</div>
+            <div className="text-2xl font-bold">
+              {isOwner ? "Restaurant Owner" : "Branch Manager"}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Full branch access
+              {isOwner ? "Full restaurant access" : "Full branch access"}
             </p>
           </CardContent>
         </Card>
@@ -170,13 +199,18 @@ const ManagerDashboard = () => {
         <CardContent>
           <div className="space-y-3">
             <div className="space-y-2">
-              <h4 className="font-medium text-sm">As a Branch Manager, you can:</h4>
+              <h4 className="font-medium text-sm">
+                As a {isOwner ? "Restaurant Owner" : "Branch Manager"}, you can:
+              </h4>
               <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                 <li>• Create, edit, and delete dining areas</li>
                 <li>• Manage table layouts and configurations</li>
                 <li>• Oversee all branch operations</li>
                 <li>• Manage staff accounts and permissions</li>
                 <li>• Monitor orders and customer service</li>
+                {isOwner && (
+                  <li>• Access all restaurant owner privileges</li>
+                )}
               </ul>
             </div>
           </div>

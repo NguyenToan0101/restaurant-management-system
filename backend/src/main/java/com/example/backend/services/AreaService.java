@@ -123,6 +123,12 @@ public class AreaService {
                 .map(areaMapper::toDto)
                 .toList();
     }
+    public List<AreaDTO> getByPublicBranch(UUID branchId) {
+
+        return areaRepository.findByBranch_BranchId(branchId).stream()
+                .map(areaMapper::toDto)
+                .toList();
+    }
 
     public Page<AreaDTO> getByBranchPaginated(UUID branchId, Pageable pageable) {
         checkBranchAccess(branchId);

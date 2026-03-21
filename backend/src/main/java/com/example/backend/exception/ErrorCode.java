@@ -102,11 +102,16 @@ public enum ErrorCode {
     ORDER_ALREADY_CANCELLED(3602, "Order already cancelled", HttpStatus.BAD_REQUEST),
     BILL_NOT_FOUND(3610, "Bill not found", HttpStatus.NOT_FOUND),
 
-    // Promotion errors (3700-3799)
-    PROMOTION_NOT_FOUND(3700, "Promotion not found", HttpStatus.NOT_FOUND),
-    PROMOTION_EXPIRED(3701, "Promotion is expired or not yet active", HttpStatus.BAD_REQUEST),
-    PROMOTION_MIN_ORDER_NOT_MET(3702, "Minimum order value for this promotion is not met", HttpStatus.BAD_REQUEST),
-    PROMOTION_OVERLAP(3703, "One or more items are already in another active promotion during this period", HttpStatus.BAD_REQUEST),
+    // Reservation errors (3700-3799)
+    RESERVATION_NOT_FOUND(3700, "Reservation not found", HttpStatus.NOT_FOUND),
+    INVALID_STATUS_TRANSITION(3701, "Invalid status transition", HttpStatus.BAD_REQUEST),
+    RESERVATION_VALIDATION_ERROR(3702, "Reservation validation error", HttpStatus.BAD_REQUEST),
+
+    // Promotion errors (3800-3899)
+    PROMOTION_NOT_FOUND(3800, "Promotion not found", HttpStatus.NOT_FOUND),
+    PROMOTION_EXPIRED(3801, "Promotion is expired or not yet active", HttpStatus.BAD_REQUEST),
+    PROMOTION_MIN_ORDER_NOT_MET(3802, "Minimum order value for this promotion is not met", HttpStatus.BAD_REQUEST),
+    PROMOTION_OVERLAP(3803, "One or more items are already in another active promotion during this period", HttpStatus.BAD_REQUEST),
 
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 

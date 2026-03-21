@@ -30,7 +30,7 @@ public class MenuItemService {
     private final MediaService mediaService;
     private final CustomizationMapper customizationMapper;
     private final FeatureLimitCheckerService featureLimitCheckerService;
-    private final PromotionRepository promotionRepository;
+    private final OwnershipValidationService ownershipValidationService;
 
     public MenuItemService(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
                            RestaurantRepository restaurantRepository, CategoryRepository categoryRepository,
@@ -38,7 +38,7 @@ public class MenuItemService {
                            MediaService mediaService,
                            CustomizationMapper customizationMapper,
                            FeatureLimitCheckerService featureLimitCheckerService,
-                           PromotionRepository promotionRepository) {
+                           OwnershipValidationService ownershipValidationService) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
         this.restaurantRepository = restaurantRepository;
@@ -48,46 +48,38 @@ public class MenuItemService {
         this.mediaService = mediaService;
         this.customizationMapper = customizationMapper;
         this.featureLimitCheckerService = featureLimitCheckerService;
-        this.promotionRepository = promotionRepository;
+        this.ownershipValidationService = ownershipValidationService;
     }
 
     public List<MenuItemDTO> getAllByRestaurant(UUID restaurantId) {
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
+
         List<EntityStatus> allowedStatuses = Arrays.asList(EntityStatus.ACTIVE, EntityStatus.INACTIVE);
         List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(restaurantId, allowedStatuses);
 
         if (list.isEmpty()) return Collections.emptyList();
 
-        List<Promotion> activeItemPromotions = promotionRepository.findAllByRestaurant_RestaurantIdAndStatus(restaurantId, PromotionStatus.ACTIVE)
-                .stream()
-                .filter(p -> p.getPromotionType() == PromotionType.MENU_ITEM)
-                .filter(p -> p.getStartDate().isBefore(Instant.now()) && p.getEndDate().isAfter(Instant.now()))
-                .toList();
+        return list.stream().map(item -> {
+            MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
+            dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
+            return dto;
+        }).toList();
+    }
+
+    // Public version without ownership validation for customer access
+    public List<MenuItemDTO> getByRestaurant(UUID restaurantId) {
+        // Only show ACTIVE items to customers
+        List<MenuItem> list = menuItemRepository.findAllByRestaurant_RestaurantIdAndStatusIn(
+            restaurantId,
+            Collections.singletonList(EntityStatus.ACTIVE)
+        );
+
+        if (list.isEmpty()) return Collections.emptyList();
 
         return list.stream().map(item -> {
             MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
             dto.setImageUrl(mediaService.getImageUrlByTarget(item.getMenuItemId(), "MENU_ITEM_IMAGE"));
-            
-            // Calculate discounted price (Maximum discount should be applied)
-            BigDecimal maxDiscountAmount = BigDecimal.ZERO;
-            for (Promotion promotion : activeItemPromotions) {
-                if (promotion.getMenuItems().contains(item)) {
-                    BigDecimal currentDiscount = BigDecimal.ZERO;
-                    if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
-                        currentDiscount = item.getPrice().multiply(promotion.getDiscountValue()).divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
-                    } else if (promotion.getDiscountType() == DiscountType.FIXED_AMOUNT) {
-                        currentDiscount = promotion.getDiscountValue();
-                    }
-                    
-                    if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
-                        maxDiscountAmount = currentDiscount;
-                    }
-                }
-            }
-            BigDecimal discountedPrice = item.getPrice().subtract(maxDiscountAmount);
-            // Apply floor of 0
-            if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
-            
-            dto.setDiscountedPrice(discountedPrice);
             return dto;
         }).toList();
     }
@@ -95,35 +87,12 @@ public class MenuItemService {
     public MenuItemDTO getById(UUID id) {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
+
         MenuItemDTO dto = menuItemMapper.toMenuItemDTO(item);
         dto.setImageUrl(mediaService.getImageUrlByTarget(id, "MENU_ITEM_IMAGE"));
-        
-        // Add promotion logic for single item view
-        List<Promotion> activeItemPromotions = promotionRepository.findAllByRestaurant_RestaurantIdAndStatus(item.getRestaurant().getRestaurantId(), PromotionStatus.ACTIVE)
-                .stream()
-                .filter(p -> p.getPromotionType() == PromotionType.MENU_ITEM)
-                .filter(p -> p.getStartDate().isBefore(Instant.now()) && p.getEndDate().isAfter(Instant.now()))
-                .toList();
-        
-        BigDecimal maxDiscountAmount = BigDecimal.ZERO;
-        for (Promotion promotion : activeItemPromotions) {
-            if (promotion.getMenuItems().contains(item)) {
-                BigDecimal currentDiscount = BigDecimal.ZERO;
-                if (promotion.getDiscountType() == DiscountType.PERCENTAGE) {
-                    currentDiscount = item.getPrice().multiply(promotion.getDiscountValue()).divide(new BigDecimal(100), 2, java.math.RoundingMode.HALF_UP);
-                } else if (promotion.getDiscountType() == DiscountType.FIXED_AMOUNT) {
-                    currentDiscount = promotion.getDiscountValue();
-                }
-                
-                if (currentDiscount.compareTo(maxDiscountAmount) > 0) {
-                    maxDiscountAmount = currentDiscount;
-                }
-            }
-        }
-        BigDecimal discountedPrice = item.getPrice().subtract(maxDiscountAmount);
-        if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) discountedPrice = BigDecimal.ZERO;
-        dto.setDiscountedPrice(discountedPrice);
-        
         return dto;
     }
 
@@ -131,6 +100,9 @@ public class MenuItemService {
     public MenuItemDTO create(MenuItemCreateRequest request, MultipartFile imageFile) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check ownership before allowing creation
+        ownershipValidationService.validateRestaurantOwnership(restaurant);
 
         featureLimitCheckerService.checkLimit(
                 request.getRestaurantId(),
@@ -157,10 +129,12 @@ public class MenuItemService {
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
             item.setCustomizations(customizations);
-            item.setHasCustomization(true);
-        } else {
-            item.setHasCustomization(false);
         }
+
+        // Set hasCustomization based on whether item has customizations OR inherits from category
+        boolean hasCustomizations = (custIds != null && !custIds.isEmpty()) ||
+                                   (category.getCustomizations() != null && !category.getCustomizations().isEmpty());
+        item.setHasCustomization(hasCustomizations);
 
         MenuItem savedItem = menuItemRepository.save(item);
         menuItemRepository.flush();
@@ -190,6 +164,9 @@ public class MenuItemService {
         MenuItem existing = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(existing.getRestaurant());
+
         existing.setName(request.getName());
         existing.setDescription(request.getDescription());
         existing.setPrice(request.getPrice());
@@ -213,10 +190,14 @@ public class MenuItemService {
                             .orElseThrow(() -> new AppException(ErrorCode.CUSTOMIZATION_NOT_FOUND)))
                     .collect(Collectors.toSet());
             existing.getCustomizations().addAll(customizations);
-            existing.setHasCustomization(true);
-        } else {
-            existing.setHasCustomization(false);
         }
+
+        // Update hasCustomization based on whether item has customizations OR inherits from category
+        boolean hasCustomizations = (!existing.getCustomizations().isEmpty()) ||
+                                   (existing.getCategory() != null &&
+                                    existing.getCategory().getCustomizations() != null &&
+                                    !existing.getCategory().getCustomizations().isEmpty());
+        existing.setHasCustomization(hasCustomizations);
 
         MenuItem updated = menuItemRepository.save(existing);
 
@@ -234,6 +215,9 @@ public class MenuItemService {
     public MenuItemDTO setActiveStatus(UUID menuItemId, boolean active) {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+
+        // Check ownership before allowing status change
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
 
         item.setStatus(active ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
         item.setUpdatedAt(Instant.now());
@@ -266,6 +250,9 @@ public class MenuItemService {
         MenuItem item = menuItemRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
 
+        // Check ownership before allowing delete
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
+
         item.setStatus(EntityStatus.DELETED);
         item.setUpdatedAt(Instant.now());
         menuItemRepository.save(item);
@@ -288,6 +275,9 @@ public class MenuItemService {
     public MenuItemDTO updateBestSeller(UUID menuItemId, boolean bestSeller) {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(item.getRestaurant());
 
         item.setBestSeller(bestSeller);
         item.setUpdatedAt(Instant.now());
@@ -313,15 +303,15 @@ public class MenuItemService {
         
         Set<Customization> customizations = new LinkedHashSet<>();
         
-        // Nếu hasCustomization = true, lấy customizations từ category
+        // Add customizations from the menu item's category (if hasCustomization = true)
         if (menuItem.isHasCustomization() && menuItem.getCategory() != null) {
             customizations.addAll(menuItem.getCategory().getCustomizations());
         }
         
-        // Thêm customizations riêng của menu item (nếu có)
+        // Add specific customizations assigned directly to this menu item
         customizations.addAll(menuItem.getCustomizations());
         
-        // Filter chỉ lấy customizations ACTIVE
+        // Filter only ACTIVE customizations and return
         return customizations.stream()
                 .filter(c -> c.getStatus() == EntityStatus.ACTIVE)
                 .map(customizationMapper::toCustomizationDTOForBranchMenuItem)

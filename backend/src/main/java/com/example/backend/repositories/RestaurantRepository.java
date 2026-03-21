@@ -1,6 +1,7 @@
 package com.example.backend.repositories;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -30,4 +31,6 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, UUID> {
     
     @Query("SELECT r FROM Restaurant r WHERE r.publicUrl = :baseSlug OR r.publicUrl LIKE CONCAT(:baseSlug, '-%')")
     List<Restaurant> findByPublicUrlStartingWith(@Param("baseSlug") String baseSlug);
+
+    Optional<Restaurant> findByPublicUrl(String publicUrl);
 }

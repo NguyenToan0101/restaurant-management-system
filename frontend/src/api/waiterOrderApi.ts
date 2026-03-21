@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   AreaTableDTO,
   OrderDTO,
+  OrderHistorySummaryDTO,
   BillDTO,
   CreateOrderRequest,
   AddItemsToOrderRequest,
@@ -31,6 +32,13 @@ class WaiterOrderApi {
 
   async getActiveOrderByTable(tableId: string): Promise<OrderDTO | null> {
     const response = await axiosClient.get<ApiResponse<OrderDTO | null>>(`/waiter/orders/table/${tableId}/active`);
+    return response.data.result;
+  }
+
+  async getOrderHistorySummaries(branchId: string): Promise<OrderHistorySummaryDTO[]> {
+    const response = await axiosClient.get<ApiResponse<OrderHistorySummaryDTO[]>>(
+      `/waiter/orders/branch/${branchId}/history`
+    );
     return response.data.result;
   }
 
@@ -76,7 +84,12 @@ class WaiterOrderApi {
 
   async getMenuForBranch(branchId: string): Promise<WaiterMenuItemDTO[]> {
     const response = await axiosClient.get<ApiResponse<WaiterMenuItemDTO[]>>(`/branch-menu-items/branch/${branchId}`);
-    return response.data.result.filter((item: any) => item.available);
+    return response.data.result
+      .filter((item: Record<string, unknown>) => item.available)
+      .map((item: Record<string, unknown>) => ({
+        ...(item as unknown as WaiterMenuItemDTO),
+        isBestSeller: Boolean(item.isBestSeller ?? item.bestSeller),
+      }));
   }
 
   async getCategoriesForBranch(branchId: string): Promise<WaiterCategoryDTO[]> {
@@ -93,6 +106,11 @@ class WaiterOrderApi {
 
   async setTableStatus(tableId: string, status: TableStatus): Promise<AreaTableDTO> {
     const response = await axiosClient.put<ApiResponse<AreaTableDTO>>(`/waiter/tables/${tableId}/status?status=${status}`);
+    return response.data.result;
+  }
+
+  async getTodayOrdersCount(branchId: string): Promise<number> {
+    const response = await axiosClient.get<ApiResponse<number>>(`/waiter/orders/branch/${branchId}/today-count`);
     return response.data.result;
   }
 }

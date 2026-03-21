@@ -18,11 +18,38 @@ let refreshPromise: Promise<string | null> | null = null;
 const isRealJwt = (token: string | null): boolean =>
   !!token && token.startsWith('eyJ');
 
+// Helper: check if URL is a public endpoint that doesn't need authentication
+const isPublicEndpoint = (url?: string): boolean => {
+  if (!url) return false;
+  const publicPaths = [
+    '/public/',
+    '/auth/login',
+    '/auth/staff-login',
+    '/auth/refresh',
+    '/auth/staff-refresh',
+    '/users/signup',
+    '/users/mail',
+    '/users/forgetpass',
+    '/packages/active',
+    '/waiter/orders',
+    '/branch-menu-items/guest/',
+    '/available-tables'
+  ];
+  // Check for exact match or path prefix match
+  // Note: /reservations without any path after it is public (for customer booking)
+  // but /reservations/* (with sub-paths) requires authentication
+  return publicPaths.some(path => url.includes(path)) || 
+         (url === '/reservations' || url.startsWith('/reservations?'));
+};
+
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().accessToken;
-    if (isRealJwt(token) && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Don't add auth header for public endpoints
+    if (!isPublicEndpoint(config.url)) {
+      const token = useAuthStore.getState().accessToken;
+      if (isRealJwt(token) && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
@@ -37,7 +64,23 @@ axiosClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Check for authorization error (code 1108)
+    if (error.response?.data && typeof error.response.data === 'object') {
+      const errorData = error.response.data as { code?: number };
+      if (errorData.code === 1108) {
+        console.log('[axiosClient] Access denied (1108), redirecting to unauthorized page');
+        window.location.href = '/unauthorized';
+        return Promise.reject(error);
+      }
+    }
+
     if (!error.response || error.response.status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // Don't retry for public endpoints - they shouldn't need auth
+    if (isPublicEndpoint(originalRequest.url)) {
+      console.log('[axiosClient] 401 on public endpoint, not retrying:', originalRequest.url);
       return Promise.reject(error);
     }
 

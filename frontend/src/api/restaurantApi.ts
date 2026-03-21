@@ -12,6 +12,11 @@ class RestaurantApi {
         return response.data.result;
     }
 
+    async  getBySlug(slug: string): Promise<RestaurantDTO> {
+        const response = await axiosClient.get<ApiResponse<RestaurantDTO>>(`/public/restaurants/${slug}`);
+        return response.data.result;
+    }
+
     async getByOwner(userId: string): Promise<RestaurantDTO[]> {
         const response = await axiosClient.get<ApiResponse<RestaurantDTO[]>>(`/restaurants/owner/${userId}`);
         return response.data.result;

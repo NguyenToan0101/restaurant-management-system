@@ -70,8 +70,16 @@ public class SecurityConfig {
                                 "/api/subscriptions/**",
                                 "/api/payments/**",
                                 "/actuator/health",
-                                "/actuator/health/**")
+                                "/actuator/health/**",
+                                "/api/public/**",
+                                "/api/reservations",
+                                "/api/reservations/branch/*/available-tables",
+                                "/api/waiter/orders/**",
+                                "/api/branch-menu-items/guest/**"
+                                )
                         .permitAll()
+                        // Authenticated endpoints - require valid JWT
+                        .requestMatchers("/api/reservations/**").authenticated()
                         // OAuth2 endpoints (handled by Spring Security)
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // All other API endpoints require authentication

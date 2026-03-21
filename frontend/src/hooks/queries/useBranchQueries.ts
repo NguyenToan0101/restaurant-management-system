@@ -42,6 +42,14 @@ export const useBranch = (id: string) => {
     });
 };
 
+export const useRestaurantSlugByBranch = (branchId: string) => {
+    return useQuery({
+        queryKey: ['branches', branchId, 'restaurant-slug'],
+        queryFn: () => branchApi.getRestaurantSlugByBranchId(branchId),
+        enabled: !!branchId,
+    });
+};
+
 export const useCreateBranch = () => {
     const queryClient = useQueryClient();
 

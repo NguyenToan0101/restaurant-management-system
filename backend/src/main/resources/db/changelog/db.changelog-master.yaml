@@ -27,8 +27,14 @@ databaseChangeLog:
       file: V009-drop-branch-mail-unique-constraint.sql
       relativeToChangelogFile: true
   - include:
-      file: V010-add-promotion-tables.sql
+      file: V010-add-reservation-fields.sql
       relativeToChangelogFile: true
   - include:
-      file: V011-add-order-item-price-snapshot.sql
+      file: V011-add-estimated-duration.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V012-add-promotion-tables.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V013-add-order-item-price-snapshot.sql
       relativeToChangelogFile: true

@@ -132,6 +132,34 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleInvalidStatusTransitionException(InvalidStatusTransitionException ex) {
+        log.error("Invalid status transition: {}", ex.getMessage());
+        Map<String, Object> details = new HashMap<>();
+        details.put("currentStatus", ex.getCurrentStatus());
+        details.put("attemptedStatus", ex.getAttemptedStatus());
+        details.put("allowedTransitions", ex.getAllowedTransitions());
+        
+        ApiResponse<Map<String, Object>> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getMessage());
+        response.setResult(details);
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
+    @ExceptionHandler(ReservationValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleReservationValidationException(ReservationValidationException ex) {
+        log.error("Reservation validation error: {}", ex.getMessage());
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(ex.getErrorCode().getCode());
+        response.setMessage(ex.getMessage());
+        return ResponseEntity
+                .status(ex.getErrorCode().getStatusCode())
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
