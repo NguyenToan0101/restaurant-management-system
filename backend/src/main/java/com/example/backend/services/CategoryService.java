@@ -26,16 +26,32 @@ public class CategoryService {
     private final CategoryMapper categoryMapper;
     private final RestaurantRepository restaurantRepository;
     private final CustomizationRepository customizationRepository;
+    private final OwnershipValidationService ownershipValidationService;
 
     public CategoryService(CategoryRepository categoryRepository, CategoryMapper categoryMapper,
-                           RestaurantRepository restaurantRepository, CustomizationRepository customizationRepository) {
+                           RestaurantRepository restaurantRepository, CustomizationRepository customizationRepository,
+                           OwnershipValidationService ownershipValidationService) {
         this.categoryRepository = categoryRepository;
         this.categoryMapper = categoryMapper;
         this.restaurantRepository = restaurantRepository;
         this.customizationRepository = customizationRepository;
+        this.ownershipValidationService = ownershipValidationService;
     }
 
     public List<CategoryDTO> getAllByRestaurant(UUID restaurantId) {
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
+        
+        List<Category> categories = categoryRepository
+                .findAllByRestaurantAndStatus(restaurantId, EntityStatus.ACTIVE);
+
+        return categories.stream()
+                .map(categoryMapper::toCategoryDTO)
+                .toList();
+    }
+
+    // Public version without ownership validation for customer access
+    public List<CategoryDTO> getByRestaurant(UUID restaurantId) {
         List<Category> categories = categoryRepository
                 .findAllByRestaurantAndStatus(restaurantId, EntityStatus.ACTIVE);
 
@@ -47,6 +63,10 @@ public class CategoryService {
     public CategoryDTO getById(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        
+        // Check ownership before allowing access
+        ownershipValidationService.validateRestaurantOwnership(category.getRestaurant());
+        
         return categoryMapper.toCategoryDTO(category);
     }
 
@@ -54,6 +74,9 @@ public class CategoryService {
     public CategoryDTO create(CategoryCreateRequest request) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+
+        // Check ownership before allowing creation
+        ownershipValidationService.validateRestaurantOwnership(restaurant);
 
         Category category = new Category();
         category.setName(request.getName());
@@ -79,6 +102,9 @@ public class CategoryService {
         Category existing = categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
+        // Check ownership before allowing update
+        ownershipValidationService.validateRestaurantOwnership(existing.getRestaurant());
+
         existing.setName(dto.getName());
         existing.setUpdatedAt(Instant.now());
 
@@ -102,6 +128,9 @@ public class CategoryService {
     @Transactional
     public void delete(UUID id) {
         categoryRepository.findById(id).ifPresent(category -> {
+            // Check ownership before allowing delete
+            ownershipValidationService.validateRestaurantOwnership(category.getRestaurant());
+            
             category.setStatus(EntityStatus.DELETED);
             categoryRepository.save(category);
         });

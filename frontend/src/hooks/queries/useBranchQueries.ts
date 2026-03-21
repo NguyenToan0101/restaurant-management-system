@@ -42,6 +42,14 @@ export const useBranch = (id: string) => {
     });
 };
 
+export const useRestaurantSlugByBranch = (branchId: string) => {
+    return useQuery({
+        queryKey: ['branches', branchId, 'restaurant-slug'],
+        queryFn: () => branchApi.getRestaurantSlugByBranchId(branchId),
+        enabled: !!branchId,
+    });
+};
+
 export const useCreateBranch = () => {
     const queryClient = useQueryClient();
 
@@ -136,6 +144,33 @@ export const useUpdateBranch = () => {
             toast({
                 title: 'Error',
                 description: error.response?.data?.message || 'Failed to update branch',
+                variant: 'destructive',
+            });
+        },
+    });
+};
+
+export const useUpdateBranchContactInfo = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: Partial<BranchDTO> }) =>
+            branchApi.updateContactInfo(id, data),
+        onSuccess: (updatedBranch) => {
+            queryClient.invalidateQueries({ queryKey: ['branches'] });
+            queryClient.invalidateQueries({ queryKey: ['branches', updatedBranch.branchId] });
+            if (updatedBranch.restaurantId) {
+                queryClient.invalidateQueries({ queryKey: ['branches', 'restaurant', updatedBranch.restaurantId] });
+            }
+            toast({
+                title: 'Success',
+                description: 'Contact information updated successfully',
+            });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Error',
+                description: error.response?.data?.message || 'Failed to update contact information',
                 variant: 'destructive',
             });
         },

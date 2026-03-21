@@ -22,7 +22,7 @@ import {
 import {
     CheckCircle, XCircle, Users, Armchair, Loader2,
     CreditCard, DollarSign, Minus, Plus, Trash2, Receipt, X, Printer, Search,
-    UtensilsCrossed, Settings2,
+    UtensilsCrossed, Settings2, ChevronLeft, Calendar, Clock,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
@@ -30,12 +30,22 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
 import {
     useActiveOrderByTable, useUpdateOrderItem, useRemoveOrderItem,
-    useConfirmPayment, useWaiterSetTableStatus,
+    useConfirmPayment, useWaiterSetTableStatus, useCancelOrder,
 } from "@/hooks/queries/useWaiterQueries";
+import { useReservationsByTable } from "@/hooks/queries/useReservationQueries";
 import type { AreaTableDTO, OrderDTO, BillDTO } from "@/types/dto";
-import { TableStatus, EntityStatus, PaymentMethod } from "@/types/dto";
+import { TableStatus, EntityStatus, PaymentMethod, ReservationStatus } from "@/types/dto";
 import InvoiceView from "@/components/waiter/InvoiceView";
 import { useReactToPrint } from "react-to-print";
+import { format } from "date-fns";
+
+const formatVND = (value: number): string =>
+    new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
 
 const WaiterTableView = () => {
     const navigate = useNavigate();
@@ -68,6 +78,7 @@ const WaiterTableView = () => {
     const updateOrderItemMutation = useUpdateOrderItem();
     const removeOrderItemMutation = useRemoveOrderItem();
     const setTableStatusMutation = useWaiterSetTableStatus();
+    const cancelOrderMutation = useCancelOrder();
 
     const invoiceRef = useRef<HTMLDivElement>(null);
     const [pendingAutoPrint, setPendingAutoPrint] = useState(false);
@@ -165,6 +176,12 @@ const WaiterTableView = () => {
             setOrderPanelOpen(false);
             setSelectedTable(null);
         } catch { /* handled by mutation */ }
+    };
+
+    const handleOrderCancelled = () => {
+        setTableDialogOpen(false);
+        setOrderPanelOpen(false);
+        setSelectedTable(null);
     };
 
     const handleGoToOrder = (table: AreaTableDTO) => {
@@ -328,11 +345,11 @@ const WaiterTableView = () => {
 
                         {selectedTable.status === TableStatus.FREE && (
                             <Button
-                                className="w-full"
+                                className="w-full mb-4"
                                 onClick={() => handleGoToOrder(selectedTable)}
                             >
                                 <UtensilsCrossed className="w-4 h-4 mr-2" />
-                                Add Order for This Table
+                                Add order for this table
                             </Button>
                         )}
 
@@ -347,15 +364,6 @@ const WaiterTableView = () => {
                                 >
                                     <CheckCircle className="w-4 h-4 text-teal" />
                                     Available
-                                </Button>
-                                <Button
-                                    variant={selectedTable.status === TableStatus.OCCUPIED ? "default" : "outline"}
-                                    className="justify-start gap-2"
-                                    onClick={() => handleStatusChange(TableStatus.OCCUPIED)}
-                                    disabled={setTableStatusMutation.isPending}
-                                >
-                                    <Users className="w-4 h-4 text-orange-500" />
-                                    Occupied
                                 </Button>
                                 <Button
                                     variant={selectedTable.status === TableStatus.INACTIVE ? "default" : "outline"}
@@ -400,6 +408,8 @@ const WaiterTableView = () => {
                     removeOrderItem={removeOrderItemMutation}
                     onStatusChange={handleStatusChange}
                     isStatusChanging={setTableStatusMutation.isPending}
+                    cancelOrderMutation={cancelOrderMutation}
+                    onOrderCancelled={handleOrderCancelled}
                 />
             )}
 
@@ -436,6 +446,14 @@ interface TableCardProps {
 }
 
 const TableCard = ({ table, onClick }: TableCardProps) => {
+    const { data: reservations = [] } = useReservationsByTable(table.areaTableId || '');
+    const [reservationDialogOpen, setReservationDialogOpen] = useState(false);
+    
+    // Find all active reservations (APPROVED or CONFIRMED status)
+    const activeReservations = reservations.filter(
+        r => r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
+    );
+
     const getStyles = () => {
         switch (table.status) {
             case TableStatus.FREE:
@@ -471,26 +489,128 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
         : table.status === TableStatus.INACTIVE ? 'Out of Order' : 'Unknown';
 
     return (
-        <Card
-            className={`${styles.card} transition-all duration-300 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02]`}
-            onClick={onClick}
-        >
-            <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-2">
-                    <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
-                        <Armchair className="w-8 h-8" />
+        <>
+            <Card
+                className={`${styles.card} transition-all duration-300 border-2 cursor-pointer hover:shadow-lg hover:scale-[1.02] relative`}
+                onClick={onClick}
+            >
+                <CardContent className="p-4">
+                    <div className="flex flex-col items-center gap-2">
+                        <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
+                            <Armchair className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-bold text-lg">{table.tag}</h3>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="w-3.5 h-3.5" />
+                            <span>{table.capacity} seats</span>
+                        </div>
+                        <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
+                            {statusText}
+                        </Badge>
+                        
+                        {/* Reservation Badge */}
+                        {activeReservations.length > 0 && (
+                            <Badge 
+                                variant="outline" 
+                                className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mt-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReservationDialogOpen(true);
+                                }}
+                            >
+                                <Calendar className="w-3 h-3 mr-1" />
+                                {activeReservations.length} Reserved
+                            </Badge>
+                        )}
                     </div>
-                    <h3 className="font-bold text-lg">{table.tag}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="w-3.5 h-3.5" />
-                        <span>{table.capacity} seats</span>
-                    </div>
-                    <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
-                        {statusText}
-                    </Badge>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+
+            {/* Reservation Detail Dialog */}
+            {activeReservations.length > 0 && (
+                <Dialog open={reservationDialogOpen} onOpenChange={setReservationDialogOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Reservations for Table {table.tag}</DialogTitle>
+                            <DialogDescription>
+                                {table.areaName} - {activeReservations.length} active reservation(s)
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                            {activeReservations.map((reservation, index) => (
+                                <Card key={reservation.reservationId} className="border-border/60">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <h4 className="font-semibold">Reservation #{index + 1}</h4>
+                                            <Badge variant={reservation.status === ReservationStatus.CONFIRMED ? 'default' : 'secondary'}>
+                                                {reservation.status}
+                                            </Badge>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Customer Name</p>
+                                                <p className="font-medium">{reservation.customerName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                                                <p className="font-medium">{reservation.customerPhone}</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.customerEmail && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                                <p className="font-medium">{reservation.customerEmail}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-4 mt-3">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.startTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Guests</p>
+                                                <p className="font-medium">{reservation.guestNumber} people</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.estimatedDurationMinutes && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                                                <p className="font-medium">{reservation.estimatedDurationMinutes} minutes</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.note && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                                <p className="text-sm">{reservation.note}</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.arrivalTime && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Arrival Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.arrivalTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setReservationDialogOpen(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </>
     );
 };
 
@@ -514,6 +634,8 @@ interface TableDetailDialogProps {
     removeOrderItem: ReturnType<typeof useRemoveOrderItem>;
     onStatusChange: (status: TableStatus) => void;
     isStatusChanging: boolean;
+    cancelOrderMutation: ReturnType<typeof useCancelOrder>;
+    onOrderCancelled: () => void;
 }
 
 const TableDetailDialog = ({
@@ -521,7 +643,7 @@ const TableDetailDialog = ({
     paymentMethod, setPaymentMethod, promotionCode, setPromotionCode,
     paymentNote, setPaymentNote, autoPrint, setAutoPrint,
     onConfirmPayment, isConfirming, updateOrderItem, removeOrderItem,
-    onStatusChange, isStatusChanging,
+    onStatusChange, isStatusChanging, cancelOrderMutation, onOrderCancelled,
 }: TableDetailDialogProps) => {
     const { data: activeOrder, isLoading, refetch } = useActiveOrderByTable(table.areaTableId || '');
 
@@ -566,21 +688,39 @@ const TableDetailDialog = ({
         finally { setUpdatingItemId(null); }
     };
 
+    const showOrderSplit = orderPanelOpen && !!activeOrder;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`${orderPanelOpen ? 'max-w-5xl' : 'max-w-md'} max-h-[90vh] p-0 flex flex-col overflow-hidden`}>
+            <DialogContent
+                hideClose={showOrderSplit}
+                className={`${orderPanelOpen ? 'max-w-5xl' : 'max-w-md'} max-h-[90vh] p-0 flex flex-col overflow-hidden`}
+            >
                 <div className="flex flex-1 min-h-0">
                     {/* Left Panel */}
                     <div className={`${orderPanelOpen ? 'w-1/2 border-r' : 'w-full'} p-6 space-y-4 overflow-y-auto`}>
                         <DialogHeader>
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
+                            <div className="flex items-center justify-between gap-2 pr-10 sm:pr-0">
+                                <div className="min-w-0 flex-1">
                                     <DialogTitle className="text-xl">Table {table.tag}</DialogTitle>
                                     <DialogDescription>
                                         {table.areaName && `${table.areaName} · `}{table.capacity} seats
                                     </DialogDescription>
                                 </div>
 
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {showOrderSplit && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-sm text-muted-foreground hover:text-foreground"
+                                            onClick={() => onOpenChange(false)}
+                                            aria-label="Close"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                 {/* Compact status change popover */}
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -592,41 +732,50 @@ const TableDetailDialog = ({
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-48 p-2" align="end">
-                                        <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Change status</p>
-                                        <div className="space-y-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.FREE)}
-                                                disabled={isStatusChanging || table.status === TableStatus.FREE}
-                                            >
-                                                <CheckCircle className="w-3.5 h-3.5 text-teal" />
-                                                Available
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.OCCUPIED)}
-                                                disabled={isStatusChanging || table.status === TableStatus.OCCUPIED}
-                                            >
-                                                <Users className="w-3.5 h-3.5 text-orange-500" />
-                                                Occupied
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full justify-start gap-2 h-8"
-                                                onClick={() => onStatusChange(TableStatus.INACTIVE)}
-                                                disabled={isStatusChanging || table.status === TableStatus.INACTIVE}
-                                            >
-                                                <XCircle className="w-3.5 h-3.5 text-destructive" />
-                                                Out of Order
-                                            </Button>
-                                        </div>
+                                        {activeOrder ? (
+                                            <div className="space-y-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8 text-destructive"
+                                                    onClick={async () => {
+                                                        if (!activeOrder.orderId || cancelOrderMutation.isPending) return;
+                                                        await cancelOrderMutation.mutateAsync(activeOrder.orderId);
+                                                        onOrderCancelled();
+                                                    }}
+                                                    disabled={cancelOrderMutation.isPending}
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    Cancel order
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8"
+                                                    onClick={() => onStatusChange(TableStatus.FREE)}
+                                                    disabled={isStatusChanging || table.status === TableStatus.FREE}
+                                                >
+                                                    <CheckCircle className="w-3.5 h-3.5 text-teal" />
+                                                    Available
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start gap-2 h-8"
+                                                    onClick={() => onStatusChange(TableStatus.INACTIVE)}
+                                                    disabled={isStatusChanging || table.status === TableStatus.INACTIVE}
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5 text-destructive" />
+                                                    Out of Order
+                                                </Button>
+                                            </div>
+                                        )}
                                     </PopoverContent>
                                 </Popover>
+                                </div>
                             </div>
                         </DialogHeader>
 
@@ -692,11 +841,11 @@ const TableDetailDialog = ({
                                 <div className="pt-2 space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span>Subtotal</span>
-                                        <span className="font-medium">${subtotal.toFixed(2)}</span>
+                                        <span className="font-medium">{formatVND(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between text-base font-bold border-t pt-2">
                                         <span>Total</span>
-                                        <span>${subtotal.toFixed(2)}</span>
+                                        <span>{formatVND(subtotal)}</span>
                                     </div>
                                 </div>
 
@@ -741,10 +890,17 @@ const TableDetailDialog = ({
                     {/* Right Panel - Order Items */}
                     {orderPanelOpen && activeOrder && (
                         <div className="w-1/2 flex flex-col min-h-0 bg-muted/30">
-                            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-                                <h3 className="font-semibold">Order Items</h3>
-                                <Button variant="ghost" size="icon" onClick={() => setOrderPanelOpen(false)}>
-                                    <X className="w-4 h-4" />
+                            <div className="flex items-center justify-between gap-2 px-6 py-4 border-b shrink-0">
+                                <h3 className="font-semibold truncate">Order items</h3>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="shrink-0 gap-1.5 text-muted-foreground"
+                                    onClick={() => setOrderPanelOpen(false)}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    <span className="text-xs font-medium">Hide list</span>
                                 </Button>
                             </div>
 
@@ -830,7 +986,7 @@ const TableDetailDialog = ({
                                                                         <Plus className="w-3 h-3" />
                                                                     </Button>
                                                                 </div>
-                                                                <span className="font-semibold text-sm">${item.totalPrice.toFixed(2)}</span>
+                                                                <span className="font-semibold text-sm text-primary">{formatVND(item.totalPrice)}</span>
                                                             </div>
                                                         </div>
                                                     </div>

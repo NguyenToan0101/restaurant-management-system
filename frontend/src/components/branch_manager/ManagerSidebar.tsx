@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -8,7 +8,10 @@ import {
   Users,
   Tag,
   LogOut,
-  ShoppingCart
+  ShoppingCart,
+  ChefHat,
+  ArrowLeft,
+  Building
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -25,6 +28,8 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
+import { useBranchContext } from "@/hooks/useBranchContext";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { title: "Dashboard", description: "Dashboard summary", url: "/dashboard", icon: LayoutDashboard },
@@ -41,7 +46,9 @@ export default function ManagerSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const staffInfo = useAuthStore((state) => state.staffInfo);
+  const navigate = useNavigate();
+  const { user, staffInfo } = useAuthStore();
+  const { isOwner } = useBranchContext();
   const logout = useLogout();
 
   const basePath = `/manager`;
@@ -56,6 +63,22 @@ export default function ManagerSidebar() {
 
   const handleSignOut = async () => {
     await logout.mutateAsync();
+  };
+
+  const handleReturnToRestaurant = () => {
+    // Clear selected branch from localStorage
+    localStorage.removeItem('selectedBranchId');
+    
+    // Get restaurant ID from localStorage (saved when accessing from restaurant dashboard)
+    const restaurantId = localStorage.getItem('currentRestaurantId');
+    
+    if (restaurantId) {
+      // Navigate directly to restaurant owner dashboard
+      navigate(`/dashboard/${restaurantId}`);
+    } else {
+      // Fallback to restaurant selection page if no restaurant ID found
+      navigate('/restaurants');
+    }
   };
 
   return (
@@ -127,17 +150,29 @@ export default function ManagerSidebar() {
       <div className="mt-auto px-4 py-4 border-t border-sidebar-border gap-2 flex flex-col">
         {!collapsed ? (
           <div className="flex flex-col gap-4">
+            {/* Return to Restaurant Dashboard Button - Show for Restaurant Owners */}
+            {isOwner && (
+              <Button
+                onClick={handleReturnToRestaurant}
+                variant="outline"
+                className="w-full gap-2 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Return to Restaurant</span>
+              </Button>
+            )}
+
             {/* User Info block */}
             <div className="flex items-center gap-3 px-1 py-2">
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-primary font-bold">
-                {staffInfo?.username?.charAt(0).toUpperCase() || "M"}
+                {(isOwner ? user?.username : staffInfo?.username)?.charAt(0).toUpperCase() || "M"}
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-semibold text-sidebar-foreground truncate">
-                  {staffInfo?.username || "Manager"}
+                  {(isOwner ? user?.username : staffInfo?.username) || "Manager"}
                 </span>
                 <span className="text-[10px] font-bold bg-teal-500/20 text-teal-400 px-2 py-0.5 rounded-full w-fit mt-1">
-                  {staffInfo?.role || "BRANCH_MANAGER"}
+                  {isOwner ? "RESTAURANT_OWNER" : (staffInfo?.role || "BRANCH_MANAGER")}
                 </span>
               </div>
             </div>
@@ -153,8 +188,19 @@ export default function ManagerSidebar() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
+            {/* Return to Restaurant Dashboard Button - Collapsed */}
+            {isOwner && (
+              <button
+                onClick={handleReturnToRestaurant}
+                className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-colors flex items-center justify-center border border-primary/30"
+                title="Return to Restaurant Dashboard"
+              >
+                <ArrowLeft className="w-5 h-5 shrink-0" />
+              </button>
+            )}
+
             <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 text-primary font-bold">
-              {staffInfo?.username?.charAt(0).toUpperCase() || "M"}
+              {(isOwner ? user?.username : staffInfo?.username)?.charAt(0).toUpperCase() || "M"}
             </div>
             <button
               onClick={handleSignOut}

@@ -7,6 +7,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -61,6 +62,13 @@ public class BranchController {
         return res;
     }
 
+    @PatchMapping("/{id}/contact-info")
+    public ApiResponse<BranchDTO> updateContactInfo(@PathVariable UUID id, @RequestBody BranchDTO dto) {
+        ApiResponse<BranchDTO> res = new ApiResponse<>();
+        res.setResult(branchService.updateContactInfo(id, dto));
+        return res;
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable UUID id) {
         ApiResponse<Void> res = new ApiResponse<>();
@@ -86,6 +94,13 @@ public class BranchController {
     public ApiResponse<UUID> getRestaurantByBranchId(@PathVariable UUID branchId) {
         ApiResponse<UUID> res = new ApiResponse<>();
         res.setResult(branchService.getRestaurantIdByBranchId(branchId));
+        return res;
+    }
+
+    @GetMapping("/{branchId}/restaurant/slug")
+    public ApiResponse<String> getRestaurantSlugByBranchId(@PathVariable UUID branchId) {
+        ApiResponse<String> res = new ApiResponse<>();
+        res.setResult(branchService.getRestaurantSlugByBranchId(branchId));
         return res;
     }
 

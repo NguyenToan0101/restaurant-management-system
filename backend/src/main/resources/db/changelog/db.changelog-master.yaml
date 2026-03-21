@@ -26,3 +26,9 @@ databaseChangeLog:
   - include:
       file: V009-drop-branch-mail-unique-constraint.sql
       relativeToChangelogFile: true
+  - include:
+      file: V010-add-reservation-fields.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V011-add-estimated-duration.sql
+      relativeToChangelogFile: true

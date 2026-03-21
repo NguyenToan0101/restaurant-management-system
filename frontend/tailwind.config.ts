@@ -28,6 +28,11 @@ export default {
         rose: "hsl(var(--rose))",
         amber: "hsl(var(--amber))",
         sky: "hsl(var(--sky))",
+        "accent-gold": "hsl(var(--accent-gold))",
+        "surface-dark": "hsl(var(--surface-dark))",
+        "border-dark": "hsl(var(--border-dark))",
+        "background-dark": "hsl(var(--background-dark))",
+        "background-light": "hsl(var(--background-light))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

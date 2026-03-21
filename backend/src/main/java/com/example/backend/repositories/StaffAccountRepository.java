@@ -4,6 +4,7 @@ package com.example.backend.repositories;
 import java.util.Optional;
 import java.util.UUID;
 
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -29,10 +30,31 @@ public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID
     Optional<StaffAccount> findByIdWithRole(@Param("staffId") UUID staffId);
     
     // Lấy nhân viên theo chi nhánh, loại bỏ vai trò Manager (cho Branch Manager)
-    Page<StaffAccount> findByBranchAndRole_NameNot(Branch branch, RoleName roleName, Pageable pageable);
+    @Query("SELECT s FROM StaffAccount s WHERE s.branch = :branch AND s.role.name != :excludeRole " +
+           "AND LOWER(s.username) LIKE :keyword " +
+           "AND (:roleFilter IS NULL OR s.role.name = :roleFilter) " +
+           "AND (:isActive IS NULL OR (s.status = 'ACTIVE' AND :isActive = true) OR (s.status = 'INACTIVE' AND :isActive = false))")
+    Page<StaffAccount> findByBranchAndFiltersForManager(
+        @Param("branch") Branch branch, 
+        @Param("excludeRole") RoleName excludeRole,
+        @Param("keyword") String keyword,
+        @Param("roleFilter") RoleName roleFilter,
+        @Param("isActive") Boolean isActive,
+        Pageable pageable
+    );
 
     // Lấy nhân viên theo chi nhánh (bao gồm tất cả Role)
-    Page<StaffAccount> findByBranch(Branch branch, Pageable pageable);
+    @Query("SELECT s FROM StaffAccount s WHERE s.branch = :branch " +
+           "AND LOWER(s.username) LIKE :keyword " +
+           "AND (:roleFilter IS NULL OR s.role.name = :roleFilter) " +
+           "AND (:isActive IS NULL OR (s.status = 'ACTIVE' AND :isActive = true) OR (s.status = 'INACTIVE' AND :isActive = false))")
+    Page<StaffAccount> findByBranchAndFiltersForOwner(
+        @Param("branch") Branch branch, 
+        @Param("keyword") String keyword,
+        @Param("roleFilter") RoleName roleFilter,
+        @Param("isActive") Boolean isActive,
+        Pageable pageable
+    );
 
     // Lấy nhân viên theo toàn bộ nhà hàng (cho Restaurant Owner)
     Page<StaffAccount> findByBranch_Restaurant_RestaurantId(UUID restaurantId, Pageable pageable);

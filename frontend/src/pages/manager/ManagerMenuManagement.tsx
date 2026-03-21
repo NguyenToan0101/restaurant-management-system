@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,7 @@ import { useBranchMenuItemQueries } from "@/hooks/queries/useBranchMenuItemQueri
 import type { BranchMenuItemDTO } from "@/types/dto/branch-menu-item.dto";
 
 const ManagerMenuManagement = () => {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId;
+  const { branchId } = useBranchContext();
 
   const { menuItems, isLoading, updateAvailability, isUpdating } = useBranchMenuItemQueries(branchId);
 
@@ -230,7 +229,7 @@ const ManagerMenuManagement = () => {
             <ImageIcon className="w-12 h-12 text-muted-foreground/40 mb-3" />
             <p className="text-muted-foreground font-medium">No menu items found</p>
             <p className="text-xs text-muted-foreground">Try adjusting filters</p>
-          </CardContent>
+          </CardContent>đ
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -317,7 +316,7 @@ const MenuItemCard = ({
               {item.categoryName}
             </Badge>
           </div>
-          <p className="font-display text-primary ml-2">${item.price.toFixed(2)}</p>
+          <p className="font-display text-primary ml-2">{item.price.toFixed(2)}đ</p>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 mt-2 mb-3">{item.description}</p>
         {item.customizations && item.customizations.length > 0 && (

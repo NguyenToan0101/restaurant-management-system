@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.dto.BranchDTO;
 import com.example.backend.entities.Branch;
 import com.example.backend.entities.Restaurant;
+import com.example.backend.entities.RoleName;
+import com.example.backend.entities.StaffAccount;
 import com.example.backend.entities.User;
 import com.example.backend.entities.FeatureCode;
 import com.example.backend.exception.AppException;
@@ -26,6 +28,7 @@ public class BranchService {
     private final RestaurantRepository restaurantRepository;
     private final StaffAccountRepository staffAccountRepository;
     private final FeatureLimitCheckerService featureLimitCheckerService;
+    private final OwnershipValidationService ownershipValidationService;
     // private final BranchMenuItemRepository branchMenuItemRepository;
     // private final MenuItemRepository menuItemRepository;
 
@@ -34,7 +37,8 @@ public class BranchService {
             BranchMapper branchMapper,
             RestaurantRepository restaurantRepository,
             StaffAccountRepository staffAccountRepository,
-            FeatureLimitCheckerService featureLimitCheckerService
+            FeatureLimitCheckerService featureLimitCheckerService,
+            OwnershipValidationService ownershipValidationService
             // BranchMenuItemRepository branchMenuItemRepository,
             // MenuItemRepository menuItemRepository
     ) {
@@ -43,6 +47,7 @@ public class BranchService {
         this.restaurantRepository = restaurantRepository;
         this.staffAccountRepository = staffAccountRepository;
         this.featureLimitCheckerService = featureLimitCheckerService;
+        this.ownershipValidationService = ownershipValidationService;
         // this.branchMenuItemRepository = branchMenuItemRepository;
         // this.menuItemRepository = menuItemRepository;
     }
@@ -55,7 +60,8 @@ public class BranchService {
     }
 
     private User getCurrentUser() {
-        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             return (User) authentication.getPrincipal();
         }
@@ -63,13 +69,8 @@ public class BranchService {
     }
 
     private void checkRestaurantOwnership(UUID restaurantId) {
-        User currentUser = getCurrentUser();
-        Restaurant restaurant = restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        
-        if (!restaurant.getUser().getUserId().equals(currentUser.getUserId())) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
+        // Use OwnershipValidationService for consistent ownership validation
+        ownershipValidationService.validateRestaurantOwnership(restaurantId);
     }
 
     public List<BranchDTO> getAll() {
@@ -79,6 +80,7 @@ public class BranchService {
     public BranchDTO getById(UUID id) {
         Branch b = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        
         return toDtoWithStaffCount(b);
     }
 
@@ -149,6 +151,44 @@ public class BranchService {
     }
 
     @Transactional
+    public BranchDTO updateContactInfo(UUID id, BranchDTO dto) {
+        Branch exist = branchRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+
+        // Permission check: Owner of the restaurant or Branch Manager of this branch
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication();
+        Object principal = authentication != null ? authentication.getPrincipal() : null;
+
+        boolean isAuthorized = false;
+
+        if (principal instanceof User user) {
+            if (exist.getRestaurant().getUser().getUserId().equals(user.getUserId())) {
+                isAuthorized = true;
+            }
+        } else if (principal instanceof StaffAccount staff) {
+            if (staff.getBranch().getBranchId().equals(id) &&
+                    staff.getRole().getName() == RoleName.BRANCH_MANAGER) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (dto.getBranchPhone() != null) {
+            exist.setBranchPhone(dto.getBranchPhone());
+        }
+        if (dto.getMail() != null) {
+            exist.setMail(dto.getMail());
+        }
+
+        Branch saved = branchRepository.save(exist);
+        return toDtoWithStaffCount(saved);
+    }
+
+    @Transactional
     public void delete(UUID id) {
         Branch exist = branchRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
@@ -160,6 +200,11 @@ public class BranchService {
         // Check ownership
         checkRestaurantOwnership(restaurantId);
         
+        return branchRepository.findByRestaurant_RestaurantId(restaurantId)
+                .stream().map(this::toDtoWithStaffCount).toList();
+    }
+    public List<BranchDTO> getByPublicRestaurant(UUID restaurantId) {
+
         return branchRepository.findByRestaurant_RestaurantId(restaurantId)
                 .stream().map(this::toDtoWithStaffCount).toList();
     }
@@ -176,6 +221,12 @@ public class BranchService {
     public UUID getRestaurantIdByBranchId(UUID branchId) {
         return branchRepository.findRestaurantIdByBranchId(branchId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
+    }
+    @Transactional(readOnly = true)
+    public String getRestaurantSlugByBranchId(UUID branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
+        return branch.getRestaurant().getPublicUrl();
     }
 
     @Transactional(readOnly = true)

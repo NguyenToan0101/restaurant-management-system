@@ -32,6 +32,7 @@ import StaffManagement from "@/pages/owner/StaffManagement";
 import CategoryManagement from "@/pages/owner/CategoryManagement";
 import CustomizationManagement from "@/pages/owner/CustomizationManagement";
 import MenuItemManagement from "@/pages/owner/MenuItemManagement";
+import { RestaurantAnalytics } from "@/pages/owner/RestaurantAnalytics";
 import BranchAreaSelection from "@/pages/owner/BranchAreaSelection";
 import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
@@ -51,7 +52,7 @@ const RestaurantDashboard = () => {
     );
   }
 
-  if (!restaurant) return <Navigate to="/restaurants" replace />;
+  // if (!restaurant) return <Navigate to="/restaurants" replace />;
 
   return (
     <DashboardLayout>
@@ -61,6 +62,7 @@ const RestaurantDashboard = () => {
         <Route path="categories" element={<CategoryManagement />} />
         <Route path="customizations" element={<CustomizationManagement />} />
         <Route path="areas" element={<BranchAreaSelection />} />
+        <Route path="analytics" element={<RestaurantAnalytics />} />
         <Route path="orders" element={<CommingSoon title="Orders" />} />
         <Route path="staff" element={<StaffManagement />} />
         <Route path="settings" element={<CommingSoon title="Settings" />} />
@@ -93,11 +95,11 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   const [restaurantInfoDialogOpen, setRestaurantInfoDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [restaurantFormData, setRestaurantFormData] = useState({
-    name: restaurant.name,
-    email: restaurant.email,
-    restaurantPhone: restaurant.restaurantPhone,
-    publicUrl: restaurant.publicUrl || '',
-    description: restaurant.description || '',
+    name: restaurant?.name,
+    email: restaurant?.email,
+    restaurantPhone: restaurant?.restaurantPhone,
+    publicUrl: restaurant?.publicUrl || '',
+    description: restaurant?.description || '',
   });
 
   const openCreate = () => {
@@ -140,7 +142,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
       });
     } else {
       await createBranch.mutateAsync({
-        restaurantId: restaurant.restaurantId,
+        restaurantId: restaurant?.restaurantId,
         address: formData.address,
         branchPhone: formData.branchPhone,
         mail: formData.mail,
@@ -164,7 +166,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
     if (!restaurantFormData.name.trim() || !restaurantFormData.email.trim()) return;
 
     await updateRestaurant.mutateAsync({
-      id: restaurant.restaurantId,
+      id: restaurant?.restaurantId,
       data: {
         name: restaurantFormData.name,
         email: restaurantFormData.email,
@@ -177,7 +179,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   };
 
   const handleDeleteRestaurant = async () => {
-    await deleteRestaurant.mutateAsync(restaurant.restaurantId);
+    await deleteRestaurant.mutateAsync(restaurant?.restaurantId);
     setDeleteDialogOpen(false);
     navigate('/restaurants');
   };
@@ -217,8 +219,8 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
                   🍽️
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display mb-1">{restaurant.name}</h1>
-                  <p className="text-sm text-muted-foreground mb-2">{restaurant.email}</p>
+                  <h1 className="text-2xl font-display mb-1">{restaurant?.name}</h1>
+                  <p className="text-sm text-muted-foreground mb-2">{restaurant?.email}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Store className="w-3.5 h-3.5" />
@@ -588,8 +590,8 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
             <Button
               onClick={handleRestaurantInfoSave}
               disabled={
-                !restaurantFormData.name.trim() ||
-                !restaurantFormData.email.trim() ||
+                !restaurantFormData.name?.trim() ||
+                !restaurantFormData.email?.trim() ||
                 updateRestaurant.isPending
               }
             >
@@ -612,7 +614,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate the restaurant "{restaurant.name}" and all its branches.
+              This will deactivate the restaurant "{restaurant?.name}" and all its branches.
               The restaurant will no longer be visible in your dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, MapPin, ArrowRight, Clock, Mail, Phone, ChevronLeft } from "lucide-react";
+import { Loader2, MapPin, ArrowRight, Clock, Mail, Phone, ChevronLeft, Building2 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useBranchesByRestaurant } from "@/hooks/queries/useBranchQueries";
 
@@ -94,7 +94,7 @@ const BranchAreaSelection = () => {
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 pt-4 border-t border-border/50">
+                                    <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
                                         <Button
                                             variant="ghost"
                                             className="w-full justify-between group-hover:bg-primary/10 transition-colors"
@@ -105,6 +105,24 @@ const BranchAreaSelection = () => {
                                         >
                                             <span className="text-sm font-medium">Manage Areas & Tables</span>
                                             <ArrowRight className="w-4 h-4" />
+                                        </Button>
+                                        
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                // Store both branch ID and restaurant ID for branch manager dashboard
+                                                localStorage.setItem('selectedBranchId', branch.branchId!);
+                                                localStorage.setItem('currentRestaurantId', id!);
+                                                navigate('/manager/dashboard');
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Building2 className="w-4 h-4 text-primary" />
+                                                <span className="text-sm font-medium text-primary">Access Branch Dashboard</span>
+                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-primary" />
                                         </Button>
                                     </div>
                                 </CardContent>

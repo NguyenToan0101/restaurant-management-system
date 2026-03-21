@@ -1,3 +1,4 @@
+export * from './analytics.dto';
 export * from './api-response.dto';
 export * from './user.dto';
 export * from './request.dto';
@@ -11,5 +12,6 @@ export * from './customization.dto';
 export * from './menu-item.dto';
 export * from './package.dto';
 export * from './subscription.dto';
+export * from './reservation.dto';
 export * from './order.dto';
 export * from './branch-menu-item.dto';

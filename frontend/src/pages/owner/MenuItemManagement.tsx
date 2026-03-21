@@ -345,7 +345,7 @@ const MenuItemManagement = () => {
                     <h3 className="font-semibold text-sm truncate">{item.name}</h3>
                     <Badge variant="outline" className="text-[10px] mt-1">{getCatName(item.categoryId)}</Badge>
                   </div>
-                  <p className="font-display text-primary ml-2">${item.price.toFixed(2)}</p>
+                  <p className="font-display text-primary ml-2">{item.price.toFixed(2)}đ</p>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-2 mb-3">{item.description}</p>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -19,14 +18,15 @@ public class BillDTO {
     private UUID billId;
     private UUID orderId;
     private UUID branchId;
+    private String tableName;
+    private String areaName;
     private BigDecimal finalPrice;
     private String note;
     private PaymentMethod paymentMethod;
-    private LocalDateTime paidTime;
+    private Instant paidTime;
     private Instant createdAt;
     private OrderDTO order;
     private String restaurantName;
-    private String branchName;
     private String branchAddress;
     private String branchPhone;
 }

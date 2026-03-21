@@ -16,6 +16,10 @@ class BranchApi {
         const response = await axiosClient.get<ApiResponse<BranchDTO[]>>(`/branches/restaurant/${restaurantId}`);
         return response.data.result;
     }
+     async getByPublicRestaurant(restaurantId: string): Promise<BranchDTO[]> {
+        const response = await axiosClient.get<ApiResponse<BranchDTO[]>>(`/public/branches/restaurant/${restaurantId}`);
+        return response.data.result;
+    }
 
     async getActiveByRestaurant(restaurantId: string): Promise<BranchDTO[]> {
         const response = await axiosClient.get<ApiResponse<BranchDTO[]>>(`/branches/restaurant/${restaurantId}/active`);
@@ -32,6 +36,11 @@ class BranchApi {
         return response.data.result;
     }
 
+    async getRestaurantSlugByBranchId(branchId: string): Promise<string> {
+        const response = await axiosClient.get<ApiResponse<string>>(`/branches/${branchId}/restaurant/slug`);
+        return response.data.result;
+    }
+
     async create(data: BranchDTO): Promise<BranchDTO> {
         const response = await axiosClient.post<ApiResponse<BranchDTO>>('/branches', data);
         return response.data.result;
@@ -39,6 +48,11 @@ class BranchApi {
 
     async update(id: string, data: Partial<BranchDTO>): Promise<BranchDTO> {
         const response = await axiosClient.put<ApiResponse<BranchDTO>>(`/branches/${id}`, data);
+        return response.data.result;
+    }
+
+    async updateContactInfo(id: string, data: Partial<BranchDTO>): Promise<BranchDTO> {
+        const response = await axiosClient.patch<ApiResponse<BranchDTO>>(`/branches/${id}/contact-info`, data);
         return response.data.result;
     }
 

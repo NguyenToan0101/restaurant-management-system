@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -13,19 +14,27 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    CheckCircle, XCircle, Users, AlertTriangle, Armchair, Loader2, QrCode,
+    CheckCircle, XCircle, Users, AlertTriangle, Armchair, Loader2, QrCode, Calendar, Clock,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByArea } from "@/hooks/queries/useTableQueries";
+import { useRestaurantSlugByBranch } from "@/hooks/queries/useBranchQueries";
+import { useReservationsByTable } from "@/hooks/queries/useReservationQueries";
 import { useAuthStore } from "@/stores/authStore";
+import TableQrCodeDialog from "@/components/table/TableQrCodeDialog";
+import { getTableUrlWithSlug } from "@/utils/tableUrl";
 import type { AreaTableDTO } from "@/types/dto";
-import { TableStatus, EntityStatus } from "@/types/dto";
+import { TableStatus, EntityStatus, ReservationStatus } from "@/types/dto";
+import { format } from "date-fns";
 
 const ReceptionistTableView = () => {
     const staffInfo = useAuthStore((state) => state.staffInfo);
     const branchId = staffInfo?.branchId;
 
     const { data: allAreas = [] } = useAreasByBranch(branchId || '');
+    
+    // Get restaurant slug for generating table URLs
+    const { data: restaurantSlug } = useRestaurantSlugByBranch(branchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
 
     const [selectedAreaId, setSelectedAreaId] = useState<string>(
@@ -192,31 +201,12 @@ const ReceptionistTableView = () => {
             </Card>
 
             {/* QR Code Dialog */}
-            <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>QR Code - {viewingQr?.tag}</DialogTitle>
-                        <DialogDescription>
-                            Scan this QR code to access the menu for this table
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-col items-center gap-4 py-4">
-                        {viewingQr?.qr ? (
-                            <div className="p-4 bg-white rounded-lg border">
-                                <img
-                                    src={viewingQr.qr}
-                                    alt={`QR Code for ${viewingQr.tag}`}
-                                    className="w-64 h-64"
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center text-muted-foreground py-8">
-                                No QR code available
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <TableQrCodeDialog
+                open={qrDialogOpen}
+                onOpenChange={setQrDialogOpen}
+                table={viewingQr}
+                tableUrl={viewingQr?.areaTableId && restaurantSlug ? getTableUrlWithSlug(viewingQr.areaTableId, restaurantSlug) : undefined}
+            />
         </div>
     );
 };
@@ -252,6 +242,14 @@ interface TableCardProps {
 }
 
 const TableCard = ({ table, onViewQr }: TableCardProps) => {
+    const { data: reservations = [] } = useReservationsByTable(table.areaTableId || '');
+    const [reservationDialogOpen, setReservationDialogOpen] = useState(false);
+    
+    // Find all active reservations (APPROVED or CONFIRMED status)
+    const activeReservations = reservations.filter(
+        r => r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
+    );
+
     const getStatusStyles = () => {
         switch (table.status) {
             case TableStatus.FREE:
@@ -310,42 +308,141 @@ const TableCard = ({ table, onViewQr }: TableCardProps) => {
     const styles = getStatusStyles();
 
     return (
-        <Card className={`${styles.card} transition-all duration-300 border-2 hover:shadow-lg`}>
-            <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-3">
-                    {/* Table Visual */}
-                    <div className={`w-20 h-20 rounded-2xl ${styles.icon} flex items-center justify-center`}>
-                        <Armchair className="w-10 h-10" />
-                    </div>
-
-                    {/* Table Info */}
-                    <div className="text-center w-full">
-                        <h3 className="font-bold text-xl mb-1">{table.tag}</h3>
-                        <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
-                            <Users className="w-4 h-4" />
-                            <span>{table.capacity} seats</span>
+        <>
+            <Card className={`${styles.card} transition-all duration-300 border-2 hover:shadow-lg relative`}>
+                <CardContent className="p-4">
+                    <div className="flex flex-col items-center gap-3">
+                        {/* Table Visual */}
+                        <div className={`w-20 h-20 rounded-2xl ${styles.icon} flex items-center justify-center`}>
+                            <Armchair className="w-10 h-10" />
                         </div>
 
-                        {/* Status Badge */}
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${styles.badge} mb-2`}>
-                            {getStatusIcon()}
-                            <span>{getStatusText()}</span>
+                        {/* Table Info */}
+                        <div className="text-center w-full">
+                            <h3 className="font-bold text-xl mb-1">{table.tag}</h3>
+                            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground mb-2">
+                                <Users className="w-4 h-4" />
+                                <span>{table.capacity} seats</span>
+                            </div>
+
+                            {/* Status Badge */}
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${styles.badge} mb-2`}>
+                                {getStatusIcon()}
+                                <span>{getStatusText()}</span>
+                            </div>
+
+                            {/* Reservation Badge */}
+                            {activeReservations.length > 0 && (
+                                <Badge 
+                                    variant="outline" 
+                                    className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mb-2 block"
+                                    onClick={() => setReservationDialogOpen(true)}
+                                >
+                                    <Calendar className="w-3 h-3 mr-1" />
+                                    {activeReservations.length} Reserved
+                                </Badge>
+                            )}
+
+                            {/* QR Code Button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => onViewQr(table)}
+                            >
+                                <QrCode className="w-3.5 h-3.5 mr-1.5" />
+                                View QR
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Reservation Detail Dialog */}
+            {activeReservations.length > 0 && (
+                <Dialog open={reservationDialogOpen} onOpenChange={setReservationDialogOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Reservations for Table {table.tag}</DialogTitle>
+                            <DialogDescription>
+                                {table.areaName} - {activeReservations.length} active reservation(s)
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                            {activeReservations.map((reservation, index) => (
+                                <Card key={reservation.reservationId} className="border-border/60">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <h4 className="font-semibold">Reservation #{index + 1}</h4>
+                                            <Badge variant={reservation.status === ReservationStatus.CONFIRMED ? 'default' : 'secondary'}>
+                                                {reservation.status}
+                                            </Badge>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Customer Name</p>
+                                                <p className="font-medium">{reservation.customerName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                                                <p className="font-medium">{reservation.customerPhone}</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.customerEmail && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                                <p className="font-medium">{reservation.customerEmail}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-4 mt-3">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.startTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Guests</p>
+                                                <p className="font-medium">{reservation.guestNumber} people</p>
+                                            </div>
+                                        </div>
+
+                                        {reservation.estimatedDurationMinutes && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                                                <p className="font-medium">{reservation.estimatedDurationMinutes} minutes</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.note && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                                <p className="text-sm">{reservation.note}</p>
+                                            </div>
+                                        )}
+
+                                        {reservation.arrivalTime && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-muted-foreground mb-1">Arrival Time</p>
+                                                <p className="font-medium">{format(new Date(reservation.arrivalTime), 'MMM dd, yyyy HH:mm')}</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
 
-                        {/* QR Code Button */}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => onViewQr(table)}
-                        >
-                            <QrCode className="w-3.5 h-3.5 mr-1.5" />
-                            View QR
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setReservationDialogOpen(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </>
     );
 };
 
