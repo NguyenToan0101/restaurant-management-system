@@ -6,6 +6,8 @@ import com.example.backend.entities.*;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
 import com.example.backend.repositories.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 @Service
 public class OrderService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
+
     private final OrderRepository orderRepository;
     private final OrderLineRepository orderLineRepository;
     private final OrderItemRepository orderItemRepository;
@@ -30,6 +34,7 @@ public class OrderService {
     private final MediaService mediaService;
     private final PromotionService promotionService;
     private final BillRepository billRepository;
+    private final NotificationService notificationService;
 
     public OrderService(OrderRepository orderRepository,
                         OrderLineRepository orderLineRepository,
@@ -40,7 +45,8 @@ public class OrderService {
                         CustomizationRepository customizationRepository,
                         MediaService mediaService,
                         PromotionService promotionService,
-                        BillRepository billRepository) {
+                        BillRepository billRepository,
+                        NotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.orderItemRepository = orderItemRepository;
@@ -51,6 +57,7 @@ public class OrderService {
         this.mediaService = mediaService;
         this.promotionService = promotionService;
         this.billRepository = billRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -78,6 +85,34 @@ public class OrderService {
         table.setStatus(TableStatus.OCCUPIED);
         areaTableRepository.save(table);
 
+        // Emit order notification
+        try {
+            String eventId = UUID.randomUUID().toString();
+            UUID branchId = order.getAreaTable().getArea().getBranch().getBranchId();
+            
+            int itemCount = order.getOrderLines().stream()
+                    .mapToInt(line -> line.getOrderItems().size())
+                    .sum();
+            
+            OrderNotificationDTO notification = new OrderNotificationDTO(
+                    eventId,
+                    order.getOrderId(),
+                    branchId,
+                    table.getTag(),
+                    table.getArea().getName(),
+                    null, // customerName - not available in current context
+                    itemCount,
+                    order.getTotalPrice(),
+                    order.getCreatedAt()
+            );
+            
+            notificationService.emitOrderNotification(branchId, notification);
+        } catch (Exception e) {
+            logger.error("Failed to emit order notification for order {}: {}", 
+                    order.getOrderId(), e.getMessage(), e);
+            // Don't fail order creation if notification fails
+        }
+
         return toOrderDTO(order);
     }
 
@@ -92,6 +127,34 @@ public class OrderService {
 
         OrderLine orderLine = createOrderLine(order, request.getItems());
         recalculateOrderTotals(order);
+
+        // Emit order notification for additional items
+        try {
+            String eventId = UUID.randomUUID().toString();
+            UUID branchId = order.getAreaTable().getArea().getBranch().getBranchId();
+            AreaTable table = order.getAreaTable();
+            
+            int itemCount = orderLine.getOrderItems().size();
+            
+            OrderNotificationDTO notification = new OrderNotificationDTO(
+                    eventId,
+                    order.getOrderId(),
+                    branchId,
+                    table.getTag(),
+                    table.getArea().getName(),
+                    null, // customerName - not available in current context
+                    itemCount,
+                    order.getTotalPrice(),
+                    Instant.now()
+            );
+            
+            logger.info("Emitting notification for additional items to order {}", order.getOrderId());
+            notificationService.emitOrderNotification(branchId, notification);
+        } catch (Exception e) {
+            logger.error("Failed to emit order notification for additional items to order {}: {}", 
+                    order.getOrderId(), e.getMessage(), e);
+            // Don't fail order update if notification fails
+        }
 
         return toOrderDTO(order);
     }

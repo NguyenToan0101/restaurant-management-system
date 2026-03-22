@@ -96,7 +96,6 @@ const ManagerMenuManagement = () => {
           if (errorMsg && !errors.includes(errorMsg)) {
             errors.push(errorMsg);
           }
-          console.error(`Failed to update item ${id}:`, error);
         }
       }
 

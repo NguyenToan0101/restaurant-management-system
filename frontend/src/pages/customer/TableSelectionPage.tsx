@@ -64,7 +64,6 @@ export default function TableSelectionPage() {
             setSelectedBranch(branchesData[0])
           }
         } catch (err) {
-          console.error('Error fetching restaurant:', err)
         }
       } finally {
         setLoading(false)
@@ -85,7 +84,6 @@ export default function TableSelectionPage() {
             setSelectedArea(areasData[0])
           }
         } catch (err) {
-          console.error('Error fetching areas:', err)
         }
       }
     }
@@ -102,7 +100,6 @@ export default function TableSelectionPage() {
           setTables(tablesData)
           setSelectedTable(null)
         } catch (err) {
-          console.error('Error fetching tables:', err)
         }
       }
     }
@@ -143,7 +140,6 @@ export default function TableSelectionPage() {
           }
         }
       } catch (err) {
-        console.error('Error fetching table availability:', err)
       } finally {
         setLoadingAvailability(false)
       }
@@ -228,7 +224,6 @@ export default function TableSelectionPage() {
       })
       navigateTo('/menu')
     } catch (err) {
-      console.error('Error creating reservation:', err)
       toast({
         title: 'Error',
         description: 'Failed to create reservation. Please try again.',

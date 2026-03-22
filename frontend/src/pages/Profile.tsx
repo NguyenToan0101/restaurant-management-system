@@ -83,7 +83,6 @@ const Profile = () => {
         email: info.email,
       });
     } catch (error) {
-      console.error("Failed to load user info:", error);
     }
   };
 
@@ -94,7 +93,6 @@ const Profile = () => {
       const url = await userApi.getAvatar(user.userId);
       setAvatarUrl(url);
     } catch (error) {
-      console.error("Failed to load avatar:", error);
     }
   };
 
@@ -122,7 +120,6 @@ const Profile = () => {
       const data = await subscriptionApi.getSubscriptionsOverviewForOwner();
       setSubscriptionsOverview(data);
     } catch (error) {
-      console.error("Failed to load subscriptions:", error);
       toast({
         title: "Error",
         description: "Failed to load subscriptions",

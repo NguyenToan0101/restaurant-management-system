@@ -333,14 +333,16 @@ const TableCard = ({ table, onViewQr }: TableCardProps) => {
 
                             {/* Reservation Badge */}
                             {activeReservations.length > 0 && (
-                                <Badge 
-                                    variant="outline" 
-                                    className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mb-2 block"
-                                    onClick={() => setReservationDialogOpen(true)}
-                                >
-                                    <Calendar className="w-3 h-3 mr-1" />
-                                    {activeReservations.length} Reserved
-                                </Badge>
+                                <div className="w-full flex justify-center">
+                                    <Badge 
+                                        variant="outline" 
+                                        className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 inline-flex items-center gap-1"
+                                        onClick={() => setReservationDialogOpen(true)}
+                                    >
+                                        <Calendar className="w-3 h-3" />
+                                        {activeReservations.length} Reserved
+                                    </Badge>
+                                </div>
                             )}
 
                             {/* QR Code Button */}

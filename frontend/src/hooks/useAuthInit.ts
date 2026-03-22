@@ -12,6 +12,7 @@ const isPublicCustomerPage = (): boolean => {
 
 export const useAuthInit = () => {
   const setAuthData = useAuthStore((state) => state.setAuthData);
+  const setStaffAuthData = useAuthStore((state) => state.setStaffAuthData);
   const clearAuthData = useAuthStore((state) => state.clearAuthData);
   const hasFetched = useRef(false);
 
@@ -22,28 +23,38 @@ export const useAuthInit = () => {
 
     // Skip auth check for public customer pages
     if (isPublicCustomerPage()) {
-      console.log('[useAuthInit] Skipping auth check for public customer page');
       return;
     }
 
     const initAuth = async () => {
+      const currentState = useAuthStore.getState();
+      
+      // Nếu ĐÃ CÓ token trong localStorage → skip API call, tin tưởng localStorage
+      // Token sẽ được validate khi gọi API đầu tiên (axiosClient tự động handle 401)
+      if (currentState.accessToken && (currentState.user || currentState.staffInfo)) {
+        return;
+      }
+
+      // Chỉ gọi /auth/me trong các trường hợp:
+      // 1. Không có token trong localStorage (có thể là OAuth redirect)
+      // 2. Có token nhưng không có user/staffInfo (data bị corrupt)
       try {
-        // Luôn gọi /auth/me khi app load để verify session hiện tại
-        // Backend sẽ đọc từ HttpOnly cookie (access_token) nếu không có Authorization header
         const result = await authApi.getCurrentUser();
 
         if (result && (result.user || result.staffInfo)) {
+          // IMPORTANT: /auth/me không trả về accessToken/refreshToken
+          // Chỉ update user/staffInfo, giữ nguyên token đã có trong store
           if (result.user) {
             setAuthData({
-              accessToken: null,
-              refreshToken: null,
+              accessToken: currentState.accessToken || '', // Giữ token hiện tại hoặc empty
+              refreshToken: currentState.refreshToken || '',
               user: result.user,
             });
           }
           if (result.staffInfo) {
-            useAuthStore.getState().setStaffAuthData({
-              accessToken: null,
-              refreshToken: null,
+            setStaffAuthData({
+              accessToken: currentState.accessToken || '', // Giữ token hiện tại hoặc empty
+              refreshToken: currentState.refreshToken || '',
               staffInfo: result.staffInfo,
             });
           }
@@ -51,12 +62,12 @@ export const useAuthInit = () => {
           // Không có session hợp lệ
           clearAuthData();
         }
-      } catch {
+      } catch (error) {
         // 401 = không có session hợp lệ, xóa dữ liệu cũ
         clearAuthData();
       }
     };
 
     initAuth();
-  }, [setAuthData, clearAuthData]);
+  }, [setAuthData, setStaffAuthData, clearAuthData]);
 };

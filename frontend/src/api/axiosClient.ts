@@ -68,7 +68,6 @@ axiosClient.interceptors.response.use(
     if (error.response?.data && typeof error.response.data === 'object') {
       const errorData = error.response.data as { code?: number };
       if (errorData.code === 1108) {
-        console.log('[axiosClient] Access denied (1108), redirecting to unauthorized page');
         window.location.href = '/unauthorized';
         return Promise.reject(error);
       }
@@ -80,27 +79,22 @@ axiosClient.interceptors.response.use(
 
     // Don't retry for public endpoints - they shouldn't need auth
     if (isPublicEndpoint(originalRequest.url)) {
-      console.log('[axiosClient] 401 on public endpoint, not retrying:', originalRequest.url);
       return Promise.reject(error);
     }
 
     // Không retry các endpoint auth (tránh vòng lặp)
     if (originalRequest.url?.includes('/auth/')) {
-      console.log('[axiosClient] 401 on auth endpoint, not retrying:', originalRequest.url);
       return Promise.reject(error);
     }
 
     // Tránh retry 2 lần
     if (originalRequest._retry) {
-      console.log('[axiosClient] Already retried, logging out');
       useAuthStore.getState().clearAuthData();
       window.location.href = '/login';
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
-    console.log('[axiosClient] 401 detected, attempting token refresh for:', originalRequest.url);
-
     try {
       if (!refreshPromise) {
         refreshPromise = (async () => {
@@ -108,9 +102,6 @@ axiosClient.interceptors.response.use(
             // Determine which refresh endpoint to use based on session type
             const isStaff = !!useAuthStore.getState().staffInfo;
             const refreshEndpoint = isStaff ? '/auth/staff-refresh' : '/auth/refresh';
-            
-            console.log('[axiosClient] Calling refresh endpoint:', refreshEndpoint);
-
             // Refresh token có trong HttpOnly cookie, backend tự đọc
             // Backend sẽ set lại access_token cookie mới qua Set-Cookie
             const response = await axiosClient.post(
@@ -118,22 +109,19 @@ axiosClient.interceptors.response.use(
               {}, // Empty body
               { withCredentials: true }
             );
-            
-            console.log('[axiosClient] Token refresh successful');
-            
             // Update user/staff info from refresh response if available
             if (response.data?.result) {
               const result = response.data.result;
               if (result.user) {
                 useAuthStore.getState().setAuthData({
-                  accessToken: null,
-                  refreshToken: null,
+                  accessToken: result.accessToken,
+                  refreshToken: result.refreshToken,
                   user: result.user,
                 });
               } else if (result.staffInfo) {
                 useAuthStore.getState().setStaffAuthData({
-                  accessToken: null,
-                  refreshToken: null,
+                  accessToken: result.accessToken,
+                  refreshToken: result.refreshToken,
                   staffInfo: result.staffInfo,
                 });
               }
@@ -141,7 +129,6 @@ axiosClient.interceptors.response.use(
             
             return 'refreshed';
           } catch (refreshError) {
-            console.error('[axiosClient] Token refresh failed:', refreshError);
             useAuthStore.getState().clearAuthData();
             window.location.href = '/login';
             return null;
@@ -156,9 +143,6 @@ axiosClient.interceptors.response.use(
       if (!result) {
         return Promise.reject(error);
       }
-
-      console.log('[axiosClient] Retrying original request:', originalRequest.url);
-
       // Retry request gốc - cookie mới đã được set bởi backend
       // Xóa Authorization header để backend dùng cookie
       if (originalRequest.headers) {
@@ -168,7 +152,6 @@ axiosClient.interceptors.response.use(
       return axiosClient(originalRequest);
 
     } catch (err) {
-      console.error('[axiosClient] Error in refresh flow:', err);
       return Promise.reject(err);
     }
   }

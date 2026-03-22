@@ -2,6 +2,7 @@ package com.example.backend.services;
 
 import com.example.backend.dto.ReservationAnalyticsDTO;
 import com.example.backend.dto.ReservationDTO;
+import com.example.backend.dto.ReservationNotificationDTO;
 import com.example.backend.dto.TableAvailabilityDTO;
 import com.example.backend.dto.request.ReservationApprovalMailRequest;
 import com.example.backend.dto.request.ReservationConfirmationMailRequest;
@@ -19,6 +20,7 @@ import com.example.backend.repositories.BranchRepository;
 import com.example.backend.repositories.AreaTableRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReservationService {
 
     private static final int DEFAULT_DURATION = 120; // 2 hours
@@ -47,6 +50,7 @@ public class ReservationService {
     private final AreaTableRepository areaTableRepository;
     private final MailService mailService;
     private final AreaTableService areaTableService;
+    private final NotificationService notificationService;
 
     public List<ReservationDTO> getAll() {
         return reservationRepository.findAll()
@@ -125,6 +129,36 @@ public class ReservationService {
             ReservationConfirmationMailRequest mailRequest =
                     ReservationMapper.toMailRequest(reservation);
             mailService.sendReservationConfirmationMail(mailRequest);
+        }
+        
+        // Emit real-time notification for new reservation
+        try {
+            // Generate unique eventId
+            String eventId = UUID.randomUUID().toString();
+            
+            // Extract branchId
+            UUID branchId = reservation.getBranch().getBranchId();
+            
+            // Build ReservationNotificationDTO
+            ReservationNotificationDTO notificationDTO = new ReservationNotificationDTO(
+                eventId,
+                reservation.getReservationId(),
+                branchId,
+                reservation.getCustomerName(),
+                reservation.getCustomerPhone(),
+                reservation.getCustomerEmail(),
+                reservation.getStartTime(),
+                reservation.getGuestNumber(),
+                table != null ? table.getTag() : null,
+                Instant.now()
+            );
+            
+            // Emit notification
+            notificationService.emitReservationNotification(branchId, notificationDTO);
+        } catch (Exception e) {
+            // Log error but don't fail reservation creation
+            log.error("Failed to emit reservation notification for reservation {}: {}", 
+                reservation.getReservationId(), e.getMessage(), e);
         }
         
         return ReservationMapper.toDTO(reservation);

@@ -55,7 +55,6 @@ const CategoryManagement = () => {
       }
       setDialogOpen(false);
     } catch (error) {
-      console.error('Error saving category:', error);
     }
   };
 

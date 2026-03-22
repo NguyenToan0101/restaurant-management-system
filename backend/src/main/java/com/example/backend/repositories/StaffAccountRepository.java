@@ -21,7 +21,19 @@ import com.example.backend.entities.RoleName;
 @Repository
 public interface StaffAccountRepository extends JpaRepository<StaffAccount, UUID> {
 
-    Optional<StaffAccount> findByUsernameAndBranch_Restaurant_RestaurantId(String username, UUID restaurantId);
+    @Query("""
+           SELECT s
+           FROM StaffAccount s
+           JOIN FETCH s.role
+           JOIN FETCH s.branch b
+           JOIN FETCH b.restaurant
+           WHERE s.username = :username
+           AND b.restaurant.restaurantId = :restaurantId
+           """)
+    Optional<StaffAccount> findByUsernameAndBranch_Restaurant_RestaurantId(
+        @Param("username") String username, 
+        @Param("restaurantId") UUID restaurantId
+    );
 
     boolean existsByUsernameAndBranch_Restaurant_RestaurantId(String username, UUID restaurantId);
     
