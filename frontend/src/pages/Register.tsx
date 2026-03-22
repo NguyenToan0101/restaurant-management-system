@@ -44,7 +44,6 @@ export default function Register() {
       });
     },
     onError: (error: any) => {
-      console.error('Send OTP error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Please try again.';
       toast({
         variant: 'destructive',
@@ -58,7 +57,6 @@ export default function Register() {
   const validateOTPMutation = useMutation({
     mutationFn: userApi.validateOTP,
     onSuccess: (data) => {
-      console.log('OTP validation response:', data);
       if (data.result) {
         // OTP valid, proceed to signup
         signupMutation.mutate({
@@ -75,7 +73,6 @@ export default function Register() {
       }
     },
     onError: (error: any) => {
-      console.error('OTP validation error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Please try again.';
       toast({
         variant: 'destructive',
@@ -89,7 +86,6 @@ export default function Register() {
   const signupMutation = useMutation({
     mutationFn: userApi.signup,
     onSuccess: (data) => {
-      console.log('Signup success:', data);
       setStep('success');
       toast({
         title: 'Account created!',
@@ -97,7 +93,6 @@ export default function Register() {
       });
     },
     onError: (error: any) => {
-      console.error('Signup error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Please try again.';
       toast({
         variant: 'destructive',

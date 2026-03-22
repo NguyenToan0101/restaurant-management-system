@@ -19,10 +19,10 @@ class AuthApi {
     }
     
     // Backend đã set token vào HttpOnly cookie
-    // Chỉ lưu user data vào store (không lưu token vào memory/localStorage)
+    // Lưu cả token vào store để WebSocket có thể sử dụng
     useAuthStore.getState().setAuthData({
-      accessToken: null,
-      refreshToken: null,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       user: user,
     });
 
@@ -36,13 +36,12 @@ class AuthApi {
     const result = response.data.result;
     
     // Backend đã set token vào HttpOnly cookie
-    // Chỉ lưu staff info vào store (không lưu token vào memory/localStorage)
+    // Lưu cả token vào store để WebSocket có thể sử dụng
     useAuthStore.getState().setStaffAuthData({
-      accessToken: null,
-      refreshToken: null,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       staffInfo: result.staffInfo,
     });
-
     return result;
   }
 

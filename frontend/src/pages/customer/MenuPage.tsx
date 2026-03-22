@@ -70,11 +70,9 @@ export default function MenuPage() {
           setMenuItems(menuResponse.data.result ||[])
          
         } catch (slugError) {
-          console.warn('Could not fetch restaurant by slug')
           setMenuItems([])
         }
       } catch (err) {
-        console.error('Error fetching restaurant data:', err)
         setError('Failed to load restaurant data')
       } finally {
         setLoading(false)
@@ -103,7 +101,6 @@ export default function MenuPage() {
           addItemToBasket(item, {}, '')
         }
       } catch (error) {
-        console.error('Error loading customizations:', error)
         // Add directly if error loading customizations
         addItemToBasket(item, {}, '')
       } finally {
@@ -239,7 +236,6 @@ export default function MenuPage() {
       })
 
     } catch (err: any) {
-      console.error('Error creating order:', err)
       toast({
         title: 'Error',
         description: err.response?.data?.message || 'Failed to create order. Please try again.',

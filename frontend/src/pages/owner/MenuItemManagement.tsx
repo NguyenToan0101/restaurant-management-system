@@ -142,7 +142,6 @@ const MenuItemManagement = () => {
           await setActiveStatus({ menuItemId: id, active });
           successCount++;
         } catch (error) {
-          console.error(`Failed to update item ${id}:`, error);
         }
       }
       

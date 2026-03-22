@@ -77,6 +77,7 @@ public class JwtService {
                     .claim("role", staffAccount.getRole().getName().name())
                     .claim("scope", "ROLE_" + staffAccount.getRole().getName().name())
                     .claim("userType", "STAFF")
+                    .claim("branchId", staffAccount.getBranch().getBranchId().toString())
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(expiry))
                     .jwtID(UUID.randomUUID().toString())

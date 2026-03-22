@@ -37,7 +37,6 @@ export default function HomePage() {
           const menuResponse = await menuItemApi.getAllByRestaurant(restaurantData.restaurantId)
           setMenuItems(menuResponse.data.result ||[])
         } catch (err) {
-          console.error('Error fetching restaurant:', err)
         }
       } finally {
         setLoading(false)

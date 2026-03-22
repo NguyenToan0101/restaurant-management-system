@@ -30,18 +30,21 @@ public class AreaTableService {
     private final AreaTableMapper areaTableMapper;
     private final QrCodeService qrCodeService;
     private final StaffAccountRepository staffAccountRepository;
+    private final NotificationService notificationService;
 
     public AreaTableService(
             AreaTableRepository areaTableRepository,
             AreaRepository areaRepository,
             AreaTableMapper areaTableMapper,
             QrCodeService qrCodeService,
-            StaffAccountRepository staffAccountRepository) {
+            StaffAccountRepository staffAccountRepository,
+            NotificationService notificationService) {
         this.areaTableRepository = areaTableRepository;
         this.areaRepository = areaRepository;
         this.areaTableMapper = areaTableMapper;
         this.qrCodeService = qrCodeService;
         this.staffAccountRepository = staffAccountRepository;
+        this.notificationService = notificationService;
     }
 
     private Object getCurrentPrincipal() {
@@ -193,7 +196,6 @@ public class AreaTableService {
             saved = areaTableRepository.save(saved);
         } catch (Exception e) {
             // If QR generation fails, log but don't fail the entire operation
-            System.err.println("Failed to generate QR code: " + e.getMessage());
         }
 
         return areaTableMapper.toDto(saved);
@@ -246,6 +248,11 @@ public class AreaTableService {
 
         table.setStatus(status);
         AreaTable saved = areaTableRepository.save(table);
+        
+        // Emit WebSocket event for real-time update
+        UUID branchId = table.getArea().getBranch().getBranchId();
+        notificationService.emitTableStatusChanged(branchId, id, status);
+        
         return areaTableMapper.toDto(saved);
     }
 
@@ -258,6 +265,11 @@ public class AreaTableService {
 
         table.setStatus(status);
         AreaTable saved = areaTableRepository.save(table);
+        
+        // Emit WebSocket event for real-time update
+        UUID branchId = table.getArea().getBranch().getBranchId();
+        notificationService.emitTableStatusChanged(branchId, id, status);
+        
         return areaTableMapper.toDto(saved);
     }
 

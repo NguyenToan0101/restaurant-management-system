@@ -63,19 +63,11 @@ export const useAuthStore = create<AuthState>()(
 
       isAuthenticated: () => {
         const state = get();
-        // Authenticated khi có user data hoặc staff data
-        // Token thực sự nằm trong HttpOnly cookie, không lưu trong store
         return !!state.user || !!state.staffInfo;
       },
     }),
     {
       name: 'auth-storage',
-      // Chỉ persist user data để hiển thị UI nhanh
-      // Tokens KHÔNG được persist - được quản lý qua HttpOnly cookie
-      partialize: (state) => ({
-        user: state.user,
-        staffInfo: state.staffInfo,
-      }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
       },

@@ -16,3 +16,4 @@ export * from './reservation.dto';
 export * from './order.dto';
 export * from './branch-menu-item.dto';
 export * from './promotion.dto';
+export * from './notification.dto';

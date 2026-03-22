@@ -77,15 +77,11 @@ export function MenuItemFormDialog({
   // All available customizations for the restaurant (not filtered by category)
   const allCustomizations = useMemo(() => {
     const filtered = customizations.filter((cust) => cust.restaurantId === (menuItem?.restaurantId || categories[0]?.restaurantId));
-    console.log('MenuItemFormDialog - allCustomizations:', filtered);
-    console.log('MenuItemFormDialog - selectedCustIds:', selectedCustIds);
     return filtered;
   }, [customizations, menuItem, categories, selectedCustIds]);
 
   useEffect(() => {
     if (menuItem) {
-      console.log('MenuItemFormDialog - Setting up form with menuItem:', menuItem);
-      console.log('MenuItemFormDialog - menuItem.customizations:', menuItem.customizations);
       setFName(menuItem.name);
       setFDesc(menuItem.description);
       setFPrice(menuItem.price.toString());
@@ -96,7 +92,6 @@ export function MenuItemFormDialog({
       setFActive(menuItem.isActive);
       // Fix: Make sure to use the customizations array from the menuItem
       const custIds = new Set(menuItem.customizations || []);
-      console.log('MenuItemFormDialog - Setting selectedCustIds to:', custIds);
       setSelectedCustIds(custIds);
     } else {
       setFName("");

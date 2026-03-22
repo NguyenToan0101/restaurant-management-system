@@ -30,6 +30,8 @@ export const useActiveOrderByTable = (tableId: string) => {
     queryKey: ['waiter', 'order', 'table', tableId],
     queryFn: () => waiterOrderApi.getActiveOrderByTable(tableId),
     enabled: !!tableId,
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 };
 
