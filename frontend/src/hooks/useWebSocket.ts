@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/stores/authStore';
+import { getSocketConfig } from '@/config/socket.config';
 
 type ConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
 
@@ -13,7 +14,8 @@ interface UseWebSocketReturn {
   retryCountdown: number | null;
 }
 
-const SOCKET_URL = 'http://localhost:8099';
+const socketConfig = getSocketConfig();
+const SOCKET_URL = socketConfig.url;
 const HEARTBEAT_INTERVAL = 15000;
 const HEARTBEAT_TIMEOUT = 30000;
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -90,9 +92,7 @@ export function useWebSocket(
       
       if (tokenRef.current && roleRef.current) {
         const socket = io(SOCKET_URL, {
-          autoConnect: false,
-          reconnection: false,
-          transports: ['websocket', 'polling'],
+          ...socketConfig.options,
         });
 
         setupSocketHandlers(socket);
@@ -240,9 +240,7 @@ export function useWebSocket(
     setConnectionStatus('reconnecting');
 
     const socket = io(SOCKET_URL, {
-      autoConnect: false,
-      reconnection: false,
-      transports: ['websocket', 'polling'],
+      ...socketConfig.options,
     });
 
     setupSocketHandlers(socket);
