@@ -57,6 +57,7 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
     MENUITEM_IN_ACTIVE_ORDER(3103, "Cannot mark menu item as unavailable because it is being served in active orders. Please remove it from orders first.", HttpStatus.BAD_REQUEST),
+    MENUITEM_UNAVAILABLE(3104, "One or more menu items are currently unavailable", HttpStatus.BAD_REQUEST),
 
     // Staff & Role errors
     STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),

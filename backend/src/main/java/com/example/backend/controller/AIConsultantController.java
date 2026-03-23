@@ -19,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.example.backend.entities.RoleName;
 
 import java.util.UUID;
 
@@ -34,7 +35,7 @@ public class AIConsultantController {
     private final StaffAccountRepository staffAccountRepository;
 
     @PostMapping("/restaurants/{restaurantId}/ai-consultant")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('RESTAURANT_OWNER')")
     public ApiResponse<AIConsultantResponse> consultRestaurant(
             @PathVariable UUID restaurantId,
             @Valid @RequestBody AIConsultantRequest request) {
@@ -64,7 +65,7 @@ public class AIConsultantController {
     }
 
     @PostMapping("/branches/{branchId}/ai-consultant")
-    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('RESTAURANT_OWNER', 'BRANCH_MANAGER')")
     public ApiResponse<AIConsultantResponse> consultBranch(
             @PathVariable UUID branchId,
             @Valid @RequestBody AIConsultantRequest request) {
@@ -108,10 +109,10 @@ public class AIConsultantController {
             StaffAccount staffWithRole = staffAccountRepository.findByIdWithRole(staff.getStaffAccountId())
                     .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED));
             
-            boolean isManager = staffWithRole.getRole().getName().equals("MANAGER");
+            boolean isBranchManager = staffWithRole.getRole().getName().equals(RoleName.BRANCH_MANAGER);
             boolean isAssignedToBranch = staff.getBranch().getBranchId().equals(branchId);
             
-            if (!isManager || !isAssignedToBranch) {
+            if (!isBranchManager || !isAssignedToBranch) {
                 throw new AppException(ErrorCode.UNAUTHORIZED);
             }
         } else {

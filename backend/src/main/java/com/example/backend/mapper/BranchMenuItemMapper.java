@@ -10,10 +10,12 @@ import org.mapstruct.Mapping;
 public interface BranchMenuItemMapper {
 
     @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "discountedPrice", ignore = true)
     @Mapping(target = "name", source = "menuItem.name")
     @Mapping(target = "description", source = "menuItem.description")
     @Mapping(target = "price", source = "menuItem.price")
     @Mapping(target = "bestSeller", source = "menuItem.bestSeller")
+    @Mapping(target = "hasCustomization", source = "menuItem.hasCustomization")
     @Mapping(target = "categoryId", source = "menuItem.category.categoryId")
     @Mapping(target = "branchId", source = "branch.branchId")
     @Mapping(target = "menuItemId", source = "menuItem.menuItemId")

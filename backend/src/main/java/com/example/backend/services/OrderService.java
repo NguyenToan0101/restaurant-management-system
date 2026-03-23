@@ -35,6 +35,7 @@ public class OrderService {
     private final PromotionService promotionService;
     private final BillRepository billRepository;
     private final NotificationService notificationService;
+    private final BranchMenuItemRepository branchMenuItemRepository;
 
     public OrderService(OrderRepository orderRepository,
                         OrderLineRepository orderLineRepository,
@@ -46,7 +47,8 @@ public class OrderService {
                         MediaService mediaService,
                         PromotionService promotionService,
                         BillRepository billRepository,
-                        NotificationService notificationService) {
+                        NotificationService notificationService,
+                        BranchMenuItemRepository branchMenuItemRepository) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.orderItemRepository = orderItemRepository;
@@ -58,6 +60,7 @@ public class OrderService {
         this.promotionService = promotionService;
         this.billRepository = billRepository;
         this.notificationService = notificationService;
+        this.branchMenuItemRepository = branchMenuItemRepository;
     }
 
     @Transactional
@@ -172,9 +175,21 @@ public class OrderService {
 
         BigDecimal lineTotal = BigDecimal.ZERO;
 
+        // Get branch ID from order's table
+        UUID branchId = order.getAreaTable().getArea().getBranch().getBranchId();
+
         for (CreateOrderItemRequest itemReq : items) {
             MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
                     .orElseThrow(() -> new AppException(ErrorCode.MENUITEM_NOT_FOUND));
+
+            // Validate item availability in branch
+            BranchMenuItem branchMenuItem = branchMenuItemRepository
+                    .findByBranch_BranchIdAndMenuItem_MenuItemId(branchId, menuItem.getMenuItemId())
+                    .orElse(null);
+            
+            if (branchMenuItem == null || !branchMenuItem.isAvailable()) {
+                throw new AppException(ErrorCode.MENUITEM_UNAVAILABLE);
+            }
 
             BigDecimal unitPrice = menuItem.getPrice();
             BigDecimal discountedUnitPrice = promotionService.calculateItemDiscountedPriceByRestaurant(
