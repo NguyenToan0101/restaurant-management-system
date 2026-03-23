@@ -80,3 +80,20 @@ export const useCanCreateBranch = (restaurantId: string | undefined) => {
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 };
+
+export const useAIAssistantAccess = (restaurantId: string | undefined) => {
+  return useQuery({
+    queryKey: ['aiAssistantAccess', restaurantId],
+    queryFn: async () => {
+      if (!restaurantId) return false;
+      try {
+        const { aiConsultantApi } = await import('@/api/aiConsultantApi');
+        return await aiConsultantApi.checkAIAssistantAccess(restaurantId);
+      } catch {
+        return false;
+      }
+    },
+    enabled: !!restaurantId,
+    staleTime: 5 * 60 * 1000,
+  });
+};

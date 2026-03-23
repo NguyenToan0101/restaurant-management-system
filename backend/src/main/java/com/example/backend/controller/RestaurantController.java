@@ -15,18 +15,21 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.dto.RestaurantDTO;
 import com.example.backend.dto.request.RestaurantCreateRequest;
-// import com.example.backend.dto.response.PageResponse;
+import com.example.backend.entities.FeatureCode;
+import com.example.backend.services.FeatureLimitCheckerService;
 import com.example.backend.services.RestaurantService;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/restaurants")
 public class RestaurantController {
 
     private final RestaurantService restaurantService;
+    private final FeatureLimitCheckerService featureLimitCheckerService;
 
-    public RestaurantController(RestaurantService restaurantService) {
+    public RestaurantController(RestaurantService restaurantService,
+                                FeatureLimitCheckerService featureLimitCheckerService) {
         this.restaurantService = restaurantService;
+        this.featureLimitCheckerService = featureLimitCheckerService;
     }
 
     @GetMapping("")
@@ -71,13 +74,11 @@ public class RestaurantController {
         return res;
     }
 
-    // @GetMapping("/paginated")
-    // public ApiResponse<PageResponse<RestaurantDTO>> getPaginated(
-    //         @RequestParam(required = false, defaultValue = "1") int page,
-    //         @RequestParam(required = false, defaultValue = "1") int size) {
-    //     ApiResponse<PageResponse<RestaurantDTO>> apiResponse = new ApiResponse<>();
-    //     apiResponse.setResult(restaurantService.getRestaurantPaginated(page, size));
-    //     return apiResponse;
-    // }
-
+    @GetMapping("/{restaurantId}/features/ai-assistant/limit")
+    public ApiResponse<Integer> getAIAssistantLimit(@PathVariable UUID restaurantId) {
+        ApiResponse<Integer> res = new ApiResponse<>();
+        int limit = featureLimitCheckerService.getLimitValue(restaurantId, FeatureCode.AI_ASSISTANT);
+        res.setResult(limit);
+        return res;
+    }
 }
