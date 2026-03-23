@@ -27,7 +27,7 @@ public class BedrockService {
     private final BedrockRuntimeClient client;
     private final ObjectMapper objectMapper;
     
-    private static final String MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+    private static final String MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0";
     private static final int MAX_TOKENS = 2000;
 
     public String invokeModel(String prompt) {
