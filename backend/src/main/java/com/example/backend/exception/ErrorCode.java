@@ -73,6 +73,7 @@ public enum ErrorCode {
     FEATURE_NOTEXISTED_IN_PACKAGE(3302, "Feature not found in package", HttpStatus.NOT_FOUND),
     FEATURE_VALUE_INVALID(3303, "Limit feature must have value greater than 0", HttpStatus.BAD_REQUEST),
     LIMIT_EXCEEDED(3304, "Feature limit exceeded", HttpStatus.BAD_REQUEST),
+    PREMIUM_FEATURE_REQUIRED(3305, "This feature requires a premium subscription package", HttpStatus.FORBIDDEN),
 
     // Payment errors (3400-3499)
     PAYMENT_GATEWAY_ERROR(3400, "Payment gateway error", HttpStatus.BAD_GATEWAY),

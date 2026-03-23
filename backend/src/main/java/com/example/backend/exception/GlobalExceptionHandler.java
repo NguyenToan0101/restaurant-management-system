@@ -161,6 +161,17 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(AIConsultantException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAIConsultantException(AIConsultantException ex) {
+        log.error("AI Consultant service error: {}", ex.getMessage(), ex);
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(HttpStatus.SERVICE_UNAVAILABLE.value());
+        response.setMessage(ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         if (isClientAbortException(ex)) {
