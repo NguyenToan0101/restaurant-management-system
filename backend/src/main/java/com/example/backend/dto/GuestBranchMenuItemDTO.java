@@ -24,5 +24,6 @@ public class GuestBranchMenuItemDTO {
     private UUID categoryId;
     private String imageUrl;
     private boolean bestSeller;
+    private boolean hasCustomization;
 
 }
