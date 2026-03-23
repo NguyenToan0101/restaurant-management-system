@@ -38,7 +38,18 @@ public class QrCodeService {
             AreaTable table = areaTableRepository.findById(tableId)
                     .orElseThrow(() -> new AppException(ErrorCode.TABLE_NOT_FOUND));
             Area area = table.getArea();
-            String slug = area.getBranch().getRestaurant().getPublicUrl();
+            String publicUrl = area.getBranch().getRestaurant().getPublicUrl();
+            
+            // Extract slug from publicUrl (handle both full URL and slug-only cases)
+            String slug;
+            if (publicUrl.startsWith("http://") || publicUrl.startsWith("https://")) {
+                // Extract slug from full URL (e.g., "https://bentox.store/khoine" -> "khoine")
+                slug = publicUrl.substring(publicUrl.lastIndexOf('/') + 1);
+            } else {
+                // Already a slug
+                slug = publicUrl;
+            }
+            
             // Create URL for the table
             String tableUrl = frontendBaseUrl + "/"+ slug +"/menu/" + tableId.toString();
             

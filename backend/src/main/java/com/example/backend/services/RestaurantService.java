@@ -26,9 +26,6 @@ public class RestaurantService {
     private final BranchRepository branchRepository;
     private final OwnershipValidationService ownershipValidationService;
 
-    @Value("${frontend.base-url}")
-    private String webUrl; // 👈 lấy từ application.yml
-
     public RestaurantService(
             RestaurantRepository restaurantRepository,
             RestaurantMapper restaurantMapper,
@@ -112,23 +109,6 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setStatus(false);
 
-        // 👉 Xử lý URL thông minh cho cả local và production
-        String base = webUrl.trim();
-
-        // Nếu không có http/https -> tự động thêm
-        if (!base.startsWith("http://") && !base.startsWith("https://")) {
-            if (base.contains("localhost") || base.contains("127.0.0.1")) {
-                base = "http://" + base;
-            } else {
-                base = "https://" + base;
-            }
-        }
-
-        // Bỏ dấu "/" cuối nếu có
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-
         // Tạo slug từ tên nhà hàng
         String slug = request.getName()
                 .toLowerCase()
@@ -136,7 +116,8 @@ public class RestaurantService {
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("(^-|-$)", "");
 
-        restaurant.setPublicUrl(base + "/" + slug);
+        // Chỉ lưu slug, không lưu full URL
+        restaurant.setPublicUrl(slug);
 
         return restaurantRepository.save(restaurant);
     }
