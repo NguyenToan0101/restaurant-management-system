@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePromotionQueries } from "@/hooks/queries/usePromotionQueries";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 
 export default function ManagerPromotions() {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const restaurantId = staffInfo?.restaurantId || "";
+  const { restaurantId } = useBranchContext();
   const [search, setSearch] = useState("");
 
   const { promotions = [], isLoading } = usePromotionQueries(restaurantId, true);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { managerApi } from "@/api/managerApi";
 import {
   Table,
@@ -35,8 +36,7 @@ import { Input } from "@/components/ui/input";
 import { OrderDTO, OrderStatus } from "@/types/dto";
 
 const ManagerOrders = () => {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId || "";
+  const { branchId } = useBranchContext();
   
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
