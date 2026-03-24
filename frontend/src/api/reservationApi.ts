@@ -10,6 +10,12 @@ import type {
     GetAvailableTablesParams
 } from '@/types/dto';
 
+const toLocalDateParam = (value?: string): string | undefined => {
+    if (!value) return undefined;
+    // Backend expects LocalDate query params in yyyy-MM-dd format
+    return value.includes('T') ? value.slice(0, 10) : value;
+};
+
 class ReservationApi {
     async getAll(): Promise<ReservationDTO[]> {
         const response = await axiosClient.get<ApiResponse<ReservationDTO[]>>('/reservations');
@@ -32,9 +38,15 @@ class ReservationApi {
     }
 
     async filter(branchId: string, params: ReservationFilterParams): Promise<ReservationDTO[]> {
+        const normalizedParams = {
+            ...params,
+            startDate: toLocalDateParam(params.startDate),
+            endDate: toLocalDateParam(params.endDate),
+        };
+
         const response = await axiosClient.get<ApiResponse<ReservationDTO[]>>(
             `/reservations/branch/${branchId}/filter`,
-            { params }
+            { params: normalizedParams }
         );
         return response.data.result;
     }
@@ -77,7 +89,12 @@ class ReservationApi {
     async getAnalytics(branchId: string, startDate: string, endDate: string): Promise<ReservationAnalyticsDTO> {
         const response = await axiosClient.get<ApiResponse<ReservationAnalyticsDTO>>(
             `/reservations/branch/${branchId}/analytics`,
-            { params: { startDate, endDate } }
+            {
+                params: {
+                    startDate: toLocalDateParam(startDate),
+                    endDate: toLocalDateParam(endDate),
+                },
+            }
         );
         return response.data.result;
     }

@@ -62,6 +62,7 @@ import {
   useResetStaffPassword,
 } from "@/hooks/queries/useStaffQueries";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import type {
   StaffAccountDTO,
   StaffRoleName,
@@ -84,8 +85,7 @@ const roleLabel: Record<StaffRoleName, string> = {
 };
 
 export default function ManagerStaff() {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId;
+  const { branchId } = useBranchContext();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffAccountDTO | null>(null);

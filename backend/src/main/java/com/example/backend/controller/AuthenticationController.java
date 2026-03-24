@@ -25,6 +25,7 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
     private final com.example.backend.repositories.UserRepository userRepository;
+    private final com.example.backend.repositories.StaffAccountRepository staffAccountRepository;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthenticationResponse>> login(
@@ -192,12 +193,18 @@ public class AuthenticationController {
         StaffAuthResponse.StaffInfo staffInfo = null;
 
         if (principal instanceof com.example.backend.entities.StaffAccount staff) {
-            // Staff account — data đã được load từ DB trong JwtAuthenticationFilter
+            // Reload staff with role/branch/restaurant eagerly to avoid detached lazy proxies
+            com.example.backend.entities.StaffAccount   loadedStaff = staffAccountRepository
+                    .findByIdWithRoleBranchAndRestaurant(staff.getStaffAccountId())
+                    .orElseThrow(() -> new com.example.backend.exception.AppException(
+                            com.example.backend.exception.ErrorCode.USER_NOT_FOUND));
+
             staffInfo = new StaffAuthResponse.StaffInfo(
-                    staff.getStaffAccountId(),
-                    staff.getUsername(),
-                    staff.getRole().getName().name(),
-                    staff.getBranch().getBranchId()
+                    loadedStaff.getStaffAccountId(),
+                    loadedStaff.getUsername(),
+                    loadedStaff.getRole().getName().name(),
+                    loadedStaff.getBranch().getBranchId(),
+                    loadedStaff.getBranch().getRestaurant().getRestaurantId()
             );
         } else if (principal instanceof com.example.backend.entities.User userFromContext) {
             // Regular user — reload từ DB để đảm bảo role được load trong transaction

@@ -9,6 +9,7 @@ import com.example.backend.mapper.BranchMenuItemMapper;
 import com.example.backend.repositories.*;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,6 +22,7 @@ public class BranchMenuItemService {
     private final MediaService mediaService;
     private final BranchMenuItemMapper branchMenuItemMapper;
     private final OrderItemRepository orderItemRepository;
+    private final PromotionService promotionService;
 
     public BranchMenuItemService(
             BranchMenuItemRepository branchMenuItemRepository,
@@ -28,7 +30,8 @@ public class BranchMenuItemService {
             BranchRepository branchRepository,
             MediaService mediaService,
             BranchMenuItemMapper branchMenuItemMapper,
-            OrderItemRepository orderItemRepository
+            OrderItemRepository orderItemRepository,
+            PromotionService promotionService
     ) {
         this.branchMenuItemRepository = branchMenuItemRepository;
         this.menuItemRepository = menuItemRepository;
@@ -36,6 +39,7 @@ public class BranchMenuItemService {
         this.mediaService = mediaService;
         this.branchMenuItemMapper = branchMenuItemMapper;
         this.orderItemRepository = orderItemRepository;
+        this.promotionService = promotionService;
     }
 
     public List<BranchMenuItemDTO> getMenuItemsByBranch(UUID branchId) {
@@ -61,6 +65,10 @@ public class BranchMenuItemService {
             dto.setName(menuItem.getName());
             dto.setDescription(menuItem.getDescription());
             dto.setPrice(menuItem.getPrice());
+
+            BigDecimal discountedPrice = promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, menuItem);
+            dto.setDiscountedPrice(discountedPrice);
+
             dto.setStatus(menuItem.getStatus());
             dto.setBestSeller(menuItem.isBestSeller());
             dto.setHasCustomization(menuItem.isHasCustomization());
@@ -136,6 +144,15 @@ public class BranchMenuItemService {
         Map<UUID, String> imageMap = mediaService.getLatestImageUrlsForTargets(guestBranchMenuItemDTOs.stream().map(branchMenuItem -> branchMenuItem.getMenuItemId()).toList(), "MENU_ITEM_IMAGE"); 
         for (GuestBranchMenuItemDTO guestBranchMenuItemDTO : guestBranchMenuItemDTOs) {
             guestBranchMenuItemDTO.setImageUrl(imageMap.get(guestBranchMenuItemDTO.getMenuItemId()));
+            MenuItem menuItem = menuItemRepository.findById(guestBranchMenuItemDTO.getMenuItemId())
+                    .orElse(null);
+            if (menuItem != null) {
+                UUID restaurantId = menuItem.getRestaurant().getRestaurantId();
+                guestBranchMenuItemDTO.setDiscountedPrice(
+                        promotionService.calculateItemDiscountedPriceByRestaurant(restaurantId, menuItem));
+            } else {
+                guestBranchMenuItemDTO.setDiscountedPrice(guestBranchMenuItemDTO.getPrice());
+            }
         }
         return guestBranchMenuItemDTOs;
     }

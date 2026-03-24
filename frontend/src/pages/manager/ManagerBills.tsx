@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { managerApi } from "@/api/managerApi";
 import {
   Table,
@@ -45,8 +46,7 @@ import { Input } from "@/components/ui/input";
 import { BillDTO, PaymentMethod } from "@/types/dto";
 
 const ManagerBills = () => {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId || "";
+  const { branchId } = useBranchContext();
 
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,13 +60,13 @@ const ManagerBills = () => {
   const [pageSize] = useState(10);
 
   // Debounce search term
-  useState(() => {
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
       setPage(0);
     }, 500);
     return () => clearTimeout(handler);
-  });
+  }, [searchTerm]);
 
   const { data: searchResponse, isLoading } = useQuery({
     queryKey: ["manager-billing-search", branchId, startDate, endDate, paymentMethodFilter, debouncedSearchTerm, page, pageSize],
@@ -276,7 +276,14 @@ const ManagerBills = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-bold text-primary">
-                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(bill.finalPrice)}
+                      <div className="flex flex-col items-end">
+                        <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(bill.finalPrice)}</span>
+                        {bill.discountAmount > 0 && (
+                          <span className="text-[10px] text-blue-600">
+                            -{new Intl.NumberFormat("vi-VN").format(bill.discountAmount)} promo
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -379,32 +386,42 @@ const ManagerBills = () => {
 
               {/* Items */}
               <div className="space-y-0 text-xs">
-                {selectedBill.order?.orderLines?.flatMap(line => line.orderItems || []).map((item) => (
-                  <div key={item.orderItemId} className="py-1.5 border-b border-gray-100 last:border-0">
-                    <div className="grid grid-cols-12">
-                      <div className="col-span-5 truncate font-medium">{item.menuItemName}</div>
-                      <div className="col-span-2 text-center">{item.quantity}</div>
-                      <div className="col-span-2 text-right">
-                        {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)}
+                {selectedBill.order?.orderLines?.flatMap(line => line.orderItems || []).map((item) => {
+                  const hasItemDiscount = item.discountedPrice && item.discountedPrice < item.menuItemPrice;
+                  return (
+                    <div key={item.orderItemId} className="py-1.5 border-b border-gray-100 last:border-0">
+                      <div className="grid grid-cols-12">
+                        <div className="col-span-5 truncate font-medium">{item.menuItemName}</div>
+                        <div className="col-span-2 text-center">{item.quantity}</div>
+                        <div className="col-span-2 text-right">
+                          {hasItemDiscount && (
+                            <span className="text-[9px] text-gray-400 line-through block leading-none">
+                              {new Intl.NumberFormat("vi-VN").format(item.menuItemPrice)}
+                            </span>
+                          )}
+                          <span className={hasItemDiscount ? "text-primary font-bold" : ""}>
+                            {new Intl.NumberFormat("vi-VN").format(item.discountedPrice || item.menuItemPrice)}
+                          </span>
+                        </div>
+                        <div className="col-span-3 text-right font-medium">
+                          {new Intl.NumberFormat("vi-VN").format(item.totalPrice)}
+                        </div>
                       </div>
-                      <div className="col-span-3 text-right font-medium">
-                        {new Intl.NumberFormat("vi-VN").format(item.totalPrice)}
-                      </div>
+                      {item.customizations?.length > 0 && (
+                        <div className="pl-2 pt-0.5">
+                          {item.customizations.map(c => (
+                            <p key={c.orderItemCustomizationId} className="text-[10px] text-gray-500">
+                              + {c.customizationName} ({new Intl.NumberFormat("vi-VN").format(c.totalPrice / item.quantity)})
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {item.note && (
+                        <p className="text-[10px] text-gray-400 pl-2 italic">"{item.note}"</p>
+                      )}
                     </div>
-                    {item.customizations?.length > 0 && (
-                      <div className="pl-2 pt-0.5">
-                        {item.customizations.map(c => (
-                          <p key={c.orderItemCustomizationId} className="text-[10px] text-gray-500">
-                            + {c.customizationName}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                    {item.note && (
-                      <p className="text-[10px] text-gray-400 pl-2 italic">"{item.note}"</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="border-t-2 border-dashed border-gray-400 mt-2" />
@@ -412,17 +429,55 @@ const ManagerBills = () => {
               {/* Totals */}
               <div className="py-2 space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Items</span>
-                  <span>{selectedBill.order?.orderLines?.reduce((sum, line) => sum + (line.orderItems?.reduce((s, i) => s + i.quantity, 0) || 0), 0) || 0}</span>
+                  <span>Gross Total</span>
+                  <span>{new Intl.NumberFormat("vi-VN").format(
+                    selectedBill.order?.orderLines?.flatMap(l => l.orderItems || []).reduce((sum, i) => {
+                      const custTotal = i.customizations?.reduce((s, c) => s + c.totalPrice, 0) || 0;
+                      return sum + (i.menuItemPrice * i.quantity) + custTotal;
+                    }, 0) || 0
+                  )}</span>
                 </div>
+                
+                {/* Item Discounts Breakdown */}
+                {selectedBill.order?.orderLines?.flatMap(l => l.orderItems || []).some(i => i.discountedPrice && i.discountedPrice < i.menuItemPrice) && (
+                  <div className="flex justify-between text-xs text-teal-600">
+                    <span>Item Discounts</span>
+                    <span>-{new Intl.NumberFormat("vi-VN").format(
+                      selectedBill.order?.orderLines?.flatMap(l => l.orderItems || []).reduce((sum, i) => {
+                        if (i.discountedPrice && i.discountedPrice < i.menuItemPrice) {
+                          return sum + (i.menuItemPrice - i.discountedPrice) * i.quantity;
+                        }
+                        return sum;
+                      }, 0)
+                    )}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>Subtotal</span>
-                  <span>{new Intl.NumberFormat("vi-VN").format(selectedBill.finalPrice)}</span>
+                  <span className="font-medium">{new Intl.NumberFormat("vi-VN").format(
+                    (selectedBill.finalPrice || 0) + (selectedBill.discountAmount || 0)
+                  )}</span>
                 </div>
+
+                {/* Order Discount */}
+                {selectedBill.discountAmount > 0 && (
+                  <div className="flex justify-between text-xs text-blue-600">
+                    <div className="flex flex-col">
+                      <span>Order Discount</span>
+                      <span className="text-[9px] opacity-70">({selectedBill.promotionName || selectedBill.promotionCode})</span>
+                    </div>
+                    <span>-{new Intl.NumberFormat("vi-VN").format(selectedBill.discountAmount)}</span>
+                  </div>
+                )}
+
                 <div className="border-t border-gray-300 mt-1 pt-1" />
-                <div className="flex justify-between text-base font-bold">
+                <div className="flex justify-between text-base font-bold text-primary">
                   <span>TOTAL</span>
                   <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedBill.finalPrice)}</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-400 uppercase tracking-widest pt-1">
+                  <span>Incl. VAT if applicable</span>
                 </div>
               </div>
 

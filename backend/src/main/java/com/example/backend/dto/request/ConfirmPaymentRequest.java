@@ -13,7 +13,7 @@ import java.util.UUID;
 public class ConfirmPaymentRequest {
     private UUID orderId;
     private UUID branchId;
-    private PaymentMethod paymentMethod;
+    private PaymentMethod paymentMethod; // e.g., CASH, MOMO, VNPAY
     private String note;
     private String promotionCode;
 }

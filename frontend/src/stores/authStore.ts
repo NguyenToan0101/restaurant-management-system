@@ -7,11 +7,13 @@ interface AuthState {
   refreshToken: string | null;
   user: UserDTO | null;
   staffInfo: StaffInfo | null;
+  hydrated: boolean;
 
   setAuthData: (authResponse: AuthenticationResponse) => void;
   setStaffAuthData: (authResponse: StaffAuthResponse) => void;
   clearAuthData: () => void;
   updateTokens: (accessToken: string, refreshToken: string) => void;
+  setHydrated: (hydrated: boolean) => void;
   isAuthenticated: () => boolean;
 }
 
@@ -22,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       staffInfo: null,
+      hydrated: false,
 
       setAuthData: (authResponse: AuthenticationResponse) => {
         set({
@@ -54,21 +57,20 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken, refreshToken });
       },
 
+      setHydrated: (hydrated: boolean) => {
+        set({ hydrated });
+      },
+
       isAuthenticated: () => {
         const state = get();
-        // Authenticated khi có user data hoặc staff data
-        // Token thực sự nằm trong HttpOnly cookie, không lưu trong store
         return !!state.user || !!state.staffInfo;
       },
     }),
     {
       name: 'auth-storage',
-      // Chỉ persist user data để hiển thị UI nhanh
-      // Tokens KHÔNG được persist - được quản lý qua HttpOnly cookie
-      partialize: (state) => ({
-        user: state.user,
-        staffInfo: state.staffInfo,
-      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+      },
     }
   )
 );

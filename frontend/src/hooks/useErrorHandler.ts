@@ -18,7 +18,6 @@ export const useErrorHandler = () => {
     }
     
     // Handle other errors as needed
-    console.error('Unhandled error:', error);
   };
 
   return { handleError };

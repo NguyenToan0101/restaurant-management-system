@@ -82,19 +82,6 @@ export function CreateReservationDialog({
 
   const { data: availableTables = [], isLoading: isLoadingTables } = useAvailableTables(availableTablesParams);
   
-  // Debug logging
-  useEffect(() => {
-    console.log('[CreateReservationDialog] Query params:', {
-      branchId,
-      time: reservationDateTime ? formatToLocalDateTime(reservationDateTime) : '',
-      guests: parseInt(guestNumber),
-      duration: parseInt(estimatedDuration),
-      shouldFetch: shouldFetchTables,
-      availableTablesCount: availableTables.length,
-      isLoading: isLoadingTables
-    });
-  }, [branchId, reservationDateTime, guestNumber, estimatedDuration, shouldFetchTables, availableTables.length, isLoadingTables]);
-  
   // Show all available tables (no area filtering)
   const filteredTables = availableTables;
 

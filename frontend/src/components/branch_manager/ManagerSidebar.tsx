@@ -35,6 +35,7 @@ const menuItems = [
   { title: "Dashboard", description: "Dashboard summary", url: "/dashboard", icon: LayoutDashboard },
   { title: "Branch Info", description: "Branch details", url: "/branch", icon: Store },
   { title: "Area & Tables", description: "Area management", url: "/areas", icon: Grid2X2 },
+  { title: "Kitchen", description: "Kitchen monitor", url: "/kitchen", icon: ChefHat },
   { title: "Orders", description: "Manage orders", url: "/orders", icon: ShoppingCart },
   { title: "Menu", description: "Menu management", url: "/menu", icon: UtensilsCrossed },
   { title: "Bills", description: "View bill history", url: "/bills", icon: ReceiptText },

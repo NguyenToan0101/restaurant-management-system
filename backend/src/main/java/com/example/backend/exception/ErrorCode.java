@@ -57,6 +57,7 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(3101, "Category not found", HttpStatus.NOT_FOUND),
     CUSTOMIZATION_NOT_FOUND(3102, "Customization not found", HttpStatus.NOT_FOUND),
     MENUITEM_IN_ACTIVE_ORDER(3103, "Cannot mark menu item as unavailable because it is being served in active orders. Please remove it from orders first.", HttpStatus.BAD_REQUEST),
+    MENUITEM_UNAVAILABLE(3104, "One or more menu items are currently unavailable", HttpStatus.BAD_REQUEST),
 
     // Staff & Role errors
     STAFFACCOUNT_NOTEXISTED(4101, "Staff account does not exist", HttpStatus.NOT_FOUND),
@@ -73,6 +74,7 @@ public enum ErrorCode {
     FEATURE_NOTEXISTED_IN_PACKAGE(3302, "Feature not found in package", HttpStatus.NOT_FOUND),
     FEATURE_VALUE_INVALID(3303, "Limit feature must have value greater than 0", HttpStatus.BAD_REQUEST),
     LIMIT_EXCEEDED(3304, "Feature limit exceeded", HttpStatus.BAD_REQUEST),
+    PREMIUM_FEATURE_REQUIRED(3305, "This feature requires a premium subscription package", HttpStatus.FORBIDDEN),
 
     // Payment errors (3400-3499)
     PAYMENT_GATEWAY_ERROR(3400, "Payment gateway error", HttpStatus.BAD_GATEWAY),
@@ -106,6 +108,12 @@ public enum ErrorCode {
     RESERVATION_NOT_FOUND(3700, "Reservation not found", HttpStatus.NOT_FOUND),
     INVALID_STATUS_TRANSITION(3701, "Invalid status transition", HttpStatus.BAD_REQUEST),
     RESERVATION_VALIDATION_ERROR(3702, "Reservation validation error", HttpStatus.BAD_REQUEST),
+
+    // Promotion errors (3800-3899)
+    PROMOTION_NOT_FOUND(3800, "Promotion not found", HttpStatus.NOT_FOUND),
+    PROMOTION_EXPIRED(3801, "Promotion is expired or not yet active", HttpStatus.BAD_REQUEST),
+    PROMOTION_MIN_ORDER_NOT_MET(3802, "Minimum order value for this promotion is not met", HttpStatus.BAD_REQUEST),
+    PROMOTION_OVERLAP(3803, "One or more items are already in another active promotion during this period", HttpStatus.BAD_REQUEST),
 
     UNEXPECTED_EXCEPTION(9999, "undefined exception", HttpStatus.INTERNAL_SERVER_ERROR);
 

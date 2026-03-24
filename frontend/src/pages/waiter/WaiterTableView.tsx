@@ -22,7 +22,7 @@ import {
 import {
     CheckCircle, XCircle, Users, Armchair, Loader2,
     CreditCard, DollarSign, Minus, Plus, Trash2, Receipt, X, Printer, Search,
-    UtensilsCrossed, Settings2, ChevronLeft, Calendar, Clock,
+    UtensilsCrossed, Settings2, ChevronLeft, Calendar, QrCode,
 } from "lucide-react";
 import { useAreasByBranch } from "@/hooks/queries/useAreaQueries";
 import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
@@ -38,6 +38,9 @@ import { TableStatus, EntityStatus, PaymentMethod, ReservationStatus } from "@/t
 import InvoiceView from "@/components/waiter/InvoiceView";
 import { useReactToPrint } from "react-to-print";
 import { format } from "date-fns";
+import TableQrCodeDialog from "@/components/table/TableQrCodeDialog";
+import { getTableUrlWithSlug } from "@/utils/tableUrl";
+import { useRestaurantSlugByBranch } from "@/hooks/queries/useBranchQueries";
 
 const formatVND = (value: number): string =>
     new Intl.NumberFormat("vi-VN", {
@@ -68,11 +71,14 @@ const WaiterTableView = () => {
     const [lastOrder, setLastOrder] = useState<OrderDTO | null>(null);
     const [autoPrint, setAutoPrint] = useState(true);
 
-    const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+    const [qrDialogOpen, setQrDialogOpen] = useState(false);
+    const [viewingQr, setViewingQr] = useState<AreaTableDTO | null>(null);
 
     const [searchQ, setSearchQ] = useState("");
     const [filterArea, setFilterArea] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
+
+    const { data: restaurantSlug } = useRestaurantSlugByBranch(branchId || '');
 
     const confirmPaymentMutation = useConfirmPayment();
     const updateOrderItemMutation = useUpdateOrderItem();
@@ -134,11 +140,11 @@ const WaiterTableView = () => {
 
     const handleTableClick = (table: AreaTableDTO) => {
         setSelectedTable(table);
+        // Always open table dialog - let the dialog determine what to show based on activeOrder
+        setTableDialogOpen(true);
+        // Pre-open order panel if table appears occupied (will be confirmed by activeOrder query)
         if (table.status === TableStatus.OCCUPIED) {
             setOrderPanelOpen(true);
-            setTableDialogOpen(true);
-        } else {
-            setStatusDialogOpen(true);
         }
     };
 
@@ -171,7 +177,6 @@ const WaiterTableView = () => {
         if (!selectedTable?.areaTableId) return;
         try {
             await setTableStatusMutation.mutateAsync({ id: selectedTable.areaTableId, status });
-            setStatusDialogOpen(false);
             setTableDialogOpen(false);
             setOrderPanelOpen(false);
             setSelectedTable(null);
@@ -187,9 +192,13 @@ const WaiterTableView = () => {
     const handleGoToOrder = (table: AreaTableDTO) => {
         if (!table.areaTableId) return;
         cart.setSelectedTable(table.areaTableId, table.tag);
-        setStatusDialogOpen(false);
         setSelectedTable(null);
         navigate("/waiter/orders");
+    };
+
+    const openQrCode = (table: AreaTableDTO) => {
+        setViewingQr(table);
+        setQrDialogOpen(true);
     };
 
     if (!branchId) {
@@ -320,6 +329,7 @@ const WaiterTableView = () => {
                                         key={table.areaTableId}
                                         table={table}
                                         onClick={() => handleTableClick(table)}
+                                        onViewQr={() => openQrCode(table)}
                                     />
                                 ))}
                             </div>
@@ -328,59 +338,7 @@ const WaiterTableView = () => {
                 </div>
             )}
 
-            {/* Status Change Dialog (for non-occupied tables) */}
-            {selectedTable && (
-                <Dialog open={statusDialogOpen} onOpenChange={(open) => {
-                    setStatusDialogOpen(open);
-                    if (!open) setSelectedTable(null);
-                }}>
-                    <DialogContent className="max-w-sm">
-                        <DialogHeader>
-                            <DialogTitle>Table {selectedTable.tag}</DialogTitle>
-                            <DialogDescription>
-                                {selectedTable.areaName && `Area: ${selectedTable.areaName} · `}
-                                Capacity: {selectedTable.capacity} seats
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        {selectedTable.status === TableStatus.FREE && (
-                            <Button
-                                className="w-full mb-4"
-                                onClick={() => handleGoToOrder(selectedTable)}
-                            >
-                                <UtensilsCrossed className="w-4 h-4 mr-2" />
-                                Add order for this table
-                            </Button>
-                        )}
-
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium mb-3">Set table status:</p>
-                            <div className="grid grid-cols-1 gap-2">
-                                <Button
-                                    variant={selectedTable.status === TableStatus.FREE ? "default" : "outline"}
-                                    className="justify-start gap-2"
-                                    onClick={() => handleStatusChange(TableStatus.FREE)}
-                                    disabled={setTableStatusMutation.isPending}
-                                >
-                                    <CheckCircle className="w-4 h-4 text-teal" />
-                                    Available
-                                </Button>
-                                <Button
-                                    variant={selectedTable.status === TableStatus.INACTIVE ? "default" : "outline"}
-                                    className="justify-start gap-2"
-                                    onClick={() => handleStatusChange(TableStatus.INACTIVE)}
-                                    disabled={setTableStatusMutation.isPending}
-                                >
-                                    <XCircle className="w-4 h-4 text-destructive" />
-                                    Out of Order
-                                </Button>
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
-
-            {/* Table Detail Dialog (for occupied tables) */}
+            {/* Table Detail Dialog */}
             {selectedTable && (
                 <TableDetailDialog
                     open={tableDialogOpen}
@@ -436,6 +394,14 @@ const WaiterTableView = () => {
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* QR Code Dialog */}
+            <TableQrCodeDialog
+                open={qrDialogOpen}
+                onOpenChange={setQrDialogOpen}
+                table={viewingQr}
+                tableUrl={viewingQr?.areaTableId && restaurantSlug ? getTableUrlWithSlug(viewingQr.areaTableId, restaurantSlug) : undefined}
+            />
         </div>
     );
 };
@@ -443,12 +409,13 @@ const WaiterTableView = () => {
 interface TableCardProps {
     table: AreaTableDTO;
     onClick: () => void;
+    onViewQr: () => void;
 }
 
-const TableCard = ({ table, onClick }: TableCardProps) => {
+const TableCard = ({ table, onClick, onViewQr }: TableCardProps) => {
     const { data: reservations = [] } = useReservationsByTable(table.areaTableId || '');
     const [reservationDialogOpen, setReservationDialogOpen] = useState(false);
-    
+
     // Find all active reservations (APPROVED or CONFIRMED status)
     const activeReservations = reservations.filter(
         r => r.status === ReservationStatus.APPROVED || r.status === ReservationStatus.CONFIRMED
@@ -496,6 +463,22 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
             >
                 <CardContent className="p-4">
                     <div className="flex flex-col items-center gap-2">
+                        {/* QR Button - Top Right Corner */}
+                        <div className="absolute top-2 right-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewQr();
+                                }}
+                                title="View QR Code"
+                            >
+                                <QrCode className="w-3.5 h-3.5" />
+                            </Button>
+                        </div>
+
                         <div className={`w-16 h-16 rounded-2xl ${styles.icon} flex items-center justify-center`}>
                             <Armchair className="w-8 h-8" />
                         </div>
@@ -507,11 +490,11 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                         <Badge variant="secondary" className={`text-xs ${styles.badge} border-0`}>
                             {statusText}
                         </Badge>
-                        
+
                         {/* Reservation Badge */}
                         {activeReservations.length > 0 && (
-                            <Badge 
-                                variant="outline" 
+                            <Badge
+                                variant="outline"
                                 className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 cursor-pointer hover:bg-blue-500/20 mt-1"
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -536,7 +519,7 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                                 {table.areaName} - {activeReservations.length} active reservation(s)
                             </DialogDescription>
                         </DialogHeader>
-                        
+
                         <div className="space-y-4">
                             {activeReservations.map((reservation, index) => (
                                 <Card key={reservation.reservationId} className="border-border/60">
@@ -547,7 +530,7 @@ const TableCard = ({ table, onClick }: TableCardProps) => {
                                                 {reservation.status}
                                             </Badge>
                                         </div>
-                                        
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <p className="text-xs text-muted-foreground mb-1">Customer Name</p>
@@ -647,13 +630,16 @@ const TableDetailDialog = ({
 }: TableDetailDialogProps) => {
     const { data: activeOrder, isLoading, refetch } = useActiveOrderByTable(table.areaTableId || '');
 
-    const statusColor = table.status === TableStatus.FREE ? 'text-teal'
-        : table.status === TableStatus.OCCUPIED ? 'text-orange-500'
-        : 'text-destructive';
+    // Determine if table is truly occupied based on activeOrder (source of truth)
+    const isOccupied = !!activeOrder;
+    
+    const statusColor = isOccupied ? 'text-orange-500'
+        : table.status === TableStatus.INACTIVE ? 'text-destructive'
+        : 'text-teal';
 
-    const statusText = table.status === TableStatus.FREE ? 'Available'
-        : table.status === TableStatus.OCCUPIED ? 'Occupied'
-        : 'Out of Order';
+    const statusText = isOccupied ? 'Occupied'
+        : table.status === TableStatus.INACTIVE ? 'Out of Order'
+        : 'Available';
 
     const allItems = activeOrder?.orderLines?.flatMap(line =>
         line.orderItems.map(item => ({ ...item, orderLineStatus: line.orderLineStatus }))
@@ -779,8 +765,8 @@ const TableDetailDialog = ({
                             </div>
                         </DialogHeader>
 
-                        {/* Payment Section (only for occupied with active order) */}
-                        {table.status === TableStatus.OCCUPIED && activeOrder && (
+                        {/* Payment Section (only when there's an active order) */}
+                        {isOccupied && activeOrder && (
                             <div className="space-y-3 pt-2 border-t">
                                 <h4 className="font-semibold text-sm">Payment</h4>
                                 <div>
@@ -876,14 +862,33 @@ const TableDetailDialog = ({
                             </div>
                         )}
 
-                        {table.status === TableStatus.OCCUPIED && isLoading && (
+                        {isLoading && (
                             <div className="flex justify-center py-4">
                                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
                             </div>
                         )}
 
-                        {table.status === TableStatus.OCCUPIED && !isLoading && !activeOrder && (
-                            <p className="text-sm text-muted-foreground text-center py-4">No active order for this table</p>
+                        {!isLoading && !isOccupied && (
+                            <div className="space-y-3 pt-2 border-t">
+                                <p className="text-sm text-muted-foreground text-center">No active order for this table</p>
+                                <Button
+                                    className="w-full"
+                                    onClick={() => {
+                                        onOpenChange(false);
+                                        // Navigate to order page with this table selected
+                                        if (table.areaTableId) {
+                                            const cart = (window as any).cartStore;
+                                            if (cart) {
+                                                cart.setSelectedTable(table.areaTableId, table.tag);
+                                            }
+                                            window.location.href = '/waiter/orders';
+                                        }
+                                    }}
+                                >
+                                    <UtensilsCrossed className="w-4 h-4 mr-2" />
+                                    Create order for this table
+                                </Button>
+                            </div>
                         )}
                     </div>
 

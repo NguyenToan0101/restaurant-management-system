@@ -25,5 +25,6 @@ services:
       - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
     ports:
       - "8080:8080"
+      - "8099:8099"
     container_name: spring-app-container
     restart: unless-stopped

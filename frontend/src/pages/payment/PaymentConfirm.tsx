@@ -83,7 +83,6 @@ const PaymentConfirm = () => {
         },
       });
     } catch (error) {
-      console.error("Failed to process subscription:", error);
     } finally {
       setIsProcessing(false);
     }

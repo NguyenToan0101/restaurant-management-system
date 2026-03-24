@@ -32,3 +32,21 @@ databaseChangeLog:
   - include:
       file: V011-add-estimated-duration.sql
       relativeToChangelogFile: true
+  - include:
+      file: V012-add-promotion-tables.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V013-add-order-item-price-snapshot.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V014-add-ai-assistant-feature.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V015-make-refresh-token-user-id-nullable.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V016-add-conversation-vectors-table.sql
+      relativeToChangelogFile: true
+  - include:
+      file: V017-update-vectors-db-1024.sql
+      relativeToChangelogFile: true

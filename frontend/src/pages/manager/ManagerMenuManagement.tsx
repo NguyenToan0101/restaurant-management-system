@@ -16,6 +16,14 @@ import { Search, ImageIcon, X, Loader2, Star } from "lucide-react";
 import { useBranchMenuItemQueries } from "@/hooks/queries/useBranchMenuItemQueries";
 import type { BranchMenuItemDTO } from "@/types/dto/branch-menu-item.dto";
 
+const formatVND = (value: number): string =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
 const ManagerMenuManagement = () => {
   const { branchId } = useBranchContext();
 
@@ -88,7 +96,6 @@ const ManagerMenuManagement = () => {
           if (errorMsg && !errors.includes(errorMsg)) {
             errors.push(errorMsg);
           }
-          console.error(`Failed to update item ${id}:`, error);
         }
       }
 
@@ -124,7 +131,7 @@ const ManagerMenuManagement = () => {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="w-full p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
@@ -316,7 +323,16 @@ const MenuItemCard = ({
               {item.categoryName}
             </Badge>
           </div>
-          <p className="font-display text-primary ml-2">{item.price.toFixed(2)}đ</p>
+          <div className="ml-2 text-right">
+            {item.discountedPrice != null && item.discountedPrice < item.price ? (
+              <>
+                <p className="font-display text-primary">{formatVND(item.discountedPrice)}</p>
+                <p className="text-[11px] text-muted-foreground line-through">{formatVND(item.price)}</p>
+              </>
+            ) : (
+              <p className="font-display text-primary">{formatVND(item.price)}</p>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground line-clamp-2 mt-2 mb-3">{item.description}</p>
         {item.customizations && item.customizations.length > 0 && (

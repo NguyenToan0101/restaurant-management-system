@@ -24,21 +24,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info,
+  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info, TrendingUp, TrendingDown, DollarSign,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import CommingSoon from "@/pages/CommingSoon";
+import ComingSoon from "@/components/ComingSoon";
 import StaffManagement from "@/pages/owner/StaffManagement";
 import CategoryManagement from "@/pages/owner/CategoryManagement";
 import CustomizationManagement from "@/pages/owner/CustomizationManagement";
 import MenuItemManagement from "@/pages/owner/MenuItemManagement";
+import PromotionManagement from "@/pages/owner/PromotionManagement";
 import { RestaurantAnalytics } from "@/pages/owner/RestaurantAnalytics";
 import BranchAreaSelection from "@/pages/owner/BranchAreaSelection";
 import { useRestaurant, useUpdateRestaurant, useDeleteRestaurant } from "@/hooks/queries/useRestaurantQueries";
 import { useBranchesByRestaurant, useCreateBranch, useUpdateBranch } from "@/hooks/queries/useBranchQueries";
 import { useBranchLimit, useCanCreateBranch } from "@/hooks/useFeatureLimits";
+import { useTodayRevenue } from "@/hooks/queries/useAnalyticsQueries";
 import type { BranchDTO, RestaurantDTO } from "@/types/dto";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatCurrency } from "@/utils/currency";
 
 const RestaurantDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -62,10 +65,11 @@ const RestaurantDashboard = () => {
         <Route path="categories" element={<CategoryManagement />} />
         <Route path="customizations" element={<CustomizationManagement />} />
         <Route path="areas" element={<BranchAreaSelection />} />
+        <Route path="promotions" element={<PromotionManagement />} />
         <Route path="analytics" element={<RestaurantAnalytics />} />
-        <Route path="orders" element={<CommingSoon title="Orders" />} />
+        <Route path="orders" element={<ComingSoon title="Orders" />} />
         <Route path="staff" element={<StaffManagement />} />
-        <Route path="settings" element={<CommingSoon title="Settings" />} />
+        <Route path="settings" element={<ComingSoon title="Settings" />} />
       </Routes>
     </DashboardLayout>
   );
@@ -76,6 +80,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   const { data: branches = [], isLoading: isLoadingBranches } = useBranchesByRestaurant(restaurant.restaurantId);
   const { data: branchLimit } = useBranchLimit(restaurant.restaurantId);
   const { data: canCreateBranch } = useCanCreateBranch(restaurant.restaurantId);
+  const { data: todayRevenue, isLoading: isTodayRevenueLoading } = useTodayRevenue(restaurant.restaurantId);
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
   const updateRestaurant = useUpdateRestaurant();
@@ -210,6 +215,59 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   return (
     <>
       <div className="p-6 lg:p-8">
+        {/* Today Revenue Card */}
+        <Card className="glass-card border-border/60 mb-6 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
+          <CardContent className="p-6">
+            {isTodayRevenueLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              </div>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-emerald-500 dark:bg-emerald-600 flex items-center justify-center shadow-lg">
+                    <DollarSign className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Today's Revenue</p>
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                      {formatCurrency(todayRevenue?.todayRevenue || 0)}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className={`flex items-center gap-1 text-sm font-medium ${
+                        (todayRevenue?.change || 0) >= 0 
+                          ? 'text-emerald-600 dark:text-emerald-400' 
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {(todayRevenue?.change || 0) >= 0 ? (
+                          <TrendingUp className="w-4 h-4" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4" />
+                        )}
+                        <span>
+                          {Math.abs(todayRevenue?.change || 0).toFixed(1)}%
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        vs yesterday ({formatCurrency(todayRevenue?.yesterdayRevenue || 0)})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Orders Today</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    {todayRevenue?.todayOrders || 0}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Yesterday: {todayRevenue?.yesterdayOrders || 0}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Restaurant Info Section */}
         <Card className="glass-card border-border/60 mb-6">
           <CardContent className="p-6">

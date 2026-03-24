@@ -7,6 +7,14 @@ export interface BranchAnalyticsDTO {
   timeframe: 'DAY' | 'MONTH' | 'YEAR';
 }
 
+export interface DailyRevenueDTO {
+  date: string;
+  revenue: number;
+  orderCount: number;
+  completedOrders: number;
+  cancelledOrders: number;
+}
+
 export interface TopSellingItemDTO {
   menuItemId: string;
   menuItemName: string;

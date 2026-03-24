@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -160,8 +161,24 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(AIConsultantException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAIConsultantException(AIConsultantException ex) {
+        log.error("AI Consultant service error: {}", ex.getMessage(), ex);
+        ApiResponse<Void> response = new ApiResponse<>();
+        response.setCode(HttpStatus.SERVICE_UNAVAILABLE.value());
+        response.setMessage(ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        if (isClientAbortException(ex)) {
+            log.warn("Client disconnected before response was written: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         ApiResponse<Void> response = new ApiResponse<>();
         response.setCode(ErrorCode.UNEXPECTED_EXCEPTION.getCode());
@@ -169,5 +186,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex) {
+        log.warn("Async response became unusable (client likely disconnected): {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    private boolean isClientAbortException(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof AsyncRequestNotUsableException) {
+                return true;
+            }
+
+            String className = current.getClass().getName();
+            String message = current.getMessage();
+            if (className.contains("ClientAbortException")) {
+                return true;
+            }
+            if (message != null) {
+                String lowerMessage = message.toLowerCase();
+                if (lowerMessage.contains("broken pipe")
+                        || lowerMessage.contains("connection reset by peer")
+                        || lowerMessage.contains("connection was aborted")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

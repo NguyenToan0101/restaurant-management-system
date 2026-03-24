@@ -1,10 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { restaurantApi, menuItemApi, categoryApi, branchApi, waiterOrderApi } from '@/api'
+import { restaurantApi, categoryApi, branchApi, waiterOrderApi, tableApi, branchMenuItemApi, menuItemApi, areaApi } from '@/api'
 import { useToast } from '@/hooks/use-toast'
 import CustomerHeader from '@/components/customer/CustomerHeader'
 import { Star } from 'lucide-react'
-import type { RestaurantDTO, MenuItemDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CustomizationDTO } from '@/types/dto'
+import type { RestaurantDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CustomizationDTO, GuestBranchMenuItemDTO } from '@/types/dto'
 
 // Format currency to Vietnamese Dong
 const formatVND = (value: number): string => {
@@ -15,6 +15,8 @@ const formatVND = (value: number): string => {
     maximumFractionDigits: 0
   }).format(value)
 }
+const getEffectivePrice = (item: { price: number; discountedPrice?: number }) =>
+  item.discountedPrice ?? item.price
 
 export default function MenuPage() {
   const navigate = useNavigate()
@@ -25,7 +27,7 @@ export default function MenuPage() {
   const [branches, setBranches] = useState<BranchDTO[]>([])
   const [selectedBranch, setSelectedBranch] = useState<BranchDTO | null>(null)
   const [categories, setCategories] = useState<CategoryDTO[]>([])
-  const [menuItems, setMenuItems] = useState<MenuItemDTO[]>([])
+  const [menuItems, setMenuItems] = useState<GuestBranchMenuItemDTO[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,11 +35,12 @@ export default function MenuPage() {
   const [basket, setBasket] = useState<any[]>([])
   const [orderLoading, setOrderLoading] = useState(false)
   const [showCustomizationModal, setShowCustomizationModal] = useState(false)
-  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItemDTO | null>(null)
+  const [selectedMenuItem, setSelectedMenuItem] = useState<GuestBranchMenuItemDTO | null>(null)
   const [selectedCustomizations, setSelectedCustomizations] = useState<{[key: string]: number}>({})
   const [itemNote, setItemNote] = useState('')
   const [menuItemCustomizations, setMenuItemCustomizations] = useState<CustomizationDTO[]>([])
   const [loadingCustomizations, setLoadingCustomizations] = useState(false)
+  const [branchId, setBranchId] = useState<string | null>(null)
 
   // Fetch restaurant data on mount or when slug changes
   useEffect(() => {
@@ -52,10 +55,31 @@ export default function MenuPage() {
           const restaurantData = await restaurantApi.getBySlug(restaurantSlug)
           setRestaurant(restaurantData)
           
-          const branchesData = await branchApi.getByPublicRestaurant(restaurantData.restaurantId)
-          setBranches(branchesData)
-          if (branchesData.length > 0) {
-            setSelectedBranch(branchesData[0])
+          // Get branch ID from table if tableId exists
+          let currentBranchId: string | null = null
+          if (tableId) {
+            try {
+              const tableData = await tableApi.getById(tableId)
+              // Get area to find branchId
+              if (tableData.areaId) {
+                const areaData = await areaApi.getById(tableData.areaId)
+                currentBranchId = areaData.branchId
+                setBranchId(currentBranchId)
+              }
+            } catch (tableError) {
+              console.error('Failed to fetch table data:', tableError)
+            }
+          }
+          
+          // If no branchId from table, get first branch
+          if (!currentBranchId) {
+            const branchesData = await branchApi.getByPublicRestaurant(restaurantData.restaurantId)
+            setBranches(branchesData)
+            if (branchesData.length > 0) {
+              currentBranchId = branchesData[0].branchId
+              setBranchId(currentBranchId)
+              setSelectedBranch(branchesData[0])
+            }
           }
           
           const categoriesData = await categoryApi.getAllByRestaurant(restaurantData.restaurantId)
@@ -64,15 +88,19 @@ export default function MenuPage() {
             setSelectedCategory(categoriesData.data.result[0].id)
           }
           
-          const menuResponse = await menuItemApi.getAllByRestaurant(restaurantData.restaurantId)
-          setMenuItems(menuResponse.data.result ||[])
+          // Fetch menu items from branch (only available items)
+          if (currentBranchId) {
+            const menuResponse = await branchMenuItemApi.getGuestMenuItemsByBranch(currentBranchId)
+            // Filter only available items
+            setMenuItems(menuResponse.filter(item => item.available) || [])
+          } else {
+            setMenuItems([])
+          }
          
         } catch (slugError) {
-          console.warn('Could not fetch restaurant by slug')
           setMenuItems([])
         }
       } catch (err) {
-        console.error('Error fetching restaurant data:', err)
         setError('Failed to load restaurant data')
       } finally {
         setLoading(false)
@@ -80,14 +108,14 @@ export default function MenuPage() {
     }
 
     fetchRestaurantData()
-  },[slug])
+  },[slug, tableId])
 
-  const addToBasket = async (item: any) => {
+  const addToBasket = async (item: GuestBranchMenuItemDTO) => {
     if (item.hasCustomization) {
       // Load customizations for this specific menu item
       setLoadingCustomizations(true)
       try {
-        const customizationsResponse = await menuItemApi.getCustomizations(item.id)
+        const customizationsResponse = await menuItemApi.getCustomizations(item.menuItemId)
         setMenuItemCustomizations(customizationsResponse.data.result || [])
         
         if (customizationsResponse.data.result && customizationsResponse.data.result.length > 0) {
@@ -101,7 +129,6 @@ export default function MenuPage() {
           addItemToBasket(item, {}, '')
         }
       } catch (error) {
-        console.error('Error loading customizations:', error)
         // Add directly if error loading customizations
         addItemToBasket(item, {}, '')
       } finally {
@@ -113,18 +140,18 @@ export default function MenuPage() {
     }
   }
 
-  const addItemToBasket = (item: any, itemCustomizations: {[key: string]: number}, note: string) => {
+  const addItemToBasket = (item: GuestBranchMenuItemDTO, itemCustomizations: {[key: string]: number}, note: string) => {
     // Calculate customization price
     const customizationPrice = Object.entries(itemCustomizations).reduce((sum, [customizationId, quantity]) => {
       const customization = menuItemCustomizations.find(c => c.id === customizationId)
       return sum + (customization ? customization.price * quantity : 0)
     }, 0)
 
-    const totalItemPrice = item.price + customizationPrice
+    const totalItemPrice = getEffectivePrice(item) + customizationPrice
 
     // Check if same item with same customizations exists
     const existingItemIndex = basket.findIndex(b => 
-      b.menuItemId === item.id && 
+      b.menuItemId === item.menuItemId && 
       JSON.stringify(b.customizations) === JSON.stringify(itemCustomizations) &&
       b.notes === note
     )
@@ -146,7 +173,7 @@ export default function MenuPage() {
         {
           ...item,
           basketId: Math.random().toString(36).substring(7),
-          menuItemId: item.id,
+          menuItemId: item.menuItemId,
           qty: 1,
           notes: note,
           customizations: itemCustomizations,
@@ -170,7 +197,7 @@ export default function MenuPage() {
       setBasket(
         basket.map(item => {
           if (item.basketId === basketId) {
-            const basePrice = item.price + (item.customizationPrice || 0)
+            const basePrice = (item.discountedPrice ?? item.price) + (item.customizationPrice || 0)
             return { ...item, qty, totalPrice: basePrice * qty }
           }
           return item
@@ -237,12 +264,28 @@ export default function MenuPage() {
       })
 
     } catch (err: any) {
-      console.error('Error creating order:', err)
-      toast({
-        title: 'Error',
-        description: err.response?.data?.message || 'Failed to create order. Please try again.',
-        variant: 'destructive',
-      })
+      const errorMessage = err.response?.data?.message || 'Failed to create order. Please try again.'
+      
+      // Check if error is about unavailable items
+      if (errorMessage.includes('unavailable') || err.response?.data?.code === 3104) {
+        // Refresh menu to get latest availability
+        if (branchId) {
+          const menuResponse = await branchMenuItemApi.getGuestMenuItemsByBranch(branchId)
+          setMenuItems(menuResponse.filter(item => item.available) || [])
+        }
+        
+        toast({
+          title: 'Items Unavailable',
+          description: 'Some items in your order are no longer available. Please review your selection.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        })
+      }
     } finally {
       setOrderLoading(false)
     }
@@ -333,17 +376,17 @@ export default function MenuPage() {
 
           {/* Menu Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mt-8 pt-2">
-            {filteredMenuItems.map((item: any) => (
-              <div key={item.id} className="group flex flex-col bg-white border border-gray-200 rounded-xl hover:shadow-xl hover:border-orange-200 transition-all duration-300 h-full overflow-hidden">
+            {filteredMenuItems.map((item) => (
+              <div key={item.menuItemId} className="group flex flex-col bg-white border border-gray-200 rounded-xl hover:shadow-xl hover:border-orange-200 transition-all duration-300 h-full overflow-hidden">
                 
                 {/* Image Box */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                   <img 
                     alt={item.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
-                    src={item.media?.url || item.image || ''} 
+                    src={item.imageUrl || ''} 
                   />
-                  {(item.isBestSeller || item.bestSeller) && (
+                  {item.bestSeller && (
                     <div
                       className="pointer-events-none absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-400 shadow-md ring-2 ring-white/90"
                       title="Best seller"
@@ -362,7 +405,7 @@ export default function MenuPage() {
                 <div className="p-5 flex flex-col grow">
                   <div className="flex justify-between items-start gap-3 mb-2">
                     <h3 className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors leading-tight line-clamp-2">{item.name}</h3>
-                    <span className="text-orange-600 font-bold text-base whitespace-nowrap bg-orange-50 px-2 py-0.5 rounded-md">{formatVND(item.price)}</span>
+                    <span className="text-orange-600 font-bold text-base whitespace-nowrap bg-orange-50 px-2 py-0.5 rounded-md">{formatVND(getEffectivePrice(item))}</span>
                   </div>
                   
                   <p className="text-gray-500 text-sm mb-6 line-clamp-3 leading-relaxed">{item.description}</p>
@@ -432,7 +475,7 @@ export default function MenuPage() {
                     <div key={item.basketId} className="flex flex-col gap-2 p-3 bg-white border border-gray-200 shadow-sm rounded-xl transition-all hover:border-orange-300">
                       <div className="flex gap-3">
                         <div className="size-16 bg-gray-100 shrink-0 rounded-lg overflow-hidden border border-gray-100">
-                          <img className="w-full h-full object-cover" src={item.media?.url || item.image || ''} alt={item.name} />
+                          <img className="w-full h-full object-cover" src={item.imageUrl || ''} alt={item.name} />
                         </div>
                         <div className="flex-1 flex flex-col justify-between">
                           <div className="flex justify-between items-start gap-2">
@@ -537,10 +580,10 @@ export default function MenuPage() {
 
       {/* Customization Modal */}
       {showCustomizationModal && selectedMenuItem && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full my-8 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 shrink-0">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900">Customize Your Order</h3>
                 <button 
@@ -552,12 +595,21 @@ export default function MenuPage() {
               </div>
               <div className="mt-2">
                 <h4 className="font-semibold text-gray-800">{selectedMenuItem.name}</h4>
-                <p className="text-sm text-gray-500">{formatVND(selectedMenuItem.price)}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedMenuItem.discountedPrice != null && selectedMenuItem.discountedPrice < selectedMenuItem.price ? (
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold text-orange-600">{formatVND(selectedMenuItem.discountedPrice)}</span>
+                      <span className="line-through text-gray-400">{formatVND(selectedMenuItem.price)}</span>
+                    </span>
+                  ) : (
+                    formatVND(selectedMenuItem.price)
+                  )}
+                </p>
               </div>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[50vh]">
+            {/* Modal Content - Scrollable */}
+            <div className="p-6 overflow-y-auto flex-1">
               {/* Customizations */}
               <div className="space-y-4">
                 <h5 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Add-ons</h5>
@@ -604,12 +656,12 @@ export default function MenuPage() {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-200">
+            {/* Modal Footer - Fixed at bottom */}
+            <div className="p-6 border-t border-gray-200 shrink-0 bg-white">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-semibold text-gray-800">Total Price:</span>
                 <span className="text-lg font-bold text-orange-600">
-                  {formatVND(selectedMenuItem.price + getCustomizationTotal())}
+                  {formatVND(getEffectivePrice(selectedMenuItem) + getCustomizationTotal())}
                 </span>
               </div>
               <button

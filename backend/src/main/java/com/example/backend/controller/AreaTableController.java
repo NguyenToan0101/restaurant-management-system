@@ -127,12 +127,6 @@ public class AreaTableController {
 
     @PostMapping("")
     public ApiResponse<AreaTableDTO> create(@RequestBody AreaTableDTO dto) {
-        System.out.println("Received create table request:");
-        System.out.println("AreaId: " + dto.getAreaId());
-        System.out.println("Tag: " + dto.getTag());
-        System.out.println("Capacity: " + dto.getCapacity());
-        System.out.println("Status: " + dto.getStatus());
-        
         ApiResponse<AreaTableDTO> response = new ApiResponse<>();
         response.setResult(areaTableService.create(dto));
         return response;

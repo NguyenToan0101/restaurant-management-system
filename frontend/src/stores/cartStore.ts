@@ -81,5 +81,6 @@ export const useCartStore = create<CartState>((set, get) => ({
 
 function recalcItemTotal(item: CartItem): number {
   const custTotal = item.customizations.reduce((sum, c) => sum + c.price * c.quantity, 0);
-  return (item.price + custTotal) * item.quantity;
+  const effectiveUnitPrice = item.discountedPrice ?? item.price;
+  return (effectiveUnitPrice + custTotal) * item.quantity;
 }

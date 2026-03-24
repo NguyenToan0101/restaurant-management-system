@@ -61,8 +61,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             @Param("branchId") UUID branchId,
             @Param("status") OrderStatus status,
             @Param("searchTerm") String searchTerm,
-            @Param("startDate") java.time.Instant startDate,
-            @Param("endDate") java.time.Instant endDate,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
             Pageable pageable);
 
             @Query("""
@@ -169,6 +169,49 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             @Param("endDate") Instant endDate
     );
 
+    @Query("""
+        SELECT o.createdAt
+        FROM Order o
+        JOIN o.areaTable at
+        JOIN at.area a
+        JOIN a.branch b
+        WHERE b.branchId = :branchId
+        AND b.isActive = true
+        AND a.status = 'ACTIVE'
+        AND o.createdAt >= :startDate
+        AND o.createdAt < :endDate
+    """)
+    List<Instant> findOrderCreatedTimesByBranchAndDate(
+            @Param("branchId") UUID branchId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+
+    @Query("""
+        SELECT mi.menuItemId, mi.name, oi.quantity, oi.totalPrice, o.totalPrice, COALESCE(b.finalPrice, o.totalPrice)
+        FROM OrderItem oi
+        JOIN oi.menuItem mi
+        JOIN oi.orderLine ol
+        JOIN ol.order o
+        JOIN o.areaTable at
+        JOIN at.area a
+        JOIN a.branch br
+        LEFT JOIN Bill b ON b.order = o
+        WHERE br.branchId = :branchId
+        AND br.isActive = true
+        AND a.status = 'ACTIVE'
+        AND o.status = :status
+        AND o.createdAt >= :startDate
+        AND o.createdAt < :endDate
+        AND oi.status = 'ACTIVE'
+    """)
+    List<Object[]> findTopSellingItemRowsByBranch(
+            @Param("branchId") UUID branchId,
+            @Param("status") OrderStatus status,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+
     /**
      * Find top selling items by restaurant and timeframe (aggregated from all branches)
      */
@@ -225,6 +268,49 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     """)
     List<OrderDistributionDTO> findOrderDistributionByRestaurantAndDate(
             @Param("restaurantId") UUID restaurantId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+
+    @Query("""
+        SELECT o.createdAt
+        FROM Order o
+        JOIN o.areaTable at
+        JOIN at.area a
+        JOIN a.branch b
+        WHERE b.restaurant.restaurantId = :restaurantId
+        AND b.isActive = true
+        AND a.status = 'ACTIVE'
+        AND o.createdAt >= :startDate
+        AND o.createdAt < :endDate
+    """)
+    List<Instant> findOrderCreatedTimesByRestaurantAndDate(
+            @Param("restaurantId") UUID restaurantId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+
+    @Query("""
+        SELECT mi.menuItemId, mi.name, oi.quantity, oi.totalPrice, o.totalPrice, COALESCE(b.finalPrice, o.totalPrice)
+        FROM OrderItem oi
+        JOIN oi.menuItem mi
+        JOIN oi.orderLine ol
+        JOIN ol.order o
+        JOIN o.areaTable at
+        JOIN at.area a
+        JOIN a.branch br
+        LEFT JOIN Bill b ON b.order = o
+        WHERE br.restaurant.restaurantId = :restaurantId
+        AND br.isActive = true
+        AND a.status = 'ACTIVE'
+        AND o.status = :status
+        AND o.createdAt >= :startDate
+        AND o.createdAt < :endDate
+        AND oi.status = 'ACTIVE'
+    """)
+    List<Object[]> findTopSellingItemRowsByRestaurant(
+            @Param("restaurantId") UUID restaurantId,
+            @Param("status") OrderStatus status,
             @Param("startDate") Instant startDate,
             @Param("endDate") Instant endDate
     );

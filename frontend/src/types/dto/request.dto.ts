@@ -24,6 +24,14 @@ export interface UserInfoResponse {
   googleAccount: boolean;
 }
 
+export interface ConfirmPaymentRequest {
+  orderId: string;
+  branchId: string;
+  paymentMethod: string; // Matches PaymentMethod enum: CASH, MOMO, VNPAY
+  note?: string;
+  promotionCode?: string;
+}
+
 export interface ChangePasswordRequest {
   userId: string;
   password: string;

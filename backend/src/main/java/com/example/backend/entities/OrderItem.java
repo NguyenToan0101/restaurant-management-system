@@ -38,6 +38,12 @@ public class OrderItem {
     @Column(name = "quantity")
     private int quantity;
 
+    @Column(name = "unit_price", precision = 10, scale = 2, nullable = false)
+    private BigDecimal unitPrice = BigDecimal.ZERO;
+
+    @Column(name = "discounted_unit_price", precision = 10, scale = 2, nullable = false)
+    private BigDecimal discountedUnitPrice = BigDecimal.ZERO;
+
     @Column(name = "total_price", precision = 10, scale = 2, nullable = false)
     private BigDecimal totalPrice = BigDecimal.ZERO;
 
@@ -81,6 +87,22 @@ public class OrderItem {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getDiscountedUnitPrice() {
+        return discountedUnitPrice;
+    }
+
+    public void setDiscountedUnitPrice(BigDecimal discountedUnitPrice) {
+        this.discountedUnitPrice = discountedUnitPrice;
     }
 
     public BigDecimal getTotalPrice() {

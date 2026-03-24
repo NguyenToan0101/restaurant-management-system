@@ -20,7 +20,6 @@ export default function CheckoutPage() {
           const restaurantData = await restaurantApi.getBySlug(restaurantSlug)
           setRestaurant(restaurantData)
         } catch (err) {
-          console.error('Error fetching restaurant:', err)
         }
       } finally {
         setLoading(false)

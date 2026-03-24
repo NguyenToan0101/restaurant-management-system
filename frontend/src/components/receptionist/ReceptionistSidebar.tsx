@@ -35,7 +35,6 @@ const ReceptionistSidebar = () => {
             await logout.mutateAsync();
             navigate("/staff-login");
         } catch (error) {
-            console.error("Logout failed:", error);
         }
     };
 

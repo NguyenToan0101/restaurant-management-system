@@ -20,8 +20,10 @@ public class GuestBranchMenuItemDTO {
     private String name;
     private String description;
     private BigDecimal price;
+    private BigDecimal discountedPrice;
     private UUID categoryId;
     private String imageUrl;
     private boolean bestSeller;
+    private boolean hasCustomization;
 
 }

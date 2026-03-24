@@ -1,12 +1,14 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.BranchAnalyticsDTO;
+import com.example.backend.dto.DailyRevenueDTO;
 import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
 import com.example.backend.dto.response.ApiResponse;
 import com.example.backend.entities.ReportType;
 import com.example.backend.services.RestaurantReportService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +31,18 @@ public class RestaurantAnalyticsController {
         BranchAnalyticsDTO analytics = restaurantReportService.getRestaurantAnalytics(restaurantId, timeframe);
         
         return ResponseEntity.ok(ApiResponse.success(analytics));
+    }
+
+    @GetMapping("/daily-revenue")
+    public ResponseEntity<ApiResponse<List<DailyRevenueDTO>>> getDailyRevenue(
+            @PathVariable UUID restaurantId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        
+        List<DailyRevenueDTO> dailyRevenue = restaurantReportService.getRestaurantDailyRevenue(
+                restaurantId, startDate, endDate);
+        
+        return ResponseEntity.ok(ApiResponse.success(dailyRevenue));
     }
 
     @GetMapping("/top-selling-items")

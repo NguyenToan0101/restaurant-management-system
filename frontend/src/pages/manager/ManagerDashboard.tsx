@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBranchContext } from "@/hooks/useBranchContext";
 import { useAuthStore } from "@/stores/authStore";
+import { useTablesByBranch } from "@/hooks/queries/useTableQueries";
+import { useQuery } from "@tanstack/react-query";
+import { managerApi } from "@/api/managerApi";
 import {
   UtensilsCrossed,
   MapPin,
@@ -16,6 +19,30 @@ import {
 const ManagerDashboard = () => {
   const { user, staffInfo } = useAuthStore();
   const { branchId, isOwner, isStaff } = useBranchContext();
+
+  const { data: branchTables = [], isLoading: isLoadingTables } = useTablesByBranch(branchId || "");
+
+  const { data: ordersTodayCount = 0, isLoading: isLoadingOrdersToday } = useQuery({
+    queryKey: ["manager-dashboard-orders-today", branchId],
+    queryFn: async () => {
+      if (!branchId) return 0;
+      const startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+
+      const response = await managerApi.searchOrders({
+        branchId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        page: 0,
+        size: 1,
+      });
+
+      return response.result?.totalElements ?? 0;
+    },
+    enabled: !!branchId,
+  });
 
   const getWelcomeMessage = () => {
     const time = new Date().getHours();
@@ -136,7 +163,9 @@ const ManagerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
+            <div className="text-2xl font-bold">
+              {branchId ? (isLoadingTables ? "..." : branchTables.length) : "--"}
+            </div>
             <p className="text-xs text-muted-foreground">
               Total tables managed
             </p>
@@ -151,7 +180,9 @@ const ManagerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
+            <div className="text-2xl font-bold">
+              {branchId ? (isLoadingOrdersToday ? "..." : ordersTodayCount) : "--"}
+            </div>
             <p className="text-xs text-muted-foreground">
               Orders today
             </p>

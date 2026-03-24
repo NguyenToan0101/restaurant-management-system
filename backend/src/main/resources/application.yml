@@ -90,3 +90,13 @@ payos:
   # test first, will put this in env
   return-url: https://bentox.store/payment/success
   cancel-url: https://bentox.store/payment/cancel
+
+ai:
+  vector:
+    top-k: 5
+    similarity-threshold: 0.7
+    max-context-tokens: 3000
+    embedding-model: amazon.titan-embed-text-v2:0
+    retry:
+      max-attempts: 3
+      backoff-ms: 1000

@@ -25,6 +25,14 @@ import type { MenuItemDTO } from "@/types/dto";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Info } from "lucide-react";
 
+const formatVND = (value: number): string =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
 const MenuItemManagement = () => {
   const { id: restaurantId } = useParams<{ id: string }>();
   const { menuItems, isLoading, createMenuItem, updateMenuItem, deleteMenuItem, setActiveStatus, isCreating, isUpdating, isDeleting } = useMenuItemQueries(restaurantId);
@@ -134,7 +142,6 @@ const MenuItemManagement = () => {
           await setActiveStatus({ menuItemId: id, active });
           successCount++;
         } catch (error) {
-          console.error(`Failed to update item ${id}:`, error);
         }
       }
       
@@ -186,7 +193,7 @@ const MenuItemManagement = () => {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="w-full p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
@@ -345,7 +352,16 @@ const MenuItemManagement = () => {
                     <h3 className="font-semibold text-sm truncate">{item.name}</h3>
                     <Badge variant="outline" className="text-[10px] mt-1">{getCatName(item.categoryId)}</Badge>
                   </div>
-                  <p className="font-display text-primary ml-2">{item.price.toFixed(2)}đ</p>
+                  <div className="ml-2 text-right">
+                    {item.discountedPrice != null && item.discountedPrice < item.price ? (
+                      <>
+                        <p className="font-display text-primary">{formatVND(item.discountedPrice)}</p>
+                        <p className="text-[11px] text-muted-foreground line-through">{formatVND(item.price)}</p>
+                      </>
+                    ) : (
+                      <p className="font-display text-primary">{formatVND(item.price)}</p>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-2 mb-3">{item.description}</p>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
