@@ -11,7 +11,7 @@ public class BedrockConfig {
     @Bean
     public BedrockRuntimeClient bedrockRuntimeClient() {
         return BedrockRuntimeClient.builder()
-                .region(Region.AP_NORTHEAST_1)
+                .region(Region.AP_SOUTHEAST_1)
                 .build();
     }
 }
