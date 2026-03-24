@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState, useCallback, memo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { managerApi } from "@/api/managerApi";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -141,8 +142,7 @@ MemoOrderLineCard.displayName = "OrderLineCard";
 
 const ManagerKitchen = () => {
   const queryClient = useQueryClient();
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId || "";
+  const { branchId } = useBranchContext();
 
   const { data: orderLines = [], isLoading } = useQuery({
     queryKey: ["current-order-lines", branchId],

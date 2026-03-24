@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranchContext } from "@/hooks/useBranchContext";
 import { managerApi } from "@/api/managerApi";
 import {
   Table,
@@ -45,8 +46,7 @@ import { Input } from "@/components/ui/input";
 import { BillDTO, PaymentMethod } from "@/types/dto";
 
 const ManagerBills = () => {
-  const staffInfo = useAuthStore((state) => state.staffInfo);
-  const branchId = staffInfo?.branchId || "";
+  const { branchId } = useBranchContext();
 
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
