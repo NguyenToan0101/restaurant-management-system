@@ -1,15 +1,17 @@
 package com.example.backend.services;
 
+import com.example.backend.config.VectorConfigProperties;
 import com.example.backend.dto.AnalyticsContext;
 import com.example.backend.dto.BranchAnalyticsDTO;
 import com.example.backend.dto.ConversationMessage;
+import com.example.backend.dto.ConversationVectorDTO;
+import com.example.backend.dto.DailyRevenueDTO;
 import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
 import com.example.backend.dto.response.AIConsultantResponse;
 import com.example.backend.entities.Branch;
 import com.example.backend.entities.FeatureCode;
 import com.example.backend.entities.ReportType;
-import com.example.backend.entities.Restaurant;
 import com.example.backend.exception.AIConsultantException;
 import com.example.backend.exception.AppException;
 import com.example.backend.exception.ErrorCode;
@@ -32,15 +34,17 @@ public class AIConsultantService {
     private final PromptBuilderService promptBuilderService;
     private final BedrockService bedrockService;
     private final ConversationService conversationService;
+    private final ConversationVectorService conversationVectorService;
     private final RestaurantReportService restaurantReportService;
     private final RestaurantRepository restaurantRepository;
     private final BranchRepository branchRepository;
     private final FeatureLimitCheckerService featureLimitCheckerService;
+    private final VectorConfigProperties vectorConfig;
 
     private AnalyticsContext gatherRestaurantAnalytics(UUID restaurantId, ReportType timeframe, LocalDate specificDate) {
         log.debug("Gathering restaurant analytics for restaurantId={}, timeframe={}", restaurantId, timeframe);
         
-        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+        restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
         
         BranchAnalyticsDTO analytics = restaurantReportService.getRestaurantAnalytics(restaurantId, timeframe);
@@ -51,18 +55,41 @@ public class AIConsultantService {
             orderDistribution = restaurantReportService.getRestaurantOrderDistribution(restaurantId, specificDate);
         }
         
+        // Get daily revenue data based on timeframe
+        LocalDate endDate = specificDate != null ? specificDate : LocalDate.now();
+        LocalDate startDate;
+        switch (timeframe) {
+            case DAY:
+                startDate = endDate.minusDays(6); // Last 7 days
+                break;
+            case MONTH:
+                startDate = endDate.minusDays(29); // Last 30 days
+                break;
+            case YEAR:
+                startDate = endDate.minusMonths(11).withDayOfMonth(1); // Last 12 months
+                break;
+            default:
+                startDate = endDate.minusDays(6);
+        }
+        
+        List<DailyRevenueDTO> dailyRevenue = restaurantReportService.getRestaurantDailyRevenue(
+                restaurantId, startDate, endDate);
+        
         return AnalyticsContext.builder()
                 .analytics(analytics)
+                .dailyRevenue(dailyRevenue)
                 .topSellingItems(topSellingItems)
                 .orderDistribution(orderDistribution)
                 .timeframe(timeframe.name())
+                .startDate(startDate.toString())
+                .endDate(endDate.toString())
                 .build();
     }
 
     private AnalyticsContext gatherBranchAnalytics(UUID branchId, ReportType timeframe, LocalDate specificDate) {
         log.debug("Gathering branch analytics for branchId={}, timeframe={}", branchId, timeframe);
         
-        Branch branch = branchRepository.findById(branchId)
+        branchRepository.findById(branchId)
                 .orElseThrow(() -> new AppException(ErrorCode.BRANCH_NOTEXISTED));
         
         BranchAnalyticsDTO analytics = restaurantReportService.getBranchAnalytics(branchId, timeframe);
@@ -73,11 +100,34 @@ public class AIConsultantService {
             orderDistribution = restaurantReportService.getOrderDistribution(branchId, specificDate);
         }
         
+        // Get daily revenue data based on timeframe
+        LocalDate endDate = specificDate != null ? specificDate : LocalDate.now();
+        LocalDate startDate;
+        switch (timeframe) {
+            case DAY:
+                startDate = endDate.minusDays(6); // Last 7 days
+                break;
+            case MONTH:
+                startDate = endDate.minusDays(29); // Last 30 days
+                break;
+            case YEAR:
+                startDate = endDate.minusMonths(11).withDayOfMonth(1); // Last 12 months
+                break;
+            default:
+                startDate = endDate.minusDays(6);
+        }
+        
+        List<DailyRevenueDTO> dailyRevenue = restaurantReportService.getBranchDailyRevenue(
+                branchId, startDate, endDate);
+        
         return AnalyticsContext.builder()
                 .analytics(analytics)
+                .dailyRevenue(dailyRevenue)
                 .topSellingItems(topSellingItems)
                 .orderDistribution(orderDistribution)
                 .timeframe(timeframe.name())
+                .startDate(startDate.toString())
+                .endDate(endDate.toString())
                 .build();
     }
 
@@ -118,20 +168,36 @@ public class AIConsultantService {
                 history = List.of();
             }
             
-            // 4. Build prompt
-            String prompt = promptBuilderService.buildPrompt(context, userQuestion, history);
+            // 4. Retrieve semantically similar conversations with graceful degradation
+            List<ConversationVectorDTO> retrievedContext;
+            try {
+                retrievedContext = conversationVectorService.searchSimilar(userQuestion, restaurantId, null, sessionId, vectorConfig.getTopK());
+            } catch (Exception e) {
+                log.warn("Failed to retrieve vector context for session {}: {}", sessionId, e.getMessage());
+                retrievedContext = List.of();
+            }
             
-            // 5. Invoke Bedrock service
+            // 5. Build prompt with hybrid memory
+            String prompt = promptBuilderService.buildPrompt(context, userQuestion, history, retrievedContext);
+            
+            // 6. Invoke Bedrock service
             String aiResponse = bedrockService.invokeModel(prompt);
             
-            // 6. Save to conversation history with graceful degradation
+            // 7. Save to conversation history with graceful degradation
             try {
                 conversationService.saveMessage(sessionId, userQuestion, aiResponse);
             } catch (Exception e) {
                 log.warn("Failed to save conversation history for session {}: {}", sessionId, e.getMessage());
             }
             
-            // 7. Parse and return
+            // 8. Store conversation in vector memory with graceful degradation
+            try {
+                conversationVectorService.storeConversation(sessionId, restaurantId, null, userQuestion, aiResponse);
+            } catch (Exception e) {
+                log.warn("Failed to store conversation vector for session {}: {}", sessionId, e.getMessage());
+            }
+            
+            // 9. Parse and return
             return parseResponse(aiResponse, sessionId);
             
         } catch (AppException e) {
@@ -177,20 +243,36 @@ public class AIConsultantService {
                 history = List.of();
             }
             
-            // 5. Build prompt
-            String prompt = promptBuilderService.buildPrompt(context, userQuestion, history);
+            // 5. Retrieve semantically similar conversations with graceful degradation
+            List<ConversationVectorDTO> retrievedContext;
+            try {
+                retrievedContext = conversationVectorService.searchSimilar(userQuestion, restaurantId, branchId, sessionId, vectorConfig.getTopK());
+            } catch (Exception e) {
+                log.warn("Failed to retrieve vector context for session {}: {}", sessionId, e.getMessage());
+                retrievedContext = List.of();
+            }
             
-            // 6. Invoke Bedrock service
+            // 6. Build prompt with hybrid memory
+            String prompt = promptBuilderService.buildPrompt(context, userQuestion, history, retrievedContext);
+            
+            // 7. Invoke Bedrock service
             String aiResponse = bedrockService.invokeModel(prompt);
             
-            // 7. Save to conversation history with graceful degradation
+            // 8. Save to conversation history with graceful degradation
             try {
                 conversationService.saveMessage(sessionId, userQuestion, aiResponse);
             } catch (Exception e) {
                 log.warn("Failed to save conversation history for session {}: {}", sessionId, e.getMessage());
             }
             
-            // 8. Parse and return
+            // 9. Store conversation in vector memory with graceful degradation
+            try {
+                conversationVectorService.storeConversation(sessionId, restaurantId, branchId, userQuestion, aiResponse);
+            } catch (Exception e) {
+                log.warn("Failed to store conversation vector for session {}: {}", sessionId, e.getMessage());
+            }
+            
+            // 10. Parse and return
             return parseResponse(aiResponse, sessionId);
             
         } catch (AppException e) {

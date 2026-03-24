@@ -1,13 +1,17 @@
 package com.example.backend.services;
 
+import com.example.backend.config.VectorConfigProperties;
 import com.example.backend.dto.AnalyticsContext;
 import com.example.backend.dto.BranchAnalyticsDTO;
 import com.example.backend.dto.ConversationMessage;
+import com.example.backend.dto.ConversationVectorDTO;
 import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 
@@ -15,17 +19,28 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PromptBuilderService {
 
+    private final VectorConfigProperties vectorConfig;
+    
     private static final int MAX_HISTORY_MESSAGES = 5;
+    private static final int APPROX_CHARS_PER_TOKEN = 4;
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = 
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
     public String buildPrompt(
             AnalyticsContext context,
             String userQuestion,
-            List<ConversationMessage> history) {
+            List<ConversationMessage> history,
+            List<ConversationVectorDTO> retrievedContext) {
 
         StringBuilder prompt = new StringBuilder();
 
         prompt.append(buildRoleSection());
         prompt.append(buildDataSection(context));
+        
+        if (retrievedContext != null && !retrievedContext.isEmpty()) {
+            prompt.append(buildRetrievedContextSection(retrievedContext));
+        }
+        
         prompt.append(buildConstraintsSection());
         prompt.append(buildResponseFormatSection());
 
@@ -64,6 +79,19 @@ public class PromptBuilderService {
                 analytics.getCompletedOrders(),
                 analytics.getCancelledOrders(),
                 analytics.getAvgOrderValue()));
+        }
+
+        if (context.getDailyRevenue() != null && !context.getDailyRevenue().isEmpty()) {
+            data.append("\n=== DAILY REVENUE TREND ===\n");
+            data.append(String.format("Period: %s to %s\n", context.getStartDate(), context.getEndDate()));
+            for (var day : context.getDailyRevenue()) {
+                data.append(String.format("- %s: %s VND (%d orders, %d completed, %d cancelled)\n",
+                    day.getDate(),
+                    day.getRevenue(),
+                    day.getOrderCount(),
+                    day.getCompletedOrders(),
+                    day.getCancelledOrders()));
+            }
         }
 
         if (context.getTopSellingItems() != null && !context.getTopSellingItems().isEmpty()) {
@@ -134,5 +162,45 @@ public class PromptBuilderService {
         }
 
         return historySection.toString();
+    }
+
+    private String buildRetrievedContextSection(List<ConversationVectorDTO> retrievedContext) {
+        StringBuilder contextSection = new StringBuilder("\n\n=== RETRIEVED CONTEXT ===\n");
+        contextSection.append("Below are relevant past conversations that may provide useful context:\n\n");
+
+        int maxChars = vectorConfig.getMaxContextTokens() * APPROX_CHARS_PER_TOKEN;
+        int currentChars = 0;
+
+        for (ConversationVectorDTO conv : retrievedContext) {
+            String formattedConv = formatRetrievedConversation(conv);
+            int convLength = formattedConv.length();
+
+            if (currentChars + convLength > maxChars) {
+                break;
+            }
+
+            contextSection.append(formattedConv);
+            currentChars += convLength;
+        }
+
+        contextSection.append("\nWhen relevant, reference insights from these past conversations in your response.\n");
+
+        return contextSection.toString();
+    }
+
+    private String formatRetrievedConversation(ConversationVectorDTO conv) {
+        String timestamp = TIMESTAMP_FORMATTER.format(conv.getTimestamp());
+        float similarityPercent = conv.getSimilarityScore() * 100;
+
+        return String.format("""
+            [%s | Similarity: %.1f%%]
+            User: %s
+            Assistant: %s
+            
+            """,
+            timestamp,
+            similarityPercent,
+            conv.getUserMessage(),
+            conv.getAiResponse());
     }
 }

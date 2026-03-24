@@ -9,7 +9,10 @@ import java.util.List;
 @Builder
 public class AnalyticsContext {
     private BranchAnalyticsDTO analytics;
+    private List<DailyRevenueDTO> dailyRevenue;
     private List<TopSellingItemDTO> topSellingItems;
     private List<OrderDistributionDTO> orderDistribution;
     private String timeframe;
+    private String startDate;
+    private String endDate;
 }

@@ -1,8 +1,10 @@
 package com.example.backend.services;
 
 import com.example.backend.dto.BranchAnalyticsDTO;
+import com.example.backend.dto.DailyRevenueDTO;
 import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
+import com.example.backend.entities.Bill;
 import com.example.backend.entities.OrderStatus;
 import com.example.backend.entities.ReportType;
 import com.example.backend.repositories.BillRepository;
@@ -336,5 +338,103 @@ public class RestaurantReportService {
                 .sorted(Comparator.comparing(TopSellingItemDTO::getTotalRevenue).reversed())
                 .limit(limit)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get daily revenue breakdown for a date range (restaurant-wide)
+     */
+    @Transactional(readOnly = true)
+    public List<DailyRevenueDTO> getRestaurantDailyRevenue(UUID restaurantId, LocalDate startDate, LocalDate endDate) {
+        ZonedDateTime start = startDate.atStartOfDay(VIETNAM_TIMEZONE);
+        ZonedDateTime end = endDate.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE);
+
+        List<Bill> bills = billRepository.findByRestaurantAndDateRange(
+                restaurantId, start.toInstant(), end.toInstant());
+
+        // Group bills by date
+        Map<LocalDate, List<Bill>> billsByDate = bills.stream()
+                .collect(Collectors.groupingBy(bill -> 
+                    bill.getPaidTime().atZone(VIETNAM_TIMEZONE).toLocalDate()));
+
+        // Get order counts by date
+        List<com.example.backend.entities.Branch> branches = 
+            branchRepository.findByRestaurant_RestaurantIdAndIsActiveTrue(restaurantId);
+
+        List<DailyRevenueDTO> result = new ArrayList<>();
+        LocalDate currentDate = startDate;
+        
+        while (!currentDate.isAfter(endDate)) {
+            LocalDate date = currentDate;
+            List<Bill> dayBills = billsByDate.getOrDefault(date, new ArrayList<>());
+            
+            BigDecimal dayRevenue = dayBills.stream()
+                    .map(Bill::getFinalPrice)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Count orders for this day across all branches
+            Instant dayStart = date.atStartOfDay(VIETNAM_TIMEZONE).toInstant();
+            Instant dayEnd = date.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE).toInstant();
+            
+            int completedOrders = 0;
+            int cancelledOrders = 0;
+            
+            for (com.example.backend.entities.Branch branch : branches) {
+                completedOrders += orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+                        branch.getBranchId(), OrderStatus.COMPLETED, dayStart, dayEnd);
+                cancelledOrders += orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+                        branch.getBranchId(), OrderStatus.CANCELLED, dayStart, dayEnd);
+            }
+            
+            int totalOrders = completedOrders + cancelledOrders;
+
+            result.add(new DailyRevenueDTO(date, dayRevenue, totalOrders, completedOrders, cancelledOrders));
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return result;
+    }
+
+    /**
+     * Get daily revenue breakdown for a date range (branch-specific)
+     */
+    @Transactional(readOnly = true)
+    public List<DailyRevenueDTO> getBranchDailyRevenue(UUID branchId, LocalDate startDate, LocalDate endDate) {
+        ZonedDateTime start = startDate.atStartOfDay(VIETNAM_TIMEZONE);
+        ZonedDateTime end = endDate.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE);
+
+        List<Bill> bills = billRepository.findByBranchIdAndDateRange(
+                branchId, start.toInstant(), end.toInstant());
+
+        // Group bills by date
+        Map<LocalDate, List<Bill>> billsByDate = bills.stream()
+                .collect(Collectors.groupingBy(bill -> 
+                    bill.getPaidTime().atZone(VIETNAM_TIMEZONE).toLocalDate()));
+
+        List<DailyRevenueDTO> result = new ArrayList<>();
+        LocalDate currentDate = startDate;
+        
+        while (!currentDate.isAfter(endDate)) {
+            LocalDate date = currentDate;
+            List<Bill> dayBills = billsByDate.getOrDefault(date, new ArrayList<>());
+            
+            BigDecimal dayRevenue = dayBills.stream()
+                    .map(Bill::getFinalPrice)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Count orders for this day
+            Instant dayStart = date.atStartOfDay(VIETNAM_TIMEZONE).toInstant();
+            Instant dayEnd = date.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE).toInstant();
+            
+            int completedOrders = orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+                    branchId, OrderStatus.COMPLETED, dayStart, dayEnd);
+            int cancelledOrders = orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+                    branchId, OrderStatus.CANCELLED, dayStart, dayEnd);
+            int totalOrders = completedOrders + cancelledOrders;
+
+            result.add(new DailyRevenueDTO(date, dayRevenue, totalOrders, completedOrders, cancelledOrders));
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return result;
     }
 }
