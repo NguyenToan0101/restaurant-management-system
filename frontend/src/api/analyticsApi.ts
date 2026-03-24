@@ -1,5 +1,5 @@
 import  axiosClient  from './axiosClient';
-import { BranchAnalyticsDTO, TopSellingItemDTO, OrderDistributionDTO } from '@/types/dto/analytics.dto';
+import { BranchAnalyticsDTO, TopSellingItemDTO, OrderDistributionDTO, DailyRevenueDTO } from '@/types/dto/analytics.dto';
 import { ApiResponse } from '@/types/dto/api-response.dto';
 
 export const analyticsApi = {
@@ -8,6 +8,26 @@ export const analyticsApi = {
     timeframe: 'DAY' | 'MONTH' | 'YEAR' = 'DAY'
   ): Promise<ApiResponse<BranchAnalyticsDTO>> =>
     axiosClient.get(`/restaurants/${restaurantId}/analytics?timeframe=${timeframe}`),
+
+  getRestaurantDailyRevenue: (
+    restaurantId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<ApiResponse<DailyRevenueDTO[]>> =>
+    axiosClient.get(`/restaurants/${restaurantId}/analytics/daily-revenue?startDate=${startDate}&endDate=${endDate}`),
+
+  getBranchAnalytics: (
+    branchId: string,
+    timeframe: 'DAY' | 'MONTH' | 'YEAR' = 'DAY'
+  ): Promise<ApiResponse<BranchAnalyticsDTO>> =>
+    axiosClient.get(`/branches/${branchId}/analytics?timeframe=${timeframe}`),
+
+  getBranchDailyRevenue: (
+    branchId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<ApiResponse<DailyRevenueDTO[]>> =>
+    axiosClient.get(`/branches/${branchId}/analytics/daily-revenue?startDate=${startDate}&endDate=${endDate}`),
 
   getTopSellingItems: (
     restaurantId: string,

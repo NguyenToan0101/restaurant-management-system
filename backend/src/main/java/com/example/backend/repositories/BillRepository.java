@@ -73,4 +73,20 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
     long countByRestaurantAndDateRange(@Param("restaurantId") UUID restaurantId,
                                        @Param("startDate") Instant startDate,
                                        @Param("endDate") Instant endDate);
+
+    @Query("SELECT b FROM Bill b " +
+           "WHERE b.branch.restaurant.restaurantId = :restaurantId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate " +
+           "ORDER BY b.paidTime ASC")
+    List<Bill> findByRestaurantAndDateRange(@Param("restaurantId") UUID restaurantId,
+                                            @Param("startDate") Instant startDate,
+                                            @Param("endDate") Instant endDate);
+
+    @Query("SELECT b FROM Bill b " +
+           "WHERE b.branch.branchId = :branchId " +
+           "AND b.paidTime >= :startDate AND b.paidTime < :endDate " +
+           "ORDER BY b.paidTime ASC")
+    List<Bill> findByBranchIdAndDateRange(@Param("branchId") UUID branchId,
+                                          @Param("startDate") Instant startDate,
+                                          @Param("endDate") Instant endDate);
 }

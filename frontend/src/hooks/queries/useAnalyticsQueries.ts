@@ -20,6 +20,46 @@ export const useRestaurantAnalytics = (
   });
 };
 
+export const useRestaurantDailyRevenue = (
+  restaurantId: string,
+  startDate: string,
+  endDate: string,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ['restaurant-daily-revenue', restaurantId, startDate, endDate],
+    queryFn: async () => {
+      const response = await analyticsApi.getRestaurantDailyRevenue(restaurantId, startDate, endDate);
+      return response.data?.result;
+    },
+    enabled: enabled && !!restaurantId && !!startDate && !!endDate,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 3,
+  });
+};
+
+export const useBranchDailyRevenue = (
+  branchId: string,
+  startDate: string,
+  endDate: string,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ['branch-daily-revenue', branchId, startDate, endDate],
+    queryFn: async () => {
+      const response = await analyticsApi.getBranchDailyRevenue(branchId, startDate, endDate);
+      return response.data?.result;
+    },
+    enabled: enabled && !!branchId && !!startDate && !!endDate,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 3,
+  });
+};
+
 export const useTopSellingItems = (
   restaurantId: string,
   timeframe: 'DAY' | 'MONTH' | 'YEAR' = 'DAY',
@@ -55,6 +95,47 @@ export const useOrderDistribution = (
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    retry: 3,
+  });
+};
+
+export const useTodayRevenue = (
+  restaurantId: string,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ['today-revenue', restaurantId],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      
+      const [todayResponse, yesterdayResponse] = await Promise.all([
+        analyticsApi.getRestaurantDailyRevenue(restaurantId, today, today),
+        analyticsApi.getRestaurantDailyRevenue(restaurantId, yesterday, yesterday)
+      ]);
+      
+      const todayData = todayResponse.data?.result?.[0];
+      const yesterdayData = yesterdayResponse.data?.result?.[0];
+      
+      const todayRevenue = todayData?.revenue || 0;
+      const yesterdayRevenue = yesterdayData?.revenue || 0;
+      
+      const change = yesterdayRevenue > 0 
+        ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 
+        : todayRevenue > 0 ? 100 : 0;
+      
+      return {
+        todayRevenue,
+        yesterdayRevenue,
+        change,
+        todayOrders: todayData?.orderCount || 0,
+        yesterdayOrders: yesterdayData?.orderCount || 0
+      };
+    },
+    enabled: enabled && !!restaurantId,
+    staleTime: 2 * 60 * 1000, // 2 minutes (more frequent for today's data)
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };

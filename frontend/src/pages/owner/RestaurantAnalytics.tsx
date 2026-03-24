@@ -1,27 +1,215 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useRestaurantAnalytics, useTopSellingItems, useOrderDistribution } from "@/hooks/queries/useAnalyticsQueries";
+import { useRestaurantDailyRevenue, useTopSellingItems, useOrderDistribution } from "@/hooks/queries/useAnalyticsQueries";
 import { useAIAssistantAccess } from "@/hooks/useFeatureLimits";
 import { formatCurrency } from "@/utils/currency";
-import { TrendingUp, ShoppingCart, CheckCircle, XCircle, Award, BarChart3, Sparkles, Activity } from "lucide-react";
+import { TrendingUp, ShoppingCart, CheckCircle, XCircle, Activity, BarChart3, Sparkles, Award, Calendar, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { AIConsultantChatbot } from "@/components/ai/AIConsultantChatbot";
 import { PremiumFeatureBanner } from "@/components/ai/PremiumFeatureBanner";
 
 export function RestaurantAnalytics() {
   const { id } = useParams<{ id: string }>();
-  const [timeframe, setTimeframe] = useState<'DAY' | 'MONTH' | 'YEAR'>('DAY');
+  const[timeframe, setTimeframe] = useState<'DAY' | 'MONTH' | 'YEAR'>('DAY');
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showAIChat, setShowAIChat] = useState(false);
+  const[showAIChat, setShowAIChat] = useState(false);
+  const [dateOffset, setDateOffset] = useState(0); // 0 = current period, -1 = previous period, etc.
 
-  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useRestaurantAnalytics(id || '', timeframe);
+  // Calculate date range for daily revenue based on timeframe and dateOffset
+  const { startDate, endDate, periodLabel } = useMemo(() => {
+    const today = new Date();
+    let start: Date;
+    let end: Date;
+    let label: string;
+    
+    switch (timeframe) {
+      case 'DAY':
+        // 7 days period
+        end = new Date(today);
+        end.setDate(today.getDate() + (dateOffset * 7));
+        start = new Date(end);
+        start.setDate(end.getDate() - 6);
+        
+        if (dateOffset === 0) {
+          label = 'This Week';
+        } else if (dateOffset === -1) {
+          label = 'Last Week';
+        } else if (dateOffset < -1) {
+          label = `${Math.abs(dateOffset)} weeks ago`;
+        } else {
+          label = `${dateOffset} weeks ahead`;
+        }
+        break;
+        
+      case 'MONTH':
+        // 30 days period
+        end = new Date(today);
+        end.setDate(today.getDate() + (dateOffset * 30));
+        start = new Date(end);
+        start.setDate(end.getDate() - 29);
+        
+        if (dateOffset === 0) {
+          label = 'This Month';
+        } else if (dateOffset === -1) {
+          label = 'Last Month';
+        } else if (dateOffset < -1) {
+          label = `${Math.abs(dateOffset)} months ago`;
+        } else {
+          label = `${dateOffset} months ahead`;
+        }
+        break;
+        
+      case 'YEAR':
+        // 12 months period
+        end = new Date(today);
+        end.setMonth(today.getMonth() + (dateOffset * 12));
+        start = new Date(end);
+        start.setMonth(end.getMonth() - 11);
+        start.setDate(1);
+        
+        if (dateOffset === 0) {
+          label = 'This Year';
+        } else if (dateOffset === -1) {
+          label = 'Last Year';
+        } else if (dateOffset < -1) {
+          label = `${Math.abs(dateOffset)} years ago`;
+        } else {
+          label = `${dateOffset} years ahead`;
+        }
+        break;
+        
+      default:
+        end = new Date(today);
+        start = new Date(today);
+        start.setDate(today.getDate() - 6);
+        label = 'This Week';
+    }
+    
+    return {
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0],
+      periodLabel: label
+    };
+  }, [timeframe, dateOffset]);
+
+  const { data: dailyRevenue, isLoading: dailyRevenueLoading, error: analyticsError } = useRestaurantDailyRevenue(id || '', startDate, endDate);
   const { data: topItems, isLoading: topItemsLoading } = useTopSellingItems(id || '', timeframe, 10);
   const { data: orderDistribution, isLoading: distributionLoading } = useOrderDistribution(id || '', selectedDate);
   const { data: hasAIAccess, isLoading: aiAccessLoading } = useAIAssistantAccess(id);
 
-  const isLoading = analyticsLoading || topItemsLoading || distributionLoading;
+  // Calculate analytics from dailyRevenue data
+  const analytics = useMemo(() => {
+    if (!dailyRevenue || dailyRevenue.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        avgOrderValue: 0,
+        timeframe
+      };
+    }
+
+    const totalRevenue = dailyRevenue.reduce((sum, day) => sum + day.revenue, 0);
+    const totalOrders = dailyRevenue.reduce((sum, day) => sum + day.orderCount, 0);
+    const completedOrders = dailyRevenue.reduce((sum, day) => sum + day.completedOrders, 0);
+    const cancelledOrders = dailyRevenue.reduce((sum, day) => sum + day.cancelledOrders, 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    return {
+      totalRevenue,
+      totalOrders,
+      completedOrders,
+      cancelledOrders,
+      avgOrderValue,
+      timeframe
+    };
+  }, [dailyRevenue, timeframe]);
+
+  // Xử lý dữ liệu biểu đồ dựa trên Timeframe
+  const chartData = useMemo(() => {
+    if (!dailyRevenue || dailyRevenue.length === 0) return [];
+
+    if (timeframe === 'YEAR') {
+      // Gộp thành 12 tháng
+      const monthlyData: Record<string, any> = {};
+      dailyRevenue.forEach(day => {
+        const date = new Date(day.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`;
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = {
+            label: date.toLocaleDateString('en-US', { month: 'short' }),
+            revenue: 0,
+            orderCount: 0,
+            completedOrders: 0,
+            cancelledOrders: 0,
+            timestamp: new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+          };
+        }
+        monthlyData[monthKey].revenue += day.revenue;
+        monthlyData[monthKey].orderCount += day.orderCount;
+        monthlyData[monthKey].completedOrders += day.completedOrders;
+        monthlyData[monthKey].cancelledOrders += day.cancelledOrders;
+      });
+      return Object.values(monthlyData).sort((a: any, b: any) => a.timestamp - b.timestamp);
+    }
+
+    if (timeframe === 'MONTH') {
+      // Gộp thành 4-5 tuần
+      const weeklyData: any[] = [];
+      const sortedData = [...dailyRevenue].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      let currentWeek: any = null;
+      let weekNumber = 1;
+
+      sortedData.forEach((day, index) => {
+        if (index % 7 === 0) {
+          if (currentWeek) {
+            weeklyData.push(currentWeek);
+          }
+          currentWeek = {
+            label: `Week ${weekNumber}`,
+            revenue: 0,
+            orderCount: 0,
+            completedOrders: 0,
+            cancelledOrders: 0
+          };
+          weekNumber++;
+        }
+        
+        if (currentWeek) {
+          currentWeek.revenue += day.revenue;
+          currentWeek.orderCount += day.orderCount;
+          currentWeek.completedOrders += day.completedOrders;
+          currentWeek.cancelledOrders += day.cancelledOrders;
+        }
+      });
+
+      if (currentWeek) {
+        weeklyData.push(currentWeek);
+      }
+
+      return weeklyData;
+    }
+
+    // DAY: 7 ngày với tên ngày trong tuần
+    return dailyRevenue.map(day => {
+      const date = new Date(day.date);
+      return {
+        label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        revenue: day.revenue,
+        orderCount: day.orderCount,
+        completedOrders: day.completedOrders,
+        cancelledOrders: day.cancelledOrders
+      };
+    });
+  }, [dailyRevenue, timeframe]);
+
+  const isLoading = dailyRevenueLoading || topItemsLoading || distributionLoading;
 
   if (isLoading) {
     return (
@@ -63,12 +251,12 @@ export function RestaurantAnalytics() {
           </div>
           
           <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-lg shadow-sm border dark:border-slate-800">
-            <Select value={timeframe} onValueChange={(value: 'DAY' | 'MONTH' | 'YEAR') => setTimeframe(value)}>
+            <Select value={timeframe} onValueChange={(value: 'DAY' | 'MONTH' | 'YEAR') => { setTimeframe(value); setDateOffset(0); }}>
               <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DAY">Today</SelectItem>
+                <SelectItem value="DAY">This Week</SelectItem>
                 <SelectItem value="MONTH">This Month</SelectItem>
                 <SelectItem value="YEAR">This Year</SelectItem>
               </SelectContent>
@@ -91,17 +279,61 @@ export function RestaurantAnalytics() {
           </div>
         </div>
 
+        {/* Date Navigation */}
+        <Card className="border-none shadow-sm bg-white dark:bg-slate-900">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateOffset(dateOffset - 1)}
+                className="gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {periodLabel}
+                </span>
+                {dateOffset !== 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDateOffset(0)}
+                    className="gap-2 text-xs"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset
+                  </Button>
+                )}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateOffset(dateOffset + 1)}
+                disabled={dateOffset >= 0}
+                className="gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {!aiAccessLoading && !hasAIAccess && <PremiumFeatureBanner />}
 
-        {/* Main Layout: Thêm w-full để chắc chắn nó ko tràn */}
+        {/* Main Layout */}
         <div className="flex flex-col lg:flex-row gap-8 items-start relative w-full">
           
-          {/* Main Analytics Content: Thêm min-w-0 siêu quan trọng để chống bể layout Flexbox */}
+          {/* Main Analytics Content */}
           <div className={`flex-1 space-y-8 transition-all duration-300 ease-in-out min-w-0 w-full`}>
             
-            {/* KPI Cards: Điều chỉnh linh hoạt số lượng cột dựa trên việc Chatbot có mở hay không */}
+            {/* KPI Cards */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${showAIChat ? 'lg:grid-cols-2 xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-5'} gap-4`}>
-              {/* Các Card KPI giữ nguyên */}
               <Card className="border-none shadow-sm bg-white dark:bg-slate-900 hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Revenue</CardTitle>
@@ -172,7 +404,69 @@ export function RestaurantAnalytics() {
             {/* Charts Section */}
             <div className={`grid grid-cols-1 gap-6 ${showAIChat ? 'xl:grid-cols-1' : 'xl:grid-cols-2'}`}>
               
-              {/* Top Selling Items (Nội dung bên trong giữ nguyên) */}
+              {/* Daily Revenue Trend - FIXED UI/UX */}
+              <Card className="border-none shadow-sm bg-white dark:bg-slate-900 min-w-0 xl:col-span-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Calendar className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
+                    Revenue Trend
+                  </CardTitle>
+                  <CardDescription>
+                    {timeframe === 'DAY' ? 'Last 7 days' : timeframe === 'MONTH' ? 'Weekly revenue for the last 4 weeks' : 'Monthly revenue for the last 12 months'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {dailyRevenueLoading ? (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                    </div>
+                  ) : chartData && chartData.length > 0 ? (
+                    <div className="h-[300px] mt-4 flex items-end gap-1 sm:gap-2 w-full pt-6">
+                      {chartData.map((item, idx) => {
+                        const maxRevenue = Math.max(...chartData.map((d: any) => d.revenue), 1);
+                        const heightPercent = (item.revenue / maxRevenue) * 100;
+                        
+                        // Ẩn bớt nhãn nếu có nhiều cột để tránh chữ đè lên nhau
+                        const shouldHideLabel = timeframe === 'YEAR' && idx % 2 !== 0;
+
+                        return (
+                          <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end min-w-[8px]">
+                            
+                            {/* CSS Tooltip khi Hover */}
+                            <div className="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 bg-slate-800 dark:bg-slate-700 text-white text-xs rounded-lg py-1.5 px-3 pointer-events-none whitespace-nowrap z-20 transition-all transform translate-y-2 group-hover:translate-y-0 shadow-lg border border-slate-600">
+                              <p className="font-medium text-slate-300 mb-0.5">{item.label}</p>
+                              <p className="font-bold text-sm text-emerald-400">{formatCurrency(item.revenue)}</p>
+                              <p className="text-[10px] text-slate-400">{item.orderCount} orders</p>
+                              {/* Tam giác chỉ xuống của Tooltip */}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700"></div>
+                            </div>
+
+                            {/* Cột biểu đồ (Bar) */}
+                            <div
+                              className="w-full max-w-[40px] bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-t-md transition-all duration-500 relative overflow-hidden flex flex-col justify-end"
+                              style={{ height: `${Math.max(heightPercent, 2)}%` }}
+                            >
+                              <div className="bg-gradient-to-t from-emerald-500 to-emerald-400 dark:from-emerald-600 dark:to-emerald-500 w-full rounded-t-sm transition-all duration-300 opacity-80 group-hover:opacity-100 h-full"></div>
+                            </div>
+
+                            {/* Nhãn trục X (Tháng / Tuần / Ngày) */}
+                            <span className={`text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-2 truncate max-w-full text-center ${shouldHideLabel ? 'hidden md:block' : 'block'}`}>
+                              {item.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[300px] text-slate-400 dark:text-slate-500">
+                      <TrendingUp className="h-12 w-12 mb-3 opacity-20" />
+                      <p>No revenue data available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Top Selling Items */}
               <Card className="border-none shadow-sm bg-white dark:bg-slate-900 min-w-0">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -258,7 +552,7 @@ export function RestaurantAnalytics() {
             </div>
           </div>
 
-          {/* AI Chat Sidebar - Sửa lại width và sticky để responsive tốt hơn */}
+          {/* AI Chat Sidebar */}
           {showAIChat && hasAIAccess && (
             <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 lg:sticky lg:top-6 z-10 animate-in slide-in-from-right-8 fade-in duration-300 ease-out">
               <AIConsultantChatbot

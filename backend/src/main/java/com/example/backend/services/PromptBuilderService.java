@@ -81,6 +81,19 @@ public class PromptBuilderService {
                 analytics.getAvgOrderValue()));
         }
 
+        if (context.getDailyRevenue() != null && !context.getDailyRevenue().isEmpty()) {
+            data.append("\n=== DAILY REVENUE TREND ===\n");
+            data.append(String.format("Period: %s to %s\n", context.getStartDate(), context.getEndDate()));
+            for (var day : context.getDailyRevenue()) {
+                data.append(String.format("- %s: %s VND (%d orders, %d completed, %d cancelled)\n",
+                    day.getDate(),
+                    day.getRevenue(),
+                    day.getOrderCount(),
+                    day.getCompletedOrders(),
+                    day.getCancelledOrders()));
+            }
+        }
+
         if (context.getTopSellingItems() != null && !context.getTopSellingItems().isEmpty()) {
             data.append("\n=== TOP SELLING ITEMS ===\n");
             for (TopSellingItemDTO item : context.getTopSellingItems()) {

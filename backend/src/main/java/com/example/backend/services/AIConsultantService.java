@@ -5,6 +5,7 @@ import com.example.backend.dto.AnalyticsContext;
 import com.example.backend.dto.BranchAnalyticsDTO;
 import com.example.backend.dto.ConversationMessage;
 import com.example.backend.dto.ConversationVectorDTO;
+import com.example.backend.dto.DailyRevenueDTO;
 import com.example.backend.dto.OrderDistributionDTO;
 import com.example.backend.dto.TopSellingItemDTO;
 import com.example.backend.dto.response.AIConsultantResponse;
@@ -54,11 +55,34 @@ public class AIConsultantService {
             orderDistribution = restaurantReportService.getRestaurantOrderDistribution(restaurantId, specificDate);
         }
         
+        // Get daily revenue data based on timeframe
+        LocalDate endDate = specificDate != null ? specificDate : LocalDate.now();
+        LocalDate startDate;
+        switch (timeframe) {
+            case DAY:
+                startDate = endDate.minusDays(6); // Last 7 days
+                break;
+            case MONTH:
+                startDate = endDate.minusDays(29); // Last 30 days
+                break;
+            case YEAR:
+                startDate = endDate.minusMonths(11).withDayOfMonth(1); // Last 12 months
+                break;
+            default:
+                startDate = endDate.minusDays(6);
+        }
+        
+        List<DailyRevenueDTO> dailyRevenue = restaurantReportService.getRestaurantDailyRevenue(
+                restaurantId, startDate, endDate);
+        
         return AnalyticsContext.builder()
                 .analytics(analytics)
+                .dailyRevenue(dailyRevenue)
                 .topSellingItems(topSellingItems)
                 .orderDistribution(orderDistribution)
                 .timeframe(timeframe.name())
+                .startDate(startDate.toString())
+                .endDate(endDate.toString())
                 .build();
     }
 
@@ -76,11 +100,34 @@ public class AIConsultantService {
             orderDistribution = restaurantReportService.getOrderDistribution(branchId, specificDate);
         }
         
+        // Get daily revenue data based on timeframe
+        LocalDate endDate = specificDate != null ? specificDate : LocalDate.now();
+        LocalDate startDate;
+        switch (timeframe) {
+            case DAY:
+                startDate = endDate.minusDays(6); // Last 7 days
+                break;
+            case MONTH:
+                startDate = endDate.minusDays(29); // Last 30 days
+                break;
+            case YEAR:
+                startDate = endDate.minusMonths(11).withDayOfMonth(1); // Last 12 months
+                break;
+            default:
+                startDate = endDate.minusDays(6);
+        }
+        
+        List<DailyRevenueDTO> dailyRevenue = restaurantReportService.getBranchDailyRevenue(
+                branchId, startDate, endDate);
+        
         return AnalyticsContext.builder()
                 .analytics(analytics)
+                .dailyRevenue(dailyRevenue)
                 .topSellingItems(topSellingItems)
                 .orderDistribution(orderDistribution)
                 .timeframe(timeframe.name())
+                .startDate(startDate.toString())
+                .endDate(endDate.toString())
                 .build();
     }
 
