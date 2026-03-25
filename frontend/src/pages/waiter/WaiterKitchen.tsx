@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, ChefHat, Utensils, Info, Play, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { OrderLineDTO } from "@/types/dto";
+import { OrderLineStatus } from "@/types/dto";
 
 function normalizeEpochMs(createdAt?: string) {
   if (!createdAt) return NaN;
@@ -37,7 +38,7 @@ const OrderLineCard = ({
 }: {
   line: OrderLineDTO;
   nowMs: number;
-  onUpdateStatus: (orderLineId: string, status: string) => void;
+  onUpdateStatus: (orderLineId: string, status: OrderLineStatus) => void;
   isUpdating: boolean;
 }) => {
   const startMs = useMemo(() => normalizeEpochMs(line.createdAt), [line.createdAt]);
@@ -112,21 +113,21 @@ const OrderLineCard = ({
         <div className="w-full">
           {line.orderLineStatus === "PENDING" ? (
             <button
-              onClick={() => onUpdateStatus(line.orderLineId, "PREPARING")}
+              onClick={() => onUpdateStatus(line.orderLineId, OrderLineStatus.PREPARING)}
               disabled={isUpdating}
               className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              Bắt đầu nấu
+              PREPARING
             </button>
           ) : line.orderLineStatus === "PREPARING" ? (
             <button
-              onClick={() => onUpdateStatus(line.orderLineId, "COMPLETED")}
+              onClick={() => onUpdateStatus(line.orderLineId, OrderLineStatus.COMPLETED)}
               disabled={isUpdating}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Hoàn thành
+              finish
             </button>
           ) : null}
         </div>
@@ -141,6 +142,7 @@ MemoOrderLineCard.displayName = "OrderLineCard";
 const WaiterKitchen = () => {
   const queryClient = useQueryClient();
   const { branchId } = useBranchContext();
+  const kitchenCompletedQueryKey = ["waiter", "kitchen", "completed", branchId] as const;
 
   const { data: orderLines = [], isLoading } = useQuery({
     queryKey: ["current-order-lines", branchId],
@@ -150,28 +152,116 @@ const WaiterKitchen = () => {
     refetchOnWindowFocus: false,
   });
 
+  // Kitchen completed orders live in client cache; no backend refetch.
+  const { data: completedOrderLines = [] } = useQuery({
+    queryKey: kitchenCompletedQueryKey,
+    queryFn: () =>
+      queryClient.getQueryData<OrderLineDTO[]>(kitchenCompletedQueryKey) ?? [],
+    enabled: !!branchId,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    initialData: [],
+  });
+
+  const completedOrders = useMemo(() => {
+    const byOrderId = new Map<string, OrderLineDTO[]>();
+    completedOrderLines.forEach((l) => {
+      const key = l.orderId || "unknown";
+      if (!byOrderId.has(key)) byOrderId.set(key, []);
+      byOrderId.get(key)!.push(l);
+    });
+
+    return Array.from(byOrderId.entries())
+      .map(([orderId, lines]) => {
+        const table = lines[0]?.tableName || "N/A";
+        const itemQty = lines.reduce((sum, line) => {
+          const qty = (line.orderItems || []).reduce((s, item) => s + (item.quantity || 0), 0);
+          return sum + qty;
+        }, 0);
+        return { orderId, table, itemQty, lines };
+      })
+      .sort((a, b) => b.lines[0]?.createdAt?.localeCompare(a.lines[0]?.createdAt || "") || 0);
+  }, [completedOrderLines]);
+
+  const handleDeleteCompletedOrder = useCallback(
+    (orderId: string) => {
+      queryClient.setQueryData<OrderLineDTO[]>(kitchenCompletedQueryKey, (prev = []) =>
+        prev.filter((l) => l.orderId !== orderId)
+      );
+      toast.success("Deleted completed order(s) from kitchen", {
+        description: `Order ${orderId.substring(0, 8)} removed from kitchen list.`,
+      });
+    },
+    [kitchenCompletedQueryKey, queryClient]
+  );
+
   const updateStatusMutation = useMutation({
-    mutationFn: ({ orderLineId, status }: { orderLineId: string; status: string }) =>
+    mutationFn: ({ orderLineId, status }: { orderLineId: string; status: OrderLineStatus }) =>
       waiterOrderApi.updateOrderLineStatus(orderLineId, status),
     onMutate: async ({ orderLineId, status }) => {
       await queryClient.cancelQueries({ queryKey: ["current-order-lines", branchId] });
       const previous = queryClient.getQueryData<OrderLineDTO[]>(["current-order-lines", branchId]) || [];
+      const targetLine = previous.find((l) => l.orderLineId === orderLineId);
 
       queryClient.setQueryData<OrderLineDTO[]>(["current-order-lines", branchId], (old = []) =>
-        old.map((line) =>
-          line.orderLineId === orderLineId
-            ? {
-                ...line,
-                orderLineStatus: status,
-              }
-            : line
-        )
+        status === OrderLineStatus.COMPLETED
+          ? old.filter((line) => line.orderLineId !== orderLineId)
+          : old.map((line) =>
+              line.orderLineId === orderLineId
+                ? {
+                    ...line,
+                    orderLineStatus: status,
+                  }
+                : line
+            )
       );
 
-      return { previous };
+      return { previous, targetLine };
     },
-    onSuccess: () => {
-      toast.success("Status updated successfully");
+    onSuccess: (_data, variables, context) => {
+      if (variables.status === OrderLineStatus.COMPLETED) {
+        const completedLineFromMutation = (context as { targetLine?: OrderLineDTO } | undefined)?.targetLine;
+
+        if (completedLineFromMutation) {
+          const normalizedCompletedLine: OrderLineDTO = {
+            ...completedLineFromMutation,
+            orderLineStatus: OrderLineStatus.COMPLETED,
+          };
+
+          queryClient.setQueryData<OrderLineDTO[]>(kitchenCompletedQueryKey, (prev = []) => {
+            const without = prev.filter((l) => l.orderLineId !== normalizedCompletedLine.orderLineId);
+            return [...without, normalizedCompletedLine];
+          });
+        }
+
+        const completed = queryClient.getQueryData<OrderLineDTO[]>(kitchenCompletedQueryKey) || [];
+        const byOrderId = new Map<string, OrderLineDTO[]>();
+        completed.forEach((l) => {
+          const key = l.orderId || "unknown";
+          if (!byOrderId.has(key)) byOrderId.set(key, []);
+          byOrderId.get(key)!.push(l);
+        });
+
+        const summaryLines = Array.from(byOrderId.entries())
+          .slice(0, 10)
+          .map(([orderId, lines]) => {
+            const table = lines[0]?.tableName || "N/A";
+            const itemQty = lines.reduce((sum, line) => {
+              const qty = (line.orderItems || []).reduce((s, item) => s + (item.quantity || 0), 0);
+              return sum + qty;
+            }, 0);
+            return `- Order ${orderId.substring(0, 8)} (Table ${table}): ${itemQty} items`;
+          });
+
+        toast.success("Orders completed in kitchen", {
+          description:
+            summaryLines.length > 0
+              ? `Completed orders:\n${summaryLines.join("\n")}`
+              : "Completed order(s) has been updated successfully.",
+        });
+      } else {
+        toast.success("Status updated successfully");
+      }
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any, _variables, context) => {
@@ -188,7 +278,7 @@ const WaiterKitchen = () => {
   });
 
   const handleUpdateStatusStable = useCallback(
-    (orderLineId: string, status: string) => {
+    (orderLineId: string, status: OrderLineStatus) => {
       updateStatusMutation.mutate({ orderLineId, status });
     },
     [updateStatusMutation]
@@ -229,11 +319,71 @@ const WaiterKitchen = () => {
         </div>
       </div>
 
+      {completedOrders.length > 0 && (
+        <Card className="border-border/60 bg-muted/10">
+          <CardHeader className="py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ChefHat className="h-5 w-5 text-green-500" />
+                <CardTitle className="text-lg">Completed Orders ({completedOrders.length})</CardTitle>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Click “finish” để move items vào danh sách này
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="space-y-4">
+              {completedOrders.slice(0, 10).map((o) => (
+                <div key={o.orderId} className="space-y-3">
+                  <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">
+                        Order #{o.orderId.substring(0, 8)} · Table {o.table}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {o.itemQty} items completed
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCompletedOrder(o.orderId)}
+                      className="text-xs font-semibold px-2 py-1 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors whitespace-nowrap"
+                      title="Delete completed order from kitchen"
+                    >
+                      x
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {o.lines.map((line) => (
+                      <MemoOrderLineCard
+                        key={line.orderLineId}
+                        line={line}
+                        nowMs={nowMs}
+                        onUpdateStatus={handleUpdateStatusStable}
+                        isUpdating={updateStatusMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {completedOrders.length > 10 && (
+                <div className="text-xs text-muted-foreground text-center pt-2">
+                  Showing latest 10 completed orders
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="all" className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
+        <TabsList className="grid w-full grid-cols-4 md:w-[520px]">
           <TabsTrigger value="all">All Items ({orderLines.length})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({pendingLines.length})</TabsTrigger>
           <TabsTrigger value="preparing">Preparing ({preparingLines.length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="flex-1 overflow-hidden mt-4">
@@ -300,6 +450,56 @@ const WaiterKitchen = () => {
               {preparingLines.length === 0 && !isLoading && (
                 <div className="col-span-full text-center py-20 text-muted-foreground">No items currently cooking.</div>
               )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="completed" className="flex-1 overflow-hidden mt-4">
+          <ScrollArea className="h-full pr-4">
+            <div className="space-y-4 pb-6">
+              {completedOrders.length === 0 && !isLoading && (
+                <div className="col-span-full flex flex-col items-center justify-center py-20 bg-muted/10 dark:bg-muted/5 rounded-xl border border-dashed border-border">
+                  <ChefHat className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                  <p className="text-xl font-medium text-muted-foreground">No completed orders in kitchen</p>
+                </div>
+              )}
+
+              {completedOrders.map((o) => (
+                <div
+                  key={o.orderId}
+                  className="rounded-xl border border-border/60 bg-background/30 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">
+                        Order #{o.orderId.substring(0, 8)} · Table {o.table}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {o.itemQty} items completed
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCompletedOrder(o.orderId)}
+                      className="text-xs font-semibold px-2 py-1 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                      title="Delete completed order from kitchen"
+                    >
+                      delete
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {o.lines.map((line) => (
+                      <MemoOrderLineCard
+                        key={line.orderLineId}
+                        line={line}
+                        nowMs={nowMs}
+                        onUpdateStatus={handleUpdateStatusStable}
+                        isUpdating={updateStatusMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </TabsContent>

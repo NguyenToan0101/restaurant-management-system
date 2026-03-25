@@ -51,8 +51,11 @@ function WaiterLayoutContent() {
                 addNotification(notification);
                 playNotificationSound();
                 
-                // Invalidate tables query to refresh table status
-                window.queryClient?.invalidateQueries({ queryKey: ['tables'] });
+                // Invalidate all "tables" related queries to refresh table status
+                window.queryClient?.invalidateQueries({
+                    predicate: (query) =>
+                        Array.isArray(query.queryKey) && query.queryKey[0] === 'tables',
+                });
                 
                 const invalidateOrderQueries = () => {
                     window.queryClient?.invalidateQueries({ 
@@ -63,8 +66,13 @@ function WaiterLayoutContent() {
                                    (key[1] === 'order' || key[1] === 'orders');
                         }
                     });
-                    // Invalidate kitchen query to live-update the kitchen view
-                    window.queryClient?.invalidateQueries({ queryKey: ['current-order-lines'] });
+                    // Invalidate kitchen query to live-update the kitchen view (key is ["current-order-lines", branchId])
+                    window.queryClient?.invalidateQueries({
+                        predicate: (query) => {
+                            const key = query.queryKey;
+                            return Array.isArray(key) && key[0] === 'current-order-lines';
+                        },
+                    });
                 };
 
                 // Invalidate immediately
@@ -89,8 +97,11 @@ function WaiterLayoutContent() {
         };
 
         const handleTableStatusChanged = (data: any) => {
-            // Invalidate tables query to refresh table status
-            window.queryClient?.invalidateQueries({ queryKey: ['tables'] });
+            // Invalidate all "tables" related queries to refresh table status
+            window.queryClient?.invalidateQueries({
+                predicate: (query) =>
+                    Array.isArray(query.queryKey) && query.queryKey[0] === 'tables',
+            });
             
             // Invalidate order queries for this specific table
             window.queryClient?.invalidateQueries({ 

@@ -6,6 +6,7 @@ import type {
   UpdateOrderItemRequest,
   ConfirmPaymentRequest,
 } from '@/types/dto';
+import type { OrderLineDTO } from '@/types/dto';
 import { TableStatus } from '@/types/dto';
 import { toast } from '@/hooks/use-toast';
 
@@ -160,7 +161,7 @@ export const useConfirmPayment = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: ConfirmPaymentRequest) => waiterOrderApi.confirmPayment(request),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['waiter', 'order'] });
       queryClient.removeQueries({
         predicate: (q) =>
@@ -171,6 +172,22 @@ export const useConfirmPayment = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['waiter', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
+      
+      // Clear completed kitchen orders for the paid orderId
+      const completedKey = ['waiter', 'kitchen', 'completed', variables.branchId] as const;
+      queryClient.setQueryData<any[]>(completedKey, (prev = []) => {
+        if (!variables.orderId) return prev;
+        return prev.filter((line) => line?.orderId !== variables.orderId);
+      });
+
+      // Clear all kitchen lines (including PREPARING) belonging to the paid orderId
+      queryClient.setQueryData<OrderLineDTO[]>(
+        ['current-order-lines', variables.branchId],
+        (prev = []) => {
+          if (!variables.orderId) return prev;
+          return prev.filter((line) => line?.orderId !== variables.orderId);
+        }
+      );
       toast({ title: 'Payment confirmed successfully' });
     },
     onError: (error: any) => {

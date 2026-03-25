@@ -24,6 +24,14 @@ import {
 import { ImageIcon, X, Settings2 } from "lucide-react";
 import type { MenuItemDTO, CategoryDTO, CustomizationDTO } from "@/types/dto";
 
+const formatVND = (value: number): string =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
 interface MenuItemFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -301,7 +309,7 @@ export function MenuItemFormDialog({
                         </div>
                         {c.price > 0 && (
                           <Badge variant="secondary" className="text-xs shrink-0">
-                            +{c.price.toFixed(2)}đ
+                            +{formatVND(c.price)}
                           </Badge>
                         )}
                       </label>
@@ -336,7 +344,7 @@ export function MenuItemFormDialog({
                         </div>
                         {c.price > 0 && (
                           <Badge variant="secondary" className="text-xs shrink-0">
-                            +{c.price.toFixed(2)}đ
+                            +{formatVND(c.price)}
                           </Badge>
                         )}
                       </label>

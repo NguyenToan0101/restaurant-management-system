@@ -13,6 +13,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/queries/useAuthQueries";
+import { useQuery } from "@tanstack/react-query";
 import {
     UtensilsCrossed,
     Table,
@@ -23,6 +24,9 @@ import {
     ChefHat,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { waiterOrderApi } from "@/api/waiterOrderApi";
+import type { OrderLineDTO } from "@/types/dto";
+import { OrderLineStatus } from "@/types/dto";
 
 const WaiterSidebar = () => {
     const { state } = useSidebar();
@@ -31,6 +35,20 @@ const WaiterSidebar = () => {
     const navigate = useNavigate();
     const staffInfo = useAuthStore((state) => state.staffInfo);
     const logout = useLogout();
+    const branchId = staffInfo?.branchId || "";
+
+    const { data: currentOrderLines = [] } = useQuery({
+        queryKey: ["current-order-lines", branchId],
+        queryFn: () => waiterOrderApi.getCurrentOrderLines(branchId),
+        enabled: !!branchId,
+        // Share cache with Kitchen page (so both update together)
+        staleTime: 2000,
+        refetchOnWindowFocus: false,
+    });
+
+    const pendingKitchenCount = (currentOrderLines as OrderLineDTO[]).filter(
+        (line) => line.orderLineStatus === OrderLineStatus.PENDING
+    ).length;
 
     const handleLogout = async () => {
         try {
@@ -115,7 +133,11 @@ const WaiterSidebar = () => {
                                     <SidebarMenuButton
                                         asChild
                                         isActive={item.isActive}
-                                        tooltip={item.title}
+                                        tooltip={
+                                            item.url === "/waiter/kitchen" && pendingKitchenCount > 0
+                                                ? `Kitchen (${pendingKitchenCount})`
+                                                : item.title
+                                        }
                                         className="h-14 mb-1"
                                     >
                                         <NavLink
@@ -123,7 +145,16 @@ const WaiterSidebar = () => {
                                             className="flex items-center gap-3 px-3 py-2 hover:bg-sidebar-accent/50 rounded-lg transition-all"
                                             activeClassName="bg-sidebar-accent/80 text-primary border-l-[4px] border-primary"
                                         >
-                                            <item.icon className={`w-5 h-5 shrink-0 ${item.isActive ? 'text-primary' : ''}`} />
+                                            <div className="relative flex items-center justify-center">
+                                                <item.icon className={`w-5 h-5 shrink-0 ${item.isActive ? 'text-primary' : ''}`} />
+                                                {item.url === "/waiter/kitchen" && pendingKitchenCount > 0 && (
+                                                    <span
+                                                        className="absolute -top-1 -right-2 h-5 min-w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-sm"
+                                                    >
+                                                        {pendingKitchenCount > 99 ? "99+" : pendingKitchenCount}
+                                                    </span>
+                                                )}
+                                            </div>
                                             {!collapsed && (
                                                 <div className="flex flex-col flex-1 overflow-hidden h-full justify-center">
                                                     <span className={`text-sm truncate leading-tight ${item.isActive ? 'font-bold text-primary' : 'font-semibold'}`}>
