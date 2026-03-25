@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/analyticsApi';
+import { formatLocalDateYmd } from '@/utils/formatLocalDateYmd';
+
+const ANALYTICS_STALE_MS = 60 * 1000;
 
 export const useRestaurantAnalytics = (
   restaurantId: string, 
@@ -13,9 +16,9 @@ export const useRestaurantAnalytics = (
       return response.data?.result;
     },
     enabled: enabled && !!restaurantId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: ANALYTICS_STALE_MS,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };
@@ -33,9 +36,9 @@ export const useRestaurantDailyRevenue = (
       return response.data?.result;
     },
     enabled: enabled && !!restaurantId && !!startDate && !!endDate,
-    staleTime: 5 * 60 * 1000,
+    staleTime: ANALYTICS_STALE_MS,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };
@@ -53,9 +56,9 @@ export const useBranchDailyRevenue = (
       return response.data?.result;
     },
     enabled: enabled && !!branchId && !!startDate && !!endDate,
-    staleTime: 5 * 60 * 1000,
+    staleTime: ANALYTICS_STALE_MS,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };
@@ -73,9 +76,9 @@ export const useTopSellingItems = (
       return response.data?.result;
     },
     enabled: enabled && !!restaurantId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: ANALYTICS_STALE_MS,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };
@@ -92,9 +95,9 @@ export const useOrderDistribution = (
       return response.data?.result;
     },
     enabled: enabled && !!restaurantId && !!date,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: ANALYTICS_STALE_MS,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     retry: 3,
   });
 };
@@ -106,8 +109,8 @@ export const useTodayRevenue = (
   return useQuery({
     queryKey: ['today-revenue', restaurantId],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const today = formatLocalDateYmd(new Date());
+      const yesterday = formatLocalDateYmd(new Date(Date.now() - 86400000));
       
       const [todayResponse, yesterdayResponse] = await Promise.all([
         analyticsApi.getRestaurantDailyRevenue(restaurantId, today, today),

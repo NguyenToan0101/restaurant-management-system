@@ -86,6 +86,30 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     );
 
     /**
+     * Count orders by status using {@code updatedAt} (e.g. cancellations counted on cancel day,
+     * aligns daily analytics when completion/cancel time differs from {@code createdAt}).
+     */
+    @Query("""
+        SELECT COUNT(o)
+        FROM Order o
+        JOIN o.areaTable at
+        JOIN at.area a
+        JOIN a.branch b
+        WHERE b.branchId = :branchId
+        AND b.isActive = true
+        AND a.status = 'ACTIVE'
+        AND o.status = :status
+        AND o.updatedAt >= :startDate
+        AND o.updatedAt < :endDate
+    """)
+    int countOrdersByBranchAndStatusAndUpdatedAtRange(
+            @Param("branchId") UUID branchId,
+            @Param("status") OrderStatus status,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate
+    );
+
+    /**
      * Calculate total revenue by branch and timeframe (COMPLETED orders only)
      */
     @Query("""
