@@ -49,10 +49,10 @@ public class RestaurantService {
     public RestaurantDTO getById(UUID id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESTAURANT_NOTEXISTED));
-        
+
         // Check ownership - only owner can access their restaurant details
         ownershipValidationService.validateRestaurantOwnership(restaurant);
-        
+
         return restaurantMapper.toRestaurantDto(restaurant);
     }
 
