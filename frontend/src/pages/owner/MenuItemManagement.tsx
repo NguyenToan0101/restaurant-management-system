@@ -128,7 +128,15 @@ const MenuItemManagement = () => {
   };
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
-    await setActiveStatus({ menuItemId: id, active: !currentStatus });
+    const newStatus = !currentStatus;
+    await setActiveStatus({ menuItemId: id, active: newStatus });
+    
+    const { toast } = await import('@/hooks/use-toast');
+    const item = menuItems.find(i => i.id === id);
+    toast({
+      title: newStatus ? 'Item activated' : 'Item deactivated',
+      description: `${item?.name || 'Menu item'} has been ${newStatus ? 'activated' : 'deactivated'} successfully`,
+    });
   };
 
   const bulkStatusChange = async (active: boolean) => {

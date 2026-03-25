@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -34,7 +35,7 @@ import {
 } from "@/hooks/queries/useWaiterQueries";
 import { useCartStore } from "@/stores/cartStore";
 import type { WaiterMenuItemDTO, OrderItemDTO } from "@/types/dto";
-import { TableStatus, EntityStatus } from "@/types/dto";
+import { TableStatus, EntityStatus, CustomizationType } from "@/types/dto";
 
 // Format currency to Vietnamese Dong (consistent with customer menu)
 const formatVND = (value: number): string => {
@@ -66,8 +67,8 @@ const WaiterOrderPage = () => {
     const [customizeItem, setCustomizeItem] = useState<WaiterMenuItemDTO | null>(null);
     const [customizeQty, setCustomizeQty] = useState(1);
     const [customizeNote, setCustomizeNote] = useState("");
-    /** At most one customization per dish */
-    const [selectedCustomizationId, setSelectedCustomizationId] = useState<string | null>(null);
+    const [selectedAddons, setSelectedAddons] = useState<{[key: string]: number}>({});
+    const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
     const cart = useCartStore();
     const createOrder = useCreateOrder();
     const addItemsToOrder = useAddItemsToOrder();
@@ -123,28 +124,38 @@ const WaiterOrderPage = () => {
         setCustomizeItem(item);
         setCustomizeQty(1);
         setCustomizeNote("");
-        setSelectedCustomizationId(null);
+        setSelectedAddons({});
+        setSelectedVariant(null);
     };
 
     const handleAddToCart = () => {
         if (!customizeItem) return;
 
-        const custs =
-            selectedCustomizationId == null
-                ? []
-                : (() => {
-                      const c = customizeItem.customizations.find(
-                          (x) => x.customizationId === selectedCustomizationId
-                      )!;
-                      return [
-                          {
-                              customizationId: selectedCustomizationId,
-                              name: c.name,
-                              price: c.price,
-                              quantity: 1,
-                          },
-                      ];
-                  })();
+        const custs: Array<{customizationId: string; name: string; price: number; quantity: number}> = [];
+        
+        // Add addons
+        Object.entries(selectedAddons).forEach(([customizationId, quantity]) => {
+            if (quantity > 0) {
+                const c = customizeItem.customizations.find(x => x.customizationId === customizationId)!;
+                custs.push({
+                    customizationId,
+                    name: c.name,
+                    price: c.price,
+                    quantity,
+                });
+            }
+        });
+        
+        // Add variant (quantity always 1)
+        if (selectedVariant) {
+            const c = customizeItem.customizations.find(x => x.customizationId === selectedVariant)!;
+            custs.push({
+                customizationId: selectedVariant,
+                name: c.name,
+                price: c.price,
+                quantity: 1,
+            });
+        }
 
         const custTotal = custs.reduce((sum, c) => sum + c.price * c.quantity, 0);
         const unitPrice = getEffectivePrice(customizeItem.price, customizeItem.discountedPrice);
@@ -694,8 +705,10 @@ const WaiterOrderPage = () => {
                     setQuantity={setCustomizeQty}
                     note={customizeNote}
                     setNote={setCustomizeNote}
-                    selectedCustomizationId={selectedCustomizationId}
-                    onSelectCustomization={setSelectedCustomizationId}
+                    selectedAddons={selectedAddons}
+                    setSelectedAddons={setSelectedAddons}
+                    selectedVariant={selectedVariant}
+                    setSelectedVariant={setSelectedVariant}
                     onAdd={handleAddToCart}
                     onClose={() => setCustomizeItem(null)}
                 />
@@ -767,41 +780,63 @@ const MenuCard = ({ item, onClick }: MenuCardProps) => (
     </Card>
 );
 
-const CUSTOM_NONE = "__none__";
-
 interface CustomizeDialogProps {
     item: WaiterMenuItemDTO;
     quantity: number;
     setQuantity: (q: number) => void;
     note: string;
     setNote: (n: string) => void;
-    selectedCustomizationId: string | null;
-    onSelectCustomization: (id: string | null) => void;
+    selectedAddons: {[key: string]: number};
+    setSelectedAddons: (addons: {[key: string]: number}) => void;
+    selectedVariant: string | null;
+    setSelectedVariant: (id: string | null) => void;
     onAdd: () => void;
     onClose: () => void;
 }
 
 const CustomizeDialog = ({
     item, quantity, setQuantity, note, setNote,
-    selectedCustomizationId, onSelectCustomization, onAdd, onClose,
+    selectedAddons, setSelectedAddons, selectedVariant, setSelectedVariant,
+    onAdd, onClose,
 }: CustomizeDialogProps) => {
-    const custTotal =
-        selectedCustomizationId == null
-            ? 0
-            : item.customizations.find((x) => x.customizationId === selectedCustomizationId)?.price ?? 0;
-
+    const addonCustomizations = item.customizations.filter(c => c.customizationType === CustomizationType.ADDON);
+    const variantCustomizations = item.customizations.filter(c => c.customizationType === CustomizationType.VARIANT);
+    
+    const addonTotal = Object.entries(selectedAddons).reduce((sum, [customizationId, qty]) => {
+        const c = addonCustomizations.find(x => x.customizationId === customizationId);
+        return sum + (c ? c.price * qty : 0);
+    }, 0);
+    
+    const variantTotal = selectedVariant
+        ? variantCustomizations.find(x => x.customizationId === selectedVariant)?.price ?? 0
+        : 0;
+    
+    const custTotal = addonTotal + variantTotal;
     const effectiveItemPrice = getEffectivePrice(item.price, item.discountedPrice);
     const totalPrice = (effectiveItemPrice + custTotal) * quantity;
+    
+    const updateAddonQuantity = (customizationId: string, qty: number) => {
+        if (qty <= 0) {
+            const newAddons = { ...selectedAddons };
+            delete newAddons[customizationId];
+            setSelectedAddons(newAddons);
+        } else {
+            setSelectedAddons({
+                ...selectedAddons,
+                [customizationId]: qty,
+            });
+        }
+    };
 
     return (
         <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
+            <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
+                <DialogHeader className="shrink-0">
                     <DialogTitle>{item.name}</DialogTitle>
                     <DialogDescription>Choose customization</DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-y-auto min-h-0 flex-1 pr-2">
                     {item.imageUrl && (
                         <img
                             src={item.imageUrl}
@@ -842,51 +877,92 @@ const CustomizeDialog = ({
                         </div>
                     </div>
 
-                    {item.customizations.length > 0 && (
+                    {/* Variants Section */}
+                    {variantCustomizations.length > 0 && (
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">Choose customization</Label>
+                            <Label className="text-sm font-medium">Choose Option</Label>
                             <p className="text-xs text-muted-foreground">
-                                Pick one option only (or none).
+                                Select one option (e.g., size, temperature)
                             </p>
                             <RadioGroup
-                                value={selectedCustomizationId ?? CUSTOM_NONE}
-                                onValueChange={(v) =>
-                                    onSelectCustomization(v === CUSTOM_NONE ? null : v)
-                                }
+                                value={selectedVariant ?? ""}
+                                onValueChange={(v) => setSelectedVariant(v || null)}
                                 className="gap-2"
                             >
-                                <div className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
-                                    <RadioGroupItem value={CUSTOM_NONE} id={`cust-none-${item.menuItemId}`} />
-                                    <Label
-                                        htmlFor={`cust-none-${item.menuItemId}`}
-                                        className="flex-1 cursor-pointer font-normal"
-                                    >
-                                        <span className="text-sm">None</span>
-                                        <span className="block text-xs text-muted-foreground">Base item only</span>
-                                    </Label>
-                                </div>
-                                {item.customizations.map((c) => (
+                                {variantCustomizations.map((c) => (
                                     <div
                                         key={c.customizationId}
                                         className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
                                     >
                                         <RadioGroupItem
                                             value={c.customizationId}
-                                            id={`cust-${c.customizationId}`}
+                                            id={`variant-${c.customizationId}`}
                                         />
                                         <Label
-                                            htmlFor={`cust-${c.customizationId}`}
+                                            htmlFor={`variant-${c.customizationId}`}
                                             className="min-w-0 flex-1 cursor-pointer font-normal"
                                         >
                                             <span className="text-sm font-medium">{c.name}</span>
-                                            <span className="block text-xs text-muted-foreground">
-                                                +{formatVND(c.price)}
-                                            </span>
+                                            {c.price > 0 && (
+                                                <span className="block text-xs text-muted-foreground">
+                                                    +{formatVND(c.price)}
+                                                </span>
+                                            )}
                                         </Label>
                                     </div>
                                 ))}
                             </RadioGroup>
                         </div>
+                    )}
+
+                    {/* Add-ons Section */}
+                    {addonCustomizations.length > 0 && (
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Add-ons</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Optional extras (select multiple)
+                            </p>
+                            {addonCustomizations.map((c) => (
+                                <div
+                                    key={c.customizationId}
+                                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                                >
+                                    <div className="flex-1">
+                                        <h6 className="text-sm font-medium">{c.name}</h6>
+                                        <p className="text-xs text-muted-foreground">
+                                            +{formatVND(c.price)}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => updateAddonQuantity(c.customizationId, (selectedAddons[c.customizationId] || 0) - 1)}
+                                        >
+                                            <Minus className="w-3 h-3" />
+                                        </Button>
+                                        <span className="w-8 text-center text-sm font-medium">
+                                            {selectedAddons[c.customizationId] || 0}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => updateAddonQuantity(c.customizationId, (selectedAddons[c.customizationId] || 0) + 1)}
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {item.customizations.length === 0 && (
+                        <p className="text-sm text-muted-foreground italic">
+                            No customizations available for this item.
+                        </p>
                     )}
 
                     <div>
@@ -901,7 +977,7 @@ const CustomizeDialog = ({
                     </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="shrink-0 mt-4">
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={onAdd}>
                         <ShoppingCart className="w-4 h-4 mr-2" />

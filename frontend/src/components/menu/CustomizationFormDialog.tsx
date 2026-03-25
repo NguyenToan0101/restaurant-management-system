@@ -10,13 +10,21 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { CustomizationDTO } from "@/types/dto";
+import { CustomizationType } from "@/types/dto/customization.dto";
 
 interface CustomizationFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customization: CustomizationDTO | null;
-  onSave: (data: { name: string; price: number }) => Promise<void>;
+  onSave: (data: { name: string; price: number; customizationType: CustomizationType }) => Promise<void>;
   isSaving?: boolean;
 }
 
@@ -29,21 +37,24 @@ export function CustomizationFormDialog({
 }: CustomizationFormDialogProps) {
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
+  const [formType, setFormType] = useState<CustomizationType>(CustomizationType.ADDON);
 
   useEffect(() => {
     if (customization) {
       setFormName(customization.name);
       setFormPrice(customization.price.toString());
+      setFormType(customization.customizationType || CustomizationType.ADDON);
     } else {
       setFormName("");
       setFormPrice("");
+      setFormType(CustomizationType.ADDON);
     }
   }, [customization, open]);
 
   const handleSave = async () => {
     if (!formName.trim()) return;
     const price = parseFloat(formPrice) || 0;
-    await onSave({ name: formName, price });
+    await onSave({ name: formName, price, customizationType: formType });
   };
 
   return (
@@ -63,10 +74,32 @@ export function CustomizationFormDialog({
           <div className="space-y-2">
             <Label>Name</Label>
             <Input
-              placeholder="e.g. Extra Cheese"
+              placeholder="e.g. Extra Cheese, Size M, Hot/Cold"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={formType} onValueChange={(value) => setFormType(value as CustomizationType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={CustomizationType.ADDON}>
+                  Add-on (multiple selections allowed, with quantity)
+                </SelectItem>
+                <SelectItem value={CustomizationType.VARIANT}>
+                  Variant (single selection only, no quantity)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {formType === CustomizationType.ADDON 
+                ? "Ví dụ: Trân châu, topping, thạch... (khách có thể chọn nhiều và điều chỉnh số lượng)"
+                : "Ví dụ: Size M/L/XL, Đá/Nóng, Ít đường/Nhiều đường... (khách chỉ chọn 1 option)"
+              }
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Price (đ)</Label>

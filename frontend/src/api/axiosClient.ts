@@ -33,7 +33,13 @@ const isPublicEndpoint = (url?: string): boolean => {
     '/packages/active',
     '/waiter/orders',
     '/branch-menu-items/guest/',
-    '/available-tables'
+    '/available-tables',
+    '/tables/qr',
+    '/tables/', // For getting table by ID (public for customers)
+    '/areas/', // For getting area by ID (public for customers)
+    '/restaurants', // For getting restaurant by slug (public)
+    '/branches/public/', // For getting branches by restaurant (public)
+    '/categories' // For getting categories by restaurant (public)
   ];
   // Check for exact match or path prefix match
   // Note: /reservations without any path after it is public (for customer booking)
@@ -79,6 +85,24 @@ axiosClient.interceptors.response.use(
 
     // Don't retry for public endpoints - they shouldn't need auth
     if (isPublicEndpoint(originalRequest.url)) {
+      return Promise.reject(error);
+    }
+
+    // CRITICAL: Don't redirect to login if we're on a public customer page
+    // Just reject the error and let the page handle it gracefully
+    // EXCEPTION: Allow /auth/me to fail gracefully on public pages (for OAuth flow)
+    const currentPath = window.location.pathname;
+    const publicPagePatterns = ['/', '/login', '/register', '/staff-login', '/forgot-password'];
+    const customerPagePatterns = ['/home', '/menu', '/reservations', '/checkout'];
+    
+    const isOnPublicPage = publicPagePatterns.includes(currentPath) || 
+                          customerPagePatterns.some(pattern => currentPath.includes(pattern));
+    
+    // Allow /auth/me to proceed with refresh logic even on public pages
+    const isAuthMeRequest = originalRequest.url?.includes('/auth/me');
+    
+    if (isOnPublicPage && !isAuthMeRequest) {
+      // On public pages (except /auth/me), just reject without redirecting
       return Promise.reject(error);
     }
 
@@ -130,7 +154,10 @@ axiosClient.interceptors.response.use(
             return 'refreshed';
           } catch (refreshError) {
             useAuthStore.getState().clearAuthData();
-            window.location.href = '/login';
+            // Only redirect if not on public page
+            if (!isOnPublicPage) {
+              window.location.href = '/login';
+            }
             return null;
           } finally {
             refreshPromise = null;

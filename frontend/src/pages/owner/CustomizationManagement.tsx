@@ -10,6 +10,7 @@ import { useCustomizationLimit } from "@/hooks/useFeatureLimits";
 import { CustomizationFormDialog } from "@/components/menu/CustomizationFormDialog";
 import { CustomizationDeleteDialog } from "@/components/menu/CustomizationDeleteDialog";
 import type { CustomizationDTO } from "@/types/dto";
+import { CustomizationType } from "@/types/dto/customization.dto";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CustomizationManagement = () => {
@@ -33,7 +34,7 @@ const CustomizationManagement = () => {
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: { name: string; price: number }) => {
+  const handleSave = async (data: { name: string; price: number; customizationType: CustomizationType }) => {
     if (!restaurantId) return;
     
     if (editing) {
@@ -44,6 +45,7 @@ const CustomizationManagement = () => {
           name: data.name,
           price: data.price,
           restaurantId,
+          customizationType: data.customizationType,
         },
       });
     } else {
@@ -51,6 +53,7 @@ const CustomizationManagement = () => {
         name: data.name,
         price: data.price,
         restaurantId,
+        customizationType: data.customizationType,
       });
     }
     setDialogOpen(false);
@@ -128,8 +131,13 @@ const CustomizationManagement = () => {
             <Card key={c.id} className="glass-card border-border/60 group hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-sm">{c.name}</h3>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-sm">{c.name}</h3>
+                      <Badge variant={c.customizationType === CustomizationType.VARIANT ? "secondary" : "default"} className="text-[10px]">
+                        {c.customizationType === CustomizationType.VARIANT ? "Variant" : "Add-on"}
+                      </Badge>
+                    </div>
                     <p className="text-lg font-display text-primary mt-1">
                       {c.price > 0 ? `${c.price.toFixed(2)}đ` : "Free"}
                     </p>
