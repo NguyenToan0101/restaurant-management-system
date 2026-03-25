@@ -9,11 +9,12 @@ import { formatCurrency } from "@/utils/currency";
 import { TrendingUp, ShoppingCart, CheckCircle, XCircle, Activity, BarChart3, Sparkles, Award, Calendar, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { AIConsultantChatbot } from "@/components/ai/AIConsultantChatbot";
 import { PremiumFeatureBanner } from "@/components/ai/PremiumFeatureBanner";
+import { formatLocalDateYmd } from "@/utils/formatLocalDateYmd";
 
 export function RestaurantAnalytics() {
   const { id } = useParams<{ id: string }>();
   const[timeframe, setTimeframe] = useState<'DAY' | 'MONTH' | 'YEAR'>('DAY');
-  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate] = useState(() => formatLocalDateYmd(new Date()));
   const[showAIChat, setShowAIChat] = useState(false);
   const [dateOffset, setDateOffset] = useState(0); // 0 = current period, -1 = previous period, etc.
 
@@ -88,8 +89,8 @@ export function RestaurantAnalytics() {
     }
     
     return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0],
+      startDate: formatLocalDateYmd(start),
+      endDate: formatLocalDateYmd(end),
       periodLabel: label
     };
   }, [timeframe, dateOffset]);
@@ -116,7 +117,8 @@ export function RestaurantAnalytics() {
     const totalOrders = dailyRevenue.reduce((sum, day) => sum + day.orderCount, 0);
     const completedOrders = dailyRevenue.reduce((sum, day) => sum + day.completedOrders, 0);
     const cancelledOrders = dailyRevenue.reduce((sum, day) => sum + day.cancelledOrders, 0);
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const avgOrderValue =
+      completedOrders > 0 ? totalRevenue / completedOrders : 0;
 
     return {
       totalRevenue,

@@ -172,7 +172,13 @@ export const useConfirmPayment = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['waiter', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
-      
+      queryClient.invalidateQueries({ queryKey: ['restaurant-daily-revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['branch-daily-revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['top-selling-items'] });
+      queryClient.invalidateQueries({ queryKey: ['restaurant-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['today-revenue'] });
+      queryClient.invalidateQueries({ queryKey: ['order-distribution'] });
+
       // Clear completed kitchen orders for the paid orderId
       const completedKey = ['waiter', 'kitchen', 'completed', variables.branchId] as const;
       queryClient.setQueryData<any[]>(completedKey, (prev = []) => {

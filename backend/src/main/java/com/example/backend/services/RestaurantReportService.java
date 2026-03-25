@@ -371,20 +371,18 @@ public class RestaurantReportService {
                     .map(Bill::getFinalPrice)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Count orders for this day across all branches
+            // Completed count matches revenue: one paid bill per completed order, grouped by paid day
+            int completedOrders = dayBills.size();
+
             Instant dayStart = date.atStartOfDay(VIETNAM_TIMEZONE).toInstant();
             Instant dayEnd = date.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE).toInstant();
-            
-            int completedOrders = 0;
+
             int cancelledOrders = 0;
-            
             for (com.example.backend.entities.Branch branch : branches) {
-                completedOrders += orderRepository.countOrdersByBranchAndStatusAndTimeframe(
-                        branch.getBranchId(), OrderStatus.COMPLETED, dayStart, dayEnd);
-                cancelledOrders += orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+                cancelledOrders += orderRepository.countOrdersByBranchAndStatusAndUpdatedAtRange(
                         branch.getBranchId(), OrderStatus.CANCELLED, dayStart, dayEnd);
             }
-            
+
             int totalOrders = completedOrders + cancelledOrders;
 
             result.add(new DailyRevenueDTO(date, dayRevenue, totalOrders, completedOrders, cancelledOrders));
@@ -421,13 +419,12 @@ public class RestaurantReportService {
                     .map(Bill::getFinalPrice)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Count orders for this day
+            int completedOrders = dayBills.size();
+
             Instant dayStart = date.atStartOfDay(VIETNAM_TIMEZONE).toInstant();
             Instant dayEnd = date.plusDays(1).atStartOfDay(VIETNAM_TIMEZONE).toInstant();
-            
-            int completedOrders = orderRepository.countOrdersByBranchAndStatusAndTimeframe(
-                    branchId, OrderStatus.COMPLETED, dayStart, dayEnd);
-            int cancelledOrders = orderRepository.countOrdersByBranchAndStatusAndTimeframe(
+
+            int cancelledOrders = orderRepository.countOrdersByBranchAndStatusAndUpdatedAtRange(
                     branchId, OrderStatus.CANCELLED, dayStart, dayEnd);
             int totalOrders = completedOrders + cancelledOrders;
 
