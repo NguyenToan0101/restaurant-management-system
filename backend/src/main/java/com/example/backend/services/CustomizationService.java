@@ -82,6 +82,9 @@ public class CustomizationService {
         customization.setPrice(request.getPrice());
         customization.setRestaurant(restaurant);
         customization.setStatus(EntityStatus.ACTIVE);
+        customization.setCustomizationType(request.getCustomizationType() != null 
+            ? request.getCustomizationType() 
+            : com.example.backend.entities.CustomizationType.ADDON);
         customization.setCreatedAt(Instant.now());
 
         if (request.getCategoryId() != null) {
@@ -105,6 +108,9 @@ public class CustomizationService {
                 .map(exist -> {
                     exist.setName(dto.getName());
                     exist.setPrice(dto.getPrice());
+                    if (dto.getCustomizationType() != null) {
+                        exist.setCustomizationType(dto.getCustomizationType());
+                    }
                     exist.setUpdatedAt(Instant.now());
                     return customizationMapper.toCustomizationDTO(customizationRepository.save(exist));
                 })

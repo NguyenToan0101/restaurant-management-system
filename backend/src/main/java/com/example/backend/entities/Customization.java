@@ -57,6 +57,10 @@ public class Customization {
     @Column(name = "status")
     private EntityStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "customization_type", nullable = false)
+    private CustomizationType customizationType = CustomizationType.ADDON;
+
     @Column(name = "price", precision = 10, scale = 2, nullable = false)
     private BigDecimal price = BigDecimal.ZERO;
 
@@ -141,5 +145,13 @@ public class Customization {
 
     public void setStatus(EntityStatus status) {
         this.status = status;
+    }
+
+    public CustomizationType getCustomizationType() {
+        return customizationType;
+    }
+
+    public void setCustomizationType(CustomizationType customizationType) {
+        this.customizationType = customizationType;
     }
 }

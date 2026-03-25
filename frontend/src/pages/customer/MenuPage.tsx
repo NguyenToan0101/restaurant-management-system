@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast'
 import CustomerHeader from '@/components/customer/CustomerHeader'
 import { Star } from 'lucide-react'
 import type { RestaurantDTO, CategoryDTO, BranchDTO, CreateOrderRequest, CustomizationDTO, GuestBranchMenuItemDTO } from '@/types/dto'
+import { CustomizationType } from '@/types/dto/customization.dto'
 
 // Format currency to Vietnamese Dong
 const formatVND = (value: number): string => {
@@ -37,6 +38,7 @@ export default function MenuPage() {
   const [showCustomizationModal, setShowCustomizationModal] = useState(false)
   const [selectedMenuItem, setSelectedMenuItem] = useState<GuestBranchMenuItemDTO | null>(null)
   const [selectedCustomizations, setSelectedCustomizations] = useState<{[key: string]: number}>({})
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [itemNote, setItemNote] = useState('')
   const [menuItemCustomizations, setMenuItemCustomizations] = useState<CustomizationDTO[]>([])
   const [loadingCustomizations, setLoadingCustomizations] = useState(false)
@@ -84,9 +86,8 @@ export default function MenuPage() {
           
           const categoriesData = await categoryApi.getAllByRestaurant(restaurantData.restaurantId)
           setCategories(categoriesData.data.result)
-          if (categoriesData.data.result.length > 0) {
-            setSelectedCategory(categoriesData.data.result[0].id)
-          }
+          // Set "All" as default (null means show all)
+          setSelectedCategory(null)
           
           // Fetch menu items from branch (only available items)
           if (currentBranchId) {
@@ -122,6 +123,7 @@ export default function MenuPage() {
           // Show customization modal
           setSelectedMenuItem(item)
           setSelectedCustomizations({})
+          setSelectedVariant(null)
           setItemNote('')
           setShowCustomizationModal(true)
         } else {
@@ -141,11 +143,19 @@ export default function MenuPage() {
   }
 
   const addItemToBasket = (item: GuestBranchMenuItemDTO, itemCustomizations: {[key: string]: number}, note: string) => {
-    // Calculate customization price
-    const customizationPrice = Object.entries(itemCustomizations).reduce((sum, [customizationId, quantity]) => {
+    // Calculate customization price (addons + variant)
+    let customizationPrice = Object.entries(itemCustomizations).reduce((sum, [customizationId, quantity]) => {
       const customization = menuItemCustomizations.find(c => c.id === customizationId)
       return sum + (customization ? customization.price * quantity : 0)
     }, 0)
+    
+    // Add variant price if selected
+    if (selectedVariant) {
+      const variantCustomization = menuItemCustomizations.find(c => c.id === selectedVariant)
+      if (variantCustomization) {
+        customizationPrice += variantCustomization.price
+      }
+    }
 
     const totalItemPrice = getEffectivePrice(item) + customizationPrice
 
@@ -293,10 +303,17 @@ export default function MenuPage() {
 
   const handleCustomizationConfirm = () => {
     if (selectedMenuItem) {
-      addItemToBasket(selectedMenuItem, selectedCustomizations, itemNote)
+      // Merge addons and variant into customizations
+      const finalCustomizations = { ...selectedCustomizations }
+      if (selectedVariant) {
+        finalCustomizations[selectedVariant] = 1
+      }
+      
+      addItemToBasket(selectedMenuItem, finalCustomizations, itemNote)
       setShowCustomizationModal(false)
       setSelectedMenuItem(null)
       setSelectedCustomizations({})
+      setSelectedVariant(null)
       setItemNote('')
     }
   }
@@ -315,11 +332,24 @@ export default function MenuPage() {
   }
 
   const getCustomizationTotal = () => {
-    return Object.entries(selectedCustomizations).reduce((sum, [customizationId, quantity]) => {
+    let total = Object.entries(selectedCustomizations).reduce((sum, [customizationId, quantity]) => {
       const customization = menuItemCustomizations.find(c => c.id === customizationId)
       return sum + (customization ? customization.price * quantity : 0)
     }, 0)
+    
+    // Add variant price
+    if (selectedVariant) {
+      const variantCustomization = menuItemCustomizations.find(c => c.id === selectedVariant)
+      if (variantCustomization) {
+        total += variantCustomization.price
+      }
+    }
+    
+    return total
   }
+  
+  const addonCustomizations = menuItemCustomizations.filter(c => c.customizationType === CustomizationType.ADDON)
+  const variantCustomizations = menuItemCustomizations.filter(c => c.customizationType === CustomizationType.VARIANT)
 
   if (loading) {
     return (
@@ -358,6 +388,17 @@ export default function MenuPage() {
           {/* Categories Tabs */}
           <div className="pt-4 pb-2 border-b border-orange-200/60">
             <div className="flex gap-6 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none][scrollbar-width:none]">
+              {/* All Category */}
+              <button 
+                onClick={() => setSelectedCategory(null)}
+                className={`flex-none pb-2 font-semibold text-sm uppercase tracking-wider transition-all duration-300 border-b-2 whitespace-nowrap ${
+                  selectedCategory === null
+                    ? 'border-orange-500 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                All
+              </button>
               {categories.map(category => (
                 <button 
                   key={category.id}
@@ -610,38 +651,78 @@ export default function MenuPage() {
 
             {/* Modal Content - Scrollable */}
             <div className="p-6 overflow-y-auto flex-1">
-              {/* Customizations */}
-              <div className="space-y-4">
-                <h5 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Add-ons</h5>
-                {menuItemCustomizations.map(customization => (
-                  <div key={customization.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <h6 className="font-medium text-gray-900">{customization.name}</h6>
-                      <p className="text-sm text-orange-600 font-semibold">{formatVND(customization.price)}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) - 1)}
-                        className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
+              {/* Variants Section */}
+              {variantCustomizations.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  <h5 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Choose Option</h5>
+                  <p className="text-xs text-gray-500">Select one option (required)</p>
+                  <div className="space-y-2">
+                    {variantCustomizations.map(customization => (
+                      <label 
+                        key={customization.id}
+                        className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                          selectedVariant === customization.id 
+                            ? 'border-orange-500 bg-orange-50' 
+                            : 'border-gray-200 hover:border-orange-300'
+                        }`}
                       >
-                        -
-                      </button>
-                      <span className="text-sm font-bold text-gray-900 w-6 text-center">
-                        {selectedCustomizations[customization.id] || 0}
-                      </span>
-                      <button 
-                        onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) + 1)}
-                        className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
-                      >
-                        +
-                      </button>
-                    </div>
+                        <div className="flex items-center gap-3 flex-1">
+                          <input
+                            type="radio"
+                            name="variant"
+                            checked={selectedVariant === customization.id}
+                            onChange={() => setSelectedVariant(customization.id)}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                          />
+                          <div className="flex-1">
+                            <h6 className="font-medium text-gray-900">{customization.name}</h6>
+                            {customization.price > 0 && (
+                              <p className="text-sm text-orange-600 font-semibold">+{formatVND(customization.price)}</p>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                ))}
-                {menuItemCustomizations.length === 0 && (
-                  <p className="text-sm text-gray-500 italic">No customizations available for this item.</p>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Add-ons Section */}
+              {addonCustomizations.length > 0 && (
+                <div className="space-y-3">
+                  <h5 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Add-ons</h5>
+                  <p className="text-xs text-gray-500">Optional extras (select multiple)</p>
+                  {addonCustomizations.map(customization => (
+                    <div key={customization.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div className="flex-1">
+                        <h6 className="font-medium text-gray-900">{customization.name}</h6>
+                        <p className="text-sm text-orange-600 font-semibold">+{formatVND(customization.price)}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) - 1)}
+                          className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-bold text-gray-900 w-6 text-center">
+                          {selectedCustomizations[customization.id] || 0}
+                        </span>
+                        <button 
+                          onClick={() => updateCustomizationQuantity(customization.id, (selectedCustomizations[customization.id] || 0) + 1)}
+                          className="size-8 flex items-center justify-center bg-gray-100 border border-gray-200 text-gray-600 hover:text-orange-600 hover:border-orange-300 transition-colors text-sm rounded"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {menuItemCustomizations.length === 0 && (
+                <p className="text-sm text-gray-500 italic">No customizations available for this item.</p>
+              )}
 
               {/* Special Instructions */}
               <div className="mt-6">

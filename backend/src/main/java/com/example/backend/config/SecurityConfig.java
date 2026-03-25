@@ -75,7 +75,8 @@ public class SecurityConfig {
                                 "/api/reservations",
                                 "/api/reservations/branch/*/available-tables",
                                 "/api/waiter/orders/**",
-                                "/api/branch-menu-items/guest/**"
+                                "/api/branch-menu-items/guest/**",
+                                "/api/tables/qr"
                                 )
                         .permitAll()
                         // Authenticated endpoints - require valid JWT

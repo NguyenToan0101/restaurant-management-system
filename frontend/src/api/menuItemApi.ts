@@ -3,7 +3,7 @@ import { ApiResponse, MenuItemDTO, MenuItemCreateRequest, CustomizationDTO, mapM
 
 export const menuItemApi = {
   getAllByRestaurant: async (restaurantId: string) => {
-    const response = await axiosClient.get<ApiResponse<any[]>>('/public/menu-items', {
+    const response = await axiosClient.get<ApiResponse<any[]>>('/menu-items', {
       params: { restaurantId },
     });
     return {

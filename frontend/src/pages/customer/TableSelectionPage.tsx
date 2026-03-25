@@ -7,6 +7,14 @@ import type { RestaurantDTO, BranchDTO, AreaDTO, AreaTableDTO, TableAvailability
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
 import { setHours, setMinutes } from "date-fns"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import './TableSelectionPage.css'
 
 export default function TableSelectionPage() {
   const navigate = useNavigate()
@@ -385,75 +393,153 @@ export default function TableSelectionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Number of Guests *</label>
-                        <select
-                          value={reservationData.guestNumber}
-                          onChange={(e) => {
-                            const newGuestNumber = parseInt(e.target.value)
-                            setReservationData({ ...reservationData, guestNumber: newGuestNumber })
-                            if (selectedTable && selectedTable.capacity < newGuestNumber) {
-                              setSelectedTable(null)
-                            }
-                          }}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
-                        >
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <option key={num} value={num}>{num} Guest{num !== 1 ? 's' : ''}</option>
-                          ))}
-                        </select>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newGuestNumber = Math.max(1, reservationData.guestNumber - 1)
+                              setReservationData({ ...reservationData, guestNumber: newGuestNumber })
+                              if (selectedTable && selectedTable.capacity < newGuestNumber) {
+                                setSelectedTable(null)
+                              }
+                            }}
+                            className="w-12 h-12 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 text-gray-700 hover:text-orange-500 font-bold text-xl transition-all flex items-center justify-center"
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={reservationData.guestNumber}
+                            onChange={(e) => {
+                              const newGuestNumber = Math.max(1, parseInt(e.target.value) || 1)
+                              setReservationData({ ...reservationData, guestNumber: newGuestNumber })
+                              if (selectedTable && selectedTable.capacity < newGuestNumber) {
+                                setSelectedTable(null)
+                              }
+                            }}
+                            className="flex-1 px-4 py-3 rounded-lg border border-gray-300 text-gray-900 text-center text-lg font-semibold focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newGuestNumber = reservationData.guestNumber + 1
+                              setReservationData({ ...reservationData, guestNumber: newGuestNumber })
+                              if (selectedTable && selectedTable.capacity < newGuestNumber) {
+                                setSelectedTable(null)
+                              }
+                            }}
+                            className="w-12 h-12 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 text-gray-700 hover:text-orange-500 font-bold text-xl transition-all flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1.5">Use buttons or type directly</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Reservation Date *</label>
-                        <input
-                          type="date"
-                          value={reservationData.reservationDate}
-                          onChange={(e) => setReservationData({ ...reservationData, reservationDate: e.target.value })}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
-                          min={new Date().toLocaleDateString('en-CA')}
-                        />
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                            calendar_today
+                          </span>
+                          <input
+                            type="date"
+                            value={reservationData.reservationDate}
+                            onChange={(e) => setReservationData({ ...reservationData, reservationDate: e.target.value })}
+                            className="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all cursor-pointer hover:border-orange-400"
+                            min={new Date().toLocaleDateString('en-CA')}
+                          />
+                        </div>
                       </div>
                       <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 mb-2">Reservation Time *</label>
-                        <DatePicker
-                          selected={
-                            reservationData.reservationTime
-                              ? new Date(`1970-01-01T${reservationData.reservationTime}`)
-                              : null
-                          }
-                          onChange={(date) => {
-                            if (!date) return
-                            const time = date.toTimeString().slice(0, 5)
-                            setReservationData({
-                              ...reservationData,
-                              reservationTime: time,
-                            })
-                          }}
-                          showTimeSelect
-                          showTimeSelectOnly
-                          timeIntervals={30}
-                          timeCaption="Time"
-                          dateFormat="HH:mm"
-                          minTime={minTime}
-                          maxTime={maxTime}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
-                          placeholderText='Choose time'
-                        />
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10">
+                            schedule
+                          </span>
+                          <DatePicker
+                            selected={
+                              reservationData.reservationTime
+                                ? new Date(`1970-01-01T${reservationData.reservationTime}`)
+                                : null
+                            }
+                            onChange={(date) => {
+                              if (!date) return
+                              const time = date.toTimeString().slice(0, 5)
+                              setReservationData({
+                                ...reservationData,
+                                reservationTime: time,
+                              })
+                            }}
+                            showTimeSelect
+                            showTimeSelectOnly
+                            timeIntervals={30}
+                            timeCaption="Time"
+                            dateFormat="h:mm aa"
+                            minTime={minTime}
+                            maxTime={maxTime}
+                            className="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all cursor-pointer hover:border-orange-400"
+                            placeholderText="Choose time"
+                            wrapperClassName="w-full"
+                          />
+                        </div>
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Special Occasion</label>
-                      <select
-                        value={reservationData.specialOccasion}
-                        onChange={(e) => setReservationData({ ...reservationData, specialOccasion: e.target.value })}
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
-                      >
-                        <option>Just Dining</option>
-                        <option>Anniversary</option>
-                        <option>Birthday</option>
-                        <option>Business Dinner</option>
-                        <option>Proposal</option>
-                        <option>Other</option>
-                      </select>
+                      <div className="relative">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10">
+                          celebration
+                        </span>
+                        <Select
+                          value={reservationData.specialOccasion}
+                          onValueChange={(value) => setReservationData({ ...reservationData, specialOccasion: value })}
+                        >
+                          <SelectTrigger className="w-full h-12 pl-11 pr-4 rounded-lg border border-gray-300 text-gray-900 hover:border-orange-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all">
+                            <SelectValue placeholder="Select an occasion" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Just Dining">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-gray-500">restaurant</span>
+                                <span>Just Dining</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Anniversary">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-pink-500">favorite</span>
+                                <span>Anniversary</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Birthday">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-yellow-500">cake</span>
+                                <span>Birthday</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Business Dinner">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-blue-500">business_center</span>
+                                <span>Business Dinner</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Proposal">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-red-500">diamond</span>
+                                <span>Proposal</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Other">
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-gray-500">more_horiz</span>
+                                <span>Other</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div>

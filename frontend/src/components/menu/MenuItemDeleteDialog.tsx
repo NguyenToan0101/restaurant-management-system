@@ -29,9 +29,19 @@ export function MenuItemDeleteDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Delete {itemCount} item{itemCount > 1 ? "s" : ""}?
+            Delete {itemCount} menu item{itemCount > 1 ? "s" : ""}?
           </AlertDialogTitle>
-          <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              {itemCount > 1 
+                ? `You are about to permanently delete ${itemCount} menu items from your restaurant.`
+                : "You are about to permanently delete this menu item from your restaurant."
+              }
+            </p>
+            <p className="text-destructive font-medium">
+              This action cannot be undone. The {itemCount > 1 ? "items" : "item"} will be removed from all branches and any active orders.
+            </p>
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

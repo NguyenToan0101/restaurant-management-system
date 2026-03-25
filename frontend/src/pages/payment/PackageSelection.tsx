@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, ArrowRight, Store, MapPin, Phone, Mail, Globe, ShieldCheck, Info, Loader2 } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight, Store, Phone, Mail, Globe, ShieldCheck, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +47,6 @@ const PackageSelection = () => {
   });
   const [form, setForm] = useState({
     name: "",
-    address: "",
     phone: "",
     email: "",
     publicUrl: "",
@@ -86,7 +85,7 @@ const PackageSelection = () => {
         setStep("restaurant");
         window.scrollTo(0, 0);
       }
-    } else if (step === "restaurant" && form.name && form.address && form.phone && form.email) {
+    } else if (step === "restaurant" && form.name && form.phone && form.email) {
       navigate("/payment/confirm", { 
         state: { 
           package: selectedPkg, 
@@ -386,21 +385,6 @@ const PackageSelection = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Full Address *
-                      </Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/50" />
-                        <Input
-                          id="address"
-                          placeholder="123 Street, City, Country"
-                          className="pl-10 h-11 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700"
-                          value={form.address}
-                          onChange={(e) => setForm({ ...form, address: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="desc" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         Description
                       </Label>
@@ -421,7 +405,7 @@ const PackageSelection = () => {
                         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Plans
                       </Button>
                       <Button
-                        disabled={!form.name || !form.address || !form.phone || !form.email}
+                        disabled={!form.name || !form.phone || !form.email}
                         onClick={handleContinue}
                         className="flex-[2] h-12 font-bold shadow-lg shadow-primary/20 group"
                       >

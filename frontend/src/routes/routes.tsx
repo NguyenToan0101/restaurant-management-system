@@ -359,6 +359,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
         } />
         {/* Dynamic slug-based customer routes */}
+        {/* Redirect from /:slug to /:slug/home */}
+        <Route path="/:slug" element={<Navigate to="home" replace />} />
         <Route path="/:slug/home" element={
 
             <HomePage/>

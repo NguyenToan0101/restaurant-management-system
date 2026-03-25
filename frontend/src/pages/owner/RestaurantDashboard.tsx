@@ -1,4 +1,4 @@
-import { useParams, Navigate, Routes, Route, useNavigate } from "react-router-dom";
+import { useParams, Routes, Route, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info, TrendingUp, TrendingDown, DollarSign,
+  Plus, Pencil, Store, Loader2, GitBranch, Trash2, CheckCircle, XCircle, AlertCircle, Info, TrendingUp, TrendingDown, DollarSign, ExternalLink, Copy,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import ComingSoon from "@/components/ComingSoon";
@@ -42,6 +42,7 @@ import { useTodayRevenue } from "@/hooks/queries/useAnalyticsQueries";
 import type { BranchDTO, RestaurantDTO } from "@/types/dto";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency } from "@/utils/currency";
+import { useToast } from "@/hooks/use-toast";
 
 const RestaurantDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -77,6 +78,7 @@ const RestaurantDashboard = () => {
 
 const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { data: branches = [], isLoading: isLoadingBranches } = useBranchesByRestaurant(restaurant.restaurantId);
   const { data: branchLimit } = useBranchLimit(restaurant.restaurantId);
   const { data: canCreateBranch } = useCanCreateBranch(restaurant.restaurantId);
@@ -106,6 +108,16 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
     publicUrl: restaurant?.publicUrl || '',
     description: restaurant?.description || '',
   });
+
+  // Copy URL to clipboard
+  const copyPublicUrl = () => {
+    const fullUrl = `${window.location.origin}/${restaurant?.publicUrl}/home`;
+    navigator.clipboard.writeText(fullUrl);
+    toast({
+      title: "Copied!",
+      description: "Public URL copied to clipboard",
+    });
+  };
 
   const openCreate = () => {
     setEditingBranch(null);
@@ -279,7 +291,7 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
                 <div>
                   <h1 className="text-2xl font-display mb-1">{restaurant?.name}</h1>
                   <p className="text-sm text-muted-foreground mb-2">{restaurant?.email}</p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
                       <Store className="w-3.5 h-3.5" />
                       {activeBranches.length} Active Branches
@@ -289,6 +301,35 @@ const OverviewPage = ({ restaurant }: { restaurant: RestaurantDTO }) => {
                       {branches.length} Total Branches
                     </span>
                   </div>
+                  {restaurant?.publicUrl && (
+                    <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                            🌐 Public URL (Customer Page)
+                          </p>
+                          <a
+                            href={`${window.location.origin}/${restaurant.publicUrl}/home`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline flex items-center gap-1.5 font-medium break-all"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                            {window.location.origin}/{restaurant.publicUrl}/home
+                          </a>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 ml-2 flex-shrink-0"
+                          onClick={copyPublicUrl}
+                          title="Copy URL"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
