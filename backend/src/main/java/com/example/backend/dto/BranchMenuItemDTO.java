@@ -3,6 +3,7 @@ package com.example.backend.dto;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import com.example.backend.entities.CustomizationType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,5 +28,6 @@ public class BranchMenuItemDTO extends MenuItemDTO {
         private String customizationId;
         private String name;
         private BigDecimal price;
+        private CustomizationType customizationType;
     }
 }
