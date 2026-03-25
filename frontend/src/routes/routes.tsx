@@ -46,6 +46,7 @@ import WaiterDashboard from "@/pages/waiter/WaiterDashboard";
 import WaiterTableView from "@/pages/waiter/WaiterTableView";
 import WaiterOrderPage from "@/pages/waiter/WaiterOrderPage";
 import WaiterHistory from "@/pages/waiter/WaiterHistory";
+import WaiterKitchen from "@/pages/waiter/WaiterKitchen";
 
 import ReceptionistLayout from "@/components/receptionist/ReceptionistLayout";
 import ReceptionistDashboard from "@/pages/receptionist/ReceptionistDashboard";
@@ -294,6 +295,7 @@ const AppRoutes = () => {
         <Route path="tables" element={<WaiterTableView />} />
         <Route path="orders" element={<WaiterOrderPage />} />
         <Route path="history" element={<WaiterHistory />} />
+        <Route path="kitchen" element={<WaiterKitchen />} />
         <Route index element={<Navigate to="dashboard" replace />} />
       </Route>
 

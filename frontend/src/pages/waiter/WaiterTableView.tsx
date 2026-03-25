@@ -368,6 +368,7 @@ const WaiterTableView = () => {
                     isStatusChanging={setTableStatusMutation.isPending}
                     cancelOrderMutation={cancelOrderMutation}
                     onOrderCancelled={handleOrderCancelled}
+                    onGoToOrder={() => handleGoToOrder(selectedTable)}
                 />
             )}
 
@@ -619,6 +620,7 @@ interface TableDetailDialogProps {
     isStatusChanging: boolean;
     cancelOrderMutation: ReturnType<typeof useCancelOrder>;
     onOrderCancelled: () => void;
+    onGoToOrder: () => void;
 }
 
 const TableDetailDialog = ({
@@ -626,7 +628,7 @@ const TableDetailDialog = ({
     paymentMethod, setPaymentMethod, promotionCode, setPromotionCode,
     paymentNote, setPaymentNote, autoPrint, setAutoPrint,
     onConfirmPayment, isConfirming, updateOrderItem, removeOrderItem,
-    onStatusChange, isStatusChanging, cancelOrderMutation, onOrderCancelled,
+    onStatusChange, isStatusChanging, cancelOrderMutation, onOrderCancelled, onGoToOrder,
 }: TableDetailDialogProps) => {
     const { data: activeOrder, isLoading, refetch } = useActiveOrderByTable(table.areaTableId || '');
 
@@ -874,15 +876,7 @@ const TableDetailDialog = ({
                                 <Button
                                     className="w-full"
                                     onClick={() => {
-                                        onOpenChange(false);
-                                        // Navigate to order page with this table selected
-                                        if (table.areaTableId) {
-                                            const cart = (window as any).cartStore;
-                                            if (cart) {
-                                                cart.setSelectedTable(table.areaTableId, table.tag);
-                                            }
-                                            window.location.href = '/waiter/orders';
-                                        }
+                                        onGoToOrder();
                                     }}
                                 >
                                     <UtensilsCrossed className="w-4 h-4 mr-2" />
