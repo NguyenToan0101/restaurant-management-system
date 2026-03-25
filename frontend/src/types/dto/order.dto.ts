@@ -1,3 +1,5 @@
+import { CustomizationType } from './customization.dto';
+
 export enum OrderStatus {
   EATING = 'EATING',
   COMPLETED = 'COMPLETED',
@@ -166,6 +168,7 @@ export interface WaiterCustomizationDTO {
   customizationId: string;
   name: string;
   price: number;
+  customizationType: CustomizationType;
 }
 
 export interface WaiterCategoryDTO {

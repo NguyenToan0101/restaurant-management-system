@@ -84,7 +84,8 @@ public class BranchMenuItemService {
                         customizationInfos.add(new BranchMenuItemDTO.CustomizationInfo(
                                 c.getCustomizationId().toString(),
                                 c.getName(),
-                                c.getPrice()
+                                c.getPrice(),
+                                c.getCustomizationType()
                         ));
                     }
                 }
