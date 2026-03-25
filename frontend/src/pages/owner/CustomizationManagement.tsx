@@ -13,6 +13,14 @@ import type { CustomizationDTO } from "@/types/dto";
 import { CustomizationType } from "@/types/dto/customization.dto";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const formatVND = (value: number): string =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
 const CustomizationManagement = () => {
   const { id: restaurantId } = useParams<{ id: string }>();
   const { customizations, isLoading, createCustomization, updateCustomization, deleteCustomization, isCreating, isUpdating, isDeleting } = useCustomizationQueries(restaurantId);
@@ -139,7 +147,7 @@ const CustomizationManagement = () => {
                       </Badge>
                     </div>
                     <p className="text-lg font-display text-primary mt-1">
-                      {c.price > 0 ? `${c.price.toFixed(2)}đ` : "Free"}
+                      {c.price > 0 ? formatVND(c.price) : "Free"}
                     </p>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
