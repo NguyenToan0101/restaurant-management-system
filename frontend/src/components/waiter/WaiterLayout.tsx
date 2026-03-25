@@ -66,8 +66,13 @@ function WaiterLayoutContent() {
                                    (key[1] === 'order' || key[1] === 'orders');
                         }
                     });
-                    // Invalidate kitchen query to live-update the kitchen view
-                    window.queryClient?.invalidateQueries({ queryKey: ['current-order-lines'] });
+                    // Invalidate kitchen query to live-update the kitchen view (key is ["current-order-lines", branchId])
+                    window.queryClient?.invalidateQueries({
+                        predicate: (query) => {
+                            const key = query.queryKey;
+                            return Array.isArray(key) && key[0] === 'current-order-lines';
+                        },
+                    });
                 };
 
                 // Invalidate immediately
