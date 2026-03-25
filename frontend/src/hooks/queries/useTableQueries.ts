@@ -19,11 +19,20 @@ export const useTablesByArea = (areaId: string) => {
     });
 };
 
-export const useTablesByBranch = (branchId: string) => {
+export const useTablesByBranch = (
+    branchId: string,
+    options?: {
+        refetchInterval?: number;
+        refetchOnWindowFocus?: boolean;
+        enabled?: boolean;
+    }
+) => {
     return useQuery({
         queryKey: ['tables', 'branch', branchId],
         queryFn: () => tableApi.getByBranch(branchId),
-        enabled: !!branchId,
+        enabled: options?.enabled ?? !!branchId,
+        refetchInterval: options?.refetchInterval,
+        refetchOnWindowFocus: options?.refetchOnWindowFocus,
     });
 };
 

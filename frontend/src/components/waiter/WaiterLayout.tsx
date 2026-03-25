@@ -51,8 +51,11 @@ function WaiterLayoutContent() {
                 addNotification(notification);
                 playNotificationSound();
                 
-                // Invalidate tables query to refresh table status
-                window.queryClient?.invalidateQueries({ queryKey: ['tables'] });
+                // Invalidate all "tables" related queries to refresh table status
+                window.queryClient?.invalidateQueries({
+                    predicate: (query) =>
+                        Array.isArray(query.queryKey) && query.queryKey[0] === 'tables',
+                });
                 
                 const invalidateOrderQueries = () => {
                     window.queryClient?.invalidateQueries({ 
@@ -89,8 +92,11 @@ function WaiterLayoutContent() {
         };
 
         const handleTableStatusChanged = (data: any) => {
-            // Invalidate tables query to refresh table status
-            window.queryClient?.invalidateQueries({ queryKey: ['tables'] });
+            // Invalidate all "tables" related queries to refresh table status
+            window.queryClient?.invalidateQueries({
+                predicate: (query) =>
+                    Array.isArray(query.queryKey) && query.queryKey[0] === 'tables',
+            });
             
             // Invalidate order queries for this specific table
             window.queryClient?.invalidateQueries({ 

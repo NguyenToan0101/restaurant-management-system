@@ -58,7 +58,11 @@ const WaiterTableView = () => {
 
     const { data: allAreas = [] } = useAreasByBranch(branchId || '');
     const activeAreas = allAreas.filter(a => a.status === EntityStatus.ACTIVE);
-    const { data: allTables = [], isLoading } = useTablesByBranch(branchId || '');
+    const { data: allTables = [], isLoading } = useTablesByBranch(branchId || '', {
+        // Ensure dashboard reflects QR customer orders in near real-time
+        refetchInterval: 3000,
+        refetchOnWindowFocus: true,
+    });
 
     const [selectedTable, setSelectedTable] = useState<AreaTableDTO | null>(null);
     const [tableDialogOpen, setTableDialogOpen] = useState(false);
