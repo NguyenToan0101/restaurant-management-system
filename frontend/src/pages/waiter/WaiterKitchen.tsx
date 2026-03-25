@@ -1,8 +1,7 @@
 import { useMemo, useEffect, useState, useCallback, memo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/stores/authStore";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useBranchContext } from "@/hooks/useBranchContext";
-import { managerApi } from "@/api/managerApi";
+import { waiterOrderApi } from "@/api/waiterOrderApi";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,9 +32,13 @@ function formatElapsed(nowMs: number, startMs: number) {
 const OrderLineCard = ({
   line,
   nowMs,
+  onUpdateStatus,
+  isUpdating,
 }: {
   line: OrderLineDTO;
   nowMs: number;
+  onUpdateStatus: (orderLineId: string, status: string) => void;
+  isUpdating: boolean;
 }) => {
   const startMs = useMemo(() => normalizeEpochMs(line.createdAt), [line.createdAt]);
   const elapsed = useMemo(() => formatElapsed(nowMs, startMs), [nowMs, startMs]);
@@ -105,6 +108,28 @@ const OrderLineCard = ({
             {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(line.totalPrice)}
           </div>
         </div>
+
+        <div className="w-full">
+          {line.orderLineStatus === "PENDING" ? (
+            <button
+              onClick={() => onUpdateStatus(line.orderLineId, "PREPARING")}
+              disabled={isUpdating}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Bắt đầu nấu
+            </button>
+          ) : line.orderLineStatus === "PREPARING" ? (
+            <button
+              onClick={() => onUpdateStatus(line.orderLineId, "COMPLETED")}
+              disabled={isUpdating}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Hoàn thành
+            </button>
+          ) : null}
+        </div>
       </CardFooter>
     </Card>
   );
@@ -113,18 +138,61 @@ const OrderLineCard = ({
 const MemoOrderLineCard = memo(OrderLineCard);
 MemoOrderLineCard.displayName = "OrderLineCard";
 
-const ManagerKitchen = () => {
+const WaiterKitchen = () => {
   const queryClient = useQueryClient();
   const { branchId } = useBranchContext();
 
   const { data: orderLines = [], isLoading } = useQuery({
     queryKey: ["current-order-lines", branchId],
-    queryFn: () => managerApi.getCurrentOrderLines(branchId),
+    queryFn: () => waiterOrderApi.getCurrentOrderLines(branchId),
     enabled: !!branchId,
     staleTime: 5000,
     refetchOnWindowFocus: false,
-    keepPreviousData: true,
   });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ orderLineId, status }: { orderLineId: string; status: string }) =>
+      waiterOrderApi.updateOrderLineStatus(orderLineId, status),
+    onMutate: async ({ orderLineId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["current-order-lines", branchId] });
+      const previous = queryClient.getQueryData<OrderLineDTO[]>(["current-order-lines", branchId]) || [];
+
+      queryClient.setQueryData<OrderLineDTO[]>(["current-order-lines", branchId], (old = []) =>
+        old.map((line) =>
+          line.orderLineId === orderLineId
+            ? {
+                ...line,
+                orderLineStatus: status,
+              }
+            : line
+        )
+      );
+
+      return { previous };
+    },
+    onSuccess: () => {
+      toast.success("Status updated successfully");
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData<OrderLineDTO[]>(["current-order-lines", branchId], context.previous);
+      }
+      toast.error("Failed to update status", {
+        description: error.response?.data?.message || "An error occurred",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["current-order-lines", branchId] });
+    },
+  });
+
+  const handleUpdateStatusStable = useCallback(
+    (orderLineId: string, status: string) => {
+      updateStatusMutation.mutate({ orderLineId, status });
+    },
+    [updateStatusMutation]
+  );
 
   const pendingLines = useMemo(() => orderLines.filter((line) => line.orderLineStatus === "PENDING"), [orderLines]);
   const preparingLines = useMemo(() => orderLines.filter((line) => line.orderLineStatus === "PREPARING"), [orderLines]);
@@ -143,10 +211,10 @@ const ManagerKitchen = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
             <ChefHat className="h-8 w-8 text-orange-500" />
-            Kitchen Monitor
+            Kitchen Display
           </h1>
           <p className="text-muted-foreground flex items-center gap-2">
-            Kitchen display for branch staff.
+            Manage cooking statuses.
           </p>
         </div>
         <div className="flex gap-4">
@@ -189,6 +257,8 @@ const ManagerKitchen = () => {
                     key={line.orderLineId}
                     line={line}
                     nowMs={nowMs}
+                    onUpdateStatus={handleUpdateStatusStable}
+                    isUpdating={updateStatusMutation.isPending}
                   />
                 ))
               )}
@@ -204,6 +274,8 @@ const ManagerKitchen = () => {
                   key={line.orderLineId}
                   line={line}
                   nowMs={nowMs}
+                  onUpdateStatus={handleUpdateStatusStable}
+                  isUpdating={updateStatusMutation.isPending}
                 />
               ))}
               {pendingLines.length === 0 && !isLoading && (
@@ -221,6 +293,8 @@ const ManagerKitchen = () => {
                   key={line.orderLineId}
                   line={line}
                   nowMs={nowMs}
+                  onUpdateStatus={handleUpdateStatusStable}
+                  isUpdating={updateStatusMutation.isPending}
                 />
               ))}
               {preparingLines.length === 0 && !isLoading && (
@@ -234,4 +308,4 @@ const ManagerKitchen = () => {
   );
 };
 
-export default ManagerKitchen;
+export default WaiterKitchen;

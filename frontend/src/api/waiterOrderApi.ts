@@ -12,6 +12,7 @@ import type {
   WaiterMenuItemDTO,
   WaiterCategoryDTO,
   TableStatus,
+  OrderLineDTO,
 } from '@/types/dto';
 
 class WaiterOrderApi {
@@ -111,6 +112,18 @@ class WaiterOrderApi {
 
   async getTodayOrdersCount(branchId: string): Promise<number> {
     const response = await axiosClient.get<ApiResponse<number>>(`/waiter/orders/branch/${branchId}/today-count`);
+    return response.data.result;
+  }
+
+  async getCurrentOrderLines(branchId: string): Promise<OrderLineDTO[]> {
+    const response = await axiosClient.get<ApiResponse<OrderLineDTO[]>>(`/manager/order-lines/current?branchId=${branchId}`);
+    return response.data.result;
+  }
+
+  async updateOrderLineStatus(orderLineId: string, status: string): Promise<OrderLineDTO> {
+    const response = await axiosClient.patch<ApiResponse<OrderLineDTO>>(
+      `/manager/order-lines/${orderLineId}/status?status=${status}`
+    );
     return response.data.result;
   }
 }

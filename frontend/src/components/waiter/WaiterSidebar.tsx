@@ -20,6 +20,7 @@ import {
     History,
     LogOut,
     LayoutDashboard,
+    ChefHat,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
@@ -60,6 +61,13 @@ const WaiterSidebar = () => {
             icon: ShoppingCart,
             url: "/waiter/orders",
             isActive: location.pathname.startsWith("/waiter/orders"),
+        },
+        {
+            title: "Kitchen",
+            description: "Kitchen display",
+            icon: ChefHat,
+            url: "/waiter/kitchen",
+            isActive: location.pathname.startsWith("/waiter/kitchen"),
         },
         {
             title: "History",

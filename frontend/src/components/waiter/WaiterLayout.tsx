@@ -54,16 +54,26 @@ function WaiterLayoutContent() {
                 // Invalidate tables query to refresh table status
                 window.queryClient?.invalidateQueries({ queryKey: ['tables'] });
                 
-                // Invalidate all order-related queries to refresh order details
-                // This includes ['waiter', 'order', 'table', tableId] queries
-                window.queryClient?.invalidateQueries({ 
-                    predicate: (query) => {
-                        const key = query.queryKey;
-                        return Array.isArray(key) && 
-                               key[0] === 'waiter' && 
-                               (key[1] === 'order' || key[1] === 'orders');
-                    }
-                });
+                const invalidateOrderQueries = () => {
+                    window.queryClient?.invalidateQueries({ 
+                        predicate: (query) => {
+                            const key = query.queryKey;
+                            return Array.isArray(key) && 
+                                   key[0] === 'waiter' && 
+                                   (key[1] === 'order' || key[1] === 'orders');
+                        }
+                    });
+                    // Invalidate kitchen query to live-update the kitchen view
+                    window.queryClient?.invalidateQueries({ queryKey: ['current-order-lines'] });
+                };
+
+                // Invalidate immediately
+                invalidateOrderQueries();
+
+                // Also invalidate after a short delay (race condition with DB transaction commit)
+                setTimeout(() => {
+                    invalidateOrderQueries();
+                }, 500);
             } catch (error) {
                 const fallbackNotification: Notification = {
                     eventId: data.eventId || `fallback-${Date.now()}`,
@@ -112,9 +122,8 @@ function WaiterLayoutContent() {
     const navigateToOrder = (notification: Notification) => {
         dismissNotification(notification.eventId);
         
-        // If notification has table info, navigate to table view (stays on same page if already there)
-        // The table detail will be opened via URL state or we just stay on tables page
-        navigate('/waiter/tables');
+        // As requested, clicking a new order notification navigates to the kitchen queue
+        navigate('/waiter/kitchen');
     };
 
     return (
